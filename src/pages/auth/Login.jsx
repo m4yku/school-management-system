@@ -64,7 +64,7 @@ const Login = () => {
         <form className="space-y-6" onSubmit={handleLogin}>
           {/* Username Input */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Username</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">enok</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
                 <User size={18} />
