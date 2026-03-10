@@ -34,7 +34,7 @@ function App() {
           {/* 1. PUBLIC ROUTES (Walang Sidebar) */}
           <Route path="/" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/unauthorized" element={<Unauthorized />} />
-
+          
           {/* 2. ADMIN ROUTES (May Sidebar dahil sa AdminLayout) */}
           <Route 
             path="/admin" 
