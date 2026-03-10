@@ -1,26 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { UserPlus, Pencil, Trash2, X, Shield, Mail, RefreshCw } from 'lucide-react'; // Idinagdag ang RefreshCw
+import { UserPlus, Pencil, Trash2, X, Shield, Mail, RefreshCw, Calendar, Phone, User } from 'lucide-react'; 
 import { useAuth } from '../../context/AuthContext';
 
 const UserManagement = () => {
   const { user: currentUser, branding } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saveLoading, setSaveLoading] = useState(false); // Hiwalay na state para sa button loading
+  const [saveLoading, setSaveLoading] = useState(false); 
   const [showModal, setShowModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [emailError, setEmailError] = useState('');
   
-  const [formData, setFormData] = useState({
+  // 1. UPDATED FORM DATA (Wala nang password, hinati ang pangalan)
+  const initialFormState = {
     username: '',
-    password: '',
-    full_name: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
     email: '',
+    birthday: '',
+    phone_number: '',
     role: 'registrar'
-  });
+  };
 
+  const [formData, setFormData] = useState(initialFormState);
   const [deleteModal, setDeleteModal] = useState({ show: false, id: null, name: '' });
 
   const fetchUsers = async () => {
@@ -38,10 +43,9 @@ const UserManagement = () => {
 
   useEffect(() => { fetchUsers(); }, []);
 
-  // REAL-TIME EMAIL VALIDATION FIX
+  // REAL-TIME EMAIL VALIDATION
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
-      // VALIDATION: Wag mag-check kung Edit Mode (para iwas false error sa sariling email)
       if (formData.email && !isEditMode && showModal) { 
         try {
           const res = await axios.get(`http://localhost/sms-api/check_email.php?email=${formData.email}`);
@@ -59,7 +63,7 @@ const UserManagement = () => {
 
   const handleAddUser = async (e) => {
     if (e) e.preventDefault();
-    if (emailError || saveLoading) return; // Gamitin ang saveLoading
+    if (emailError || saveLoading) return; 
 
     setSaveLoading(true); 
     try {
@@ -68,7 +72,7 @@ const UserManagement = () => {
 
       if (response.data && response.data.success) {
         setShowModal(false);
-        setFormData({ username: '', password: '', full_name: '', email: '', role: 'registrar' });
+        setFormData(initialFormState);
         setEmailError('');
         await fetchUsers(); 
         
@@ -101,13 +105,16 @@ const UserManagement = () => {
   const openEditModal = (user) => {
     setIsEditMode(true);
     setSelectedUserId(user.id);
-    setEmailError(''); // Clear errors before editing
+    setEmailError(''); 
     setFormData({
-      full_name: user.full_name || '',
+      first_name: user.first_name || '',
+      middle_name: user.middle_name || '',
+      last_name: user.last_name || '',
       email: user.email || '',
       username: user.username || '',
+      birthday: user.birthday || '',
+      phone_number: user.phone_number || '',
       role: user.role || 'registrar',
-      password: '' 
     });
     setShowModal(true);
   };
@@ -117,13 +124,13 @@ const UserManagement = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">User Management</h1>
-          <p className="text-slate-500 text-sm">Manage system access and accounts.</p>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Staff Management</h1>
+          <p className="text-slate-500 text-sm">Invite and manage system personnel.</p>
         </div>
         <button 
           onClick={() => { 
             setIsEditMode(false); 
-            setFormData({username:'', password:'', full_name:'', email: '', role:'registrar'});
+            setFormData(initialFormState);
             setEmailError('');
             setShowModal(true); 
           }}
@@ -131,7 +138,7 @@ const UserManagement = () => {
           style={{ backgroundColor: branding.theme_color || '#2563eb' }}
         >
           <UserPlus size={20} className="group-hover:rotate-12 transition-transform" />
-          <span className="font-bold text-sm tracking-tight">Add New User</span>
+          <span className="font-bold text-sm tracking-tight">Invite Staff</span>
         </button>
       </div>
 
@@ -142,14 +149,14 @@ const UserManagement = () => {
             <thead className="bg-slate-50/50 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Personnel</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contact</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role & Status</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan="4" className="text-center py-10 text-slate-400 italic">Loading users...</td></tr>
+                <tr><td colSpan="4" className="text-center py-10 text-slate-400 italic">Loading staff...</td></tr>
               ) : (
                 users.map((user) => (
                   <tr key={user.id || Math.random()} className="hover:bg-slate-50/50 transition-colors group">
@@ -157,22 +164,33 @@ const UserManagement = () => {
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-sm"
                              style={{ backgroundColor: branding.theme_color || '#2563eb' }}>
-                          {user.full_name?.charAt(0) || 'U'}
+                          {user.full_name?.charAt(0) || user.first_name?.charAt(0) || 'U'}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-700 text-sm">{user.full_name}</p>
+                          <p className="font-bold text-slate-700 text-sm">{user.full_name || `${user.first_name} ${user.last_name}`}</p>
                           <p className="text-[10px] text-slate-400 font-medium">@{user.username}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-500 text-sm">{user.email || 'No email set'}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter
-                        ${user.role === 'admin' ? 'bg-purple-100 text-purple-600' : 
-                          user.role === 'registrar' ? 'bg-blue-100 text-blue-600' : 
-                          'bg-emerald-100 text-emerald-600'}`}>
-                        {user.role}
-                      </span>
+                      <p className="text-slate-600 text-sm font-medium">{user.email || 'No email'}</p>
+                      <p className="text-[10px] text-slate-400">{user.phone_number || 'No phone'}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col items-start gap-1">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter
+                          ${user.role === 'admin' ? 'bg-purple-100 text-purple-600' : 
+                            user.role === 'registrar' ? 'bg-blue-100 text-blue-600' : 
+                            'bg-emerald-100 text-emerald-600'}`}>
+                          {user.role}
+                        </span>
+                        {/* Status Indicator */}
+                        {user.is_verified == 1 ? (
+                          <span className="text-[10px] font-bold text-emerald-500 flex items-center gap-1"><Shield size={10}/> Verified</span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1"><Mail size={10}/> Pending</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-1">
@@ -194,66 +212,109 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* MODAL - Updated width, layout, and SCROLLABLE FIX */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight">
-                {isEditMode ? 'Update Member' : 'Create Member'}
+          
+          {/* NILAGYAN NG max-h-[90vh] at flex flex-col DITO */}
+          <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            
+            {/* HEADER - Nilagyan ng shrink-0 para hindi lumiit */}
+            <div className="p-6 md:p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 shrink-0">
+              <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <UserPlus className="text-blue-500" />
+                {isEditMode ? 'Update Staff Member' : 'Invite New Staff'}
               </h3>
-              <button onClick={() => {setShowModal(false); setEmailError('');}} className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full"><X size={20} /></button>
+              <button onClick={() => {setShowModal(false); setEmailError('');}} className="text-slate-400 hover:text-slate-600 bg-white shadow-sm p-2 rounded-full"><X size={20} /></button>
             </div>
             
-            <form onSubmit={handleAddUser} className="p-8 space-y-5">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Full Name</label>
-                <input type="text" required className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-all text-sm"
-                  value={formData.full_name} onChange={(e) => setFormData({...formData, full_name: e.target.value})} />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Mail size={10} /> Email Address</label>
-                <input type="email" required className={`w-full p-3.5 border rounded-2xl outline-none transition-all text-sm ${emailError ? 'border-red-400 bg-red-50' : 'bg-slate-50 border-slate-200 focus:border-blue-500'}`}
-                  placeholder="juan@school.edu" value={formData.email} onChange={(e) => {setEmailError(''); setFormData({...formData, email: e.target.value});}} />
-                {emailError && <p className="text-[10px] text-red-500 font-bold ml-1 animate-in fade-in slide-in-from-top-1">⚠️ {emailError}</p>}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+            {/* FORM - Nilagyan ng overflow-y-auto para ito lang ang mag-scroll */}
+            <form onSubmit={handleAddUser} className="p-6 md:p-8 space-y-5 overflow-y-auto">
+              
+              {/* Pangalan Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Username</label>
-                  <input type="text" required className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-all text-sm"
-                    value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">First Name</label>
+                  <input type="text" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all text-sm"
+                    value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} placeholder="Juan" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Password</label>
-                  <input type="password" required={!isEditMode} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-all text-sm"
-                    placeholder={isEditMode ? "••••••" : "Required"} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Middle Name</label>
+                  <input type="text" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all text-sm"
+                    value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} placeholder="Optional" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Last Name</label>
+                  <input type="text" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all text-sm"
+                    value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} placeholder="Dela Cruz" />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">System Role</label>
-                <select value={formData.role} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-all text-sm"
-                  onChange={(e) => setFormData({...formData, role: e.target.value})}>
-                  <option value="registrar">Registrar</option>
-                  <option value="cashier">Cashier</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="admin">Admin</option>
-                </select>
+              {/* Contact Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Mail size={10} /> Email Address</label>
+                  <input type="email" required className={`w-full p-3 border rounded-xl outline-none transition-all text-sm ${emailError ? 'border-red-400 bg-red-50' : 'bg-slate-50 border-slate-200 focus:border-blue-500'}`}
+                    placeholder="juan@school.edu" value={formData.email} onChange={(e) => {setEmailError(''); setFormData({...formData, email: e.target.value});}} />
+                  {emailError && <p className="text-[10px] text-red-500 font-bold ml-1 animate-in fade-in slide-in-from-top-1">⚠️ {emailError}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Phone size={10} /> Phone Number</label>
+                  <input type="text" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all text-sm"
+                    placeholder="09123456789" value={formData.phone_number} onChange={(e) => setFormData({...formData, phone_number: e.target.value})} />
+                </div>
               </div>
+
+              {/* Account Details Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Calendar size={10} /> Birthday</label>
+                  <input type="date" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all text-sm text-slate-600"
+                    value={formData.birthday} onChange={(e) => setFormData({...formData, birthday: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><User size={10} /> Username</label>
+                  <input type="text" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all text-sm"
+                    value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} placeholder="juandc" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Position</label>
+                  <select value={formData.role} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all text-sm font-bold text-slate-700"
+                    onChange={(e) => setFormData({...formData, role: e.target.value})}>
+                    <option value="registrar">Registrar</option>
+                    <option value="cashier">Cashier</option>
+                    <option value="it">IT Custodian</option>
+                    <option value="admin">Administrator</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Notice Area */}
+              {!isEditMode && (
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-start gap-3 mt-4 shrink-0">
+                  <Mail className="text-blue-500 mt-0.5 shrink-0" size={16} />
+                  <div>
+                    <p className="text-xs font-bold text-blue-800">Account Invitation</p>
+                    <p className="text-[11px] text-blue-600 mt-0.5">Ang staff na ito ay makakatanggap ng email link upang i-verify ang kanilang account at gumawa ng sariling password.</p>
+                  </div>
+                </div>
+              )}
 
               <button 
                 type="submit" 
                 disabled={saveLoading || emailError}
-                className="shine-effect w-full py-4 rounded-2xl text-white font-black shadow-2xl transition-all active:scale-[0.98] border border-white/10 flex items-center justify-center space-x-2"
+                className="shine-effect w-full py-4 rounded-xl text-white font-black shadow-xl mt-6 transition-all active:scale-[0.98] flex items-center justify-center space-x-2 shrink-0"
                 style={{ 
                   backgroundColor: branding.theme_color || '#2563eb',
                   opacity: (saveLoading || emailError) ? 0.7 : 1,
                   cursor: (saveLoading || emailError) ? 'not-allowed' : 'pointer'
                 }}
               >
-                {saveLoading ? <><RefreshCw className="animate-spin" size={20} /><span>Processing...</span></> : <span>{isEditMode ? 'Save Changes' : 'Confirm & Create Account'}</span>}
+                {saveLoading ? (
+                  <><RefreshCw className="animate-spin" size={18} /><span>Processing...</span></>
+                ) : (
+                  <span>{isEditMode ? 'Save Changes' : 'Send Invitation'}</span>
+                )}
               </button>
             </form>
           </div>
