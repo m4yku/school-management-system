@@ -8,6 +8,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'; // <-- Siguraduhin na 
 import ResetPassword from './pages/auth/ResetPassword';
 import StudentManagement from './pages/registrar/StudentManagement'; // (Palitan path depende sa kung saan mo sinave)
 import StudentDashboard from './pages/student/StudentDashboard';
+import PaymentDashboard from './pages/cashier/PaymentDashboard'; // (Palitan path depende sa kung saan mo sinave)
 
 
 // Layouts
@@ -24,6 +25,13 @@ const AdminDashboard = () => (
   <div className="p-10">
     <h1 className="text-3xl font-bold text-blue-600 tracking-tight">Admin Dashboard</h1>
     <p className="mt-2 text-slate-600 font-medium">Welcome to the Command Center.</p>
+  </div>
+);
+
+const CashierDashboard = () => (
+  <div className="p-10">
+    <h1 className="text-3xl font-bold text-blue-600 tracking-tight">Cashier Dashboard</h1>
+    <p className="mt-2 text-slate-600 font-medium">Welcome to the Cashier Portal.</p>
   </div>
 );
 
@@ -86,8 +94,8 @@ function App() {
               <AdminLayout /> 
             </ProtectedRoute>
           }>
-            <Route path="dashboard" element={<div className="p-10 text-2xl font-bold">Cashier Dashboard (Harvey)</div>} />
-            <Route path="payments" element={<div className="p-10 text-2xl font-bold">Payments Module (Harvey)</div>} />
+            <Route path="dashboard" element={<CashierDashboard />} />
+            <Route path="payments" element={<PaymentDashboard />} />
           </Route>
 
           {/* 5. LMS / TEACHER ROUTES (Kay Joshua) */}
