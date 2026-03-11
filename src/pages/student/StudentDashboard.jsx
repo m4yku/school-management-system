@@ -3,9 +3,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const StudentDashboard = () => {
-  const { user, logout, branding } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [isSidebarOpen, setSidebarOpen] = useState(false); // Default closed for mobile
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+
+  // Constants for our specific school branding
+  const schoolName = "Colegio de San Pascual Baylon";
+  const schoolAcronym = "CSPB";
 
   const handleLogout = () => {
     logout();
@@ -14,26 +18,29 @@ const StudentDashboard = () => {
 
   const menuItems = [
     { name: 'Dashboard', icon: '🏠', path: '/dashboard' },
-    { name: 'LMS', icon: '📚', path: '/lms' },
+    { name: 'LMS (E-Learning)', icon: '📚', path: '/lms' },
     { name: 'Accounting', icon: '💳', path: '/accounting' },
     { name: 'Enrollment', icon: '📝', path: '/enrollment' },
     { name: 'Grades', icon: '📊', path: '/grades' },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
       
       {/* --- MOBILE TOP NAVBAR --- */}
-      <div className="md:hidden bg-white border-b px-5 py-3 flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">
-            {branding?.logoInitial || 'S'}
+      <div className="md:hidden bg-white border-b border-slate-200 px-5 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-[#003366] rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-md">
+            {/* Placeholder for CSPB Logo */}
+            CSPB
           </div>
-          <span className="font-black text-slate-800 text-sm tracking-tight">STUDENT PORTAL</span>
+          <span className="font-black text-[#003366] text-xs tracking-tighter uppercase">
+            {schoolName}
+          </span>
         </div>
         <button 
           onClick={() => setSidebarOpen(!isSidebarOpen)}
-          className="p-2 text-slate-600 bg-slate-100 rounded-lg"
+          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
         >
           {isSidebarOpen ? '✕' : '☰'}
         </button>
@@ -41,48 +48,57 @@ const StudentDashboard = () => {
 
       {/* --- SIDEBAR (Desktop & Mobile Drawer) --- */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-40 w-72 bg-[#001f3f] transform transition-transform duration-300 ease-in-out
         md:relative md:translate-x-0 
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="h-full flex flex-col">
-          {/* School Name (Desktop Only) */}
-          <div className="hidden md:flex p-6 items-center gap-3 border-b border-slate-800">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
-              {branding?.logoInitial || 'S'}
+          {/* School Branding Section (Desktop) */}
+          <div className="hidden md:flex flex-col p-8 items-center text-center gap-4 border-b border-white/10">
+            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center text-[#003366] font-black text-2xl shadow-2xl border-4 border-yellow-500">
+              {/* Replace with <img src="/logo.png" /> later */}
+              CSPB
             </div>
-            <span className="font-black text-white text-sm leading-tight">
-              {branding?.schoolName || 'SMS UNIVERSITY'}
-            </span>
+            <div>
+              <h2 className="font-black text-white text-sm leading-tight tracking-wide uppercase">
+                {schoolName}
+              </h2>
+              <p className="text-yellow-500 text-[10px] font-bold mt-1 tracking-[0.2em]">STUDENT PORTAL</p>
+            </div>
           </div>
 
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          {/* Navigation Links */}
+          <nav className="flex-1 px-4 py-8 space-y-1">
             {menuItems.map((item) => (
               <button
                 key={item.name}
                 onClick={() => { navigate(item.path); setSidebarOpen(false); }}
-                className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-slate-400 hover:bg-blue-600 hover:text-white transition-all font-bold text-sm"
+                className="w-full flex items-center gap-4 px-5 py-3.5 rounded-xl text-slate-300 hover:bg-yellow-500 hover:text-[#001f3f] transition-all font-bold text-sm group"
               >
-                <span>{item.icon}</span>
+                <span className="text-xl group-hover:scale-110 transition-transform">{item.icon}</span>
                 {item.name}
               </button>
             ))}
           </nav>
 
-          {/* User Profile at Bottom */}
-          <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-            <div className="flex items-center gap-3 mb-4 px-2">
-              <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white">👤</div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-bold text-white truncate">{user?.full_name || 'Student'}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-tighter">Verified Student</p>
+          {/* User Profile & Logout Section */}
+          <div className="p-6 border-t border-white/5 bg-black/20">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-[#001f3f] font-bold">
+                {user?.full_name?.charAt(0) || 'S'}
+              </div>
+              <div className="overflow-hidden text-left">
+                <p className="text-xs font-black text-white truncate uppercase tracking-tighter">
+                  {user?.full_name || 'Pascuallian Student'}
+                </p>
+                <p className="text-[10px] text-yellow-500/80 font-bold uppercase">Academic Year 24-25</p>
               </div>
             </div>
             <button 
               onClick={handleLogout}
-              className="w-full py-3 rounded-xl bg-red-500/10 text-red-500 font-bold text-xs hover:bg-red-500 hover:text-white transition-all"
+              className="w-full py-3 rounded-xl bg-red-500/10 text-red-400 font-black text-[10px] tracking-widest hover:bg-red-500 hover:text-white transition-all border border-red-500/20 uppercase"
             >
-              LOGOUT SYSTEM
+              Log out Session
             </button>
           </div>
         </div>
@@ -90,57 +106,50 @@ const StudentDashboard = () => {
 
       {/* --- BACKDROP (Mobile Only) --- */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        ></div>
+        <div className="fixed inset-0 bg-[#001f3f]/80 backdrop-blur-sm z-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>
       )}
 
-      {/* --- MAIN CONTENT --- */}
+      {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 h-screen overflow-y-auto">
-        {/* Desktop Header (Hidden on Mobile) */}
-        <header className="hidden md:flex h-16 bg-white border-b items-center justify-between px-8 sticky top-0 z-20">
-          <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Overview</h2>
-          <div className="flex items-center gap-4 text-xs font-bold text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100">
-            S.Y. 2025-2026 | 1st Semester
+        {/* Desktop Header */}
+        <header className="hidden md:flex h-20 bg-white border-b border-slate-200 items-center justify-between px-10 sticky top-0 z-20">
+          <div className="flex flex-col">
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Home / Dashboard</h2>
+            <span className="text-sm font-bold text-[#003366]">Official Student Management System</span>
+          </div>
+          
+          <div className="bg-blue-50 px-5 py-2 rounded-full border border-blue-100 flex items-center gap-3">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            <span className="text-xs font-black text-[#003366] uppercase tracking-tighter">System Online</span>
           </div>
         </header>
 
-        <div className="p-5 md:p-10 max-w-5xl mx-auto pb-24 md:pb-10">
-          <header className="mb-8">
-            <h1 className="text-2xl md:text-4xl font-black text-slate-900">
-              Mabuhay, <span className="text-blue-600">{user?.full_name?.split(' ')[0]}</span>!
+        <div className="p-6 md:p-12 max-w-6xl mx-auto pb-32 md:pb-12">
+          {/* Welcome Message */}
+          <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <h1 className="text-3xl md:text-5xl font-black text-slate-900 leading-tight">
+              Mabuhay, <span className="text-[#003366]">{user?.full_name?.split(' ')[0]}</span>!
             </h1>
-            <p className="text-slate-500 text-sm md:text-base font-medium">Narito ang status ng iyong pag-aaral.</p>
-          </header>
-
-          {/* Responsive Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SummaryCard title="Accounting" status="Paid" icon="✅" desc="Tuition is up to date" />
-            <SummaryCard title="LMS Activities" status="3 Pending" icon="📝" desc="Due this week" />
+            <p className="text-slate-500 mt-2 font-medium text-lg">
+              Welcome to the <span className="text-yellow-600 font-bold">CSPB</span> Student Portal.
+            </p>
           </div>
 
-          {/* Mobile Quick Links (Grid for easier thumb access) */}
-          <div className="mt-8 md:hidden">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Quick Menu</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {menuItems.slice(1).map(item => (
-                <button key={item.name} className="bg-white p-4 rounded-2xl border border-slate-200 text-left shadow-sm">
-                  <span className="text-2xl block mb-2">{item.icon}</span>
-                  <span className="font-bold text-slate-800 text-sm">{item.name}</span>
-                </button>
-              ))}
-            </div>
+          {/* Summary Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <SummaryCard title="Enrollment Status" value="ENROLLED" icon="🎓" color="border-l-green-500" />
+            <SummaryCard title="Financial Balance" value="₱ 0.00" icon="💳" color="border-l-blue-500" />
+            <SummaryCard title="LMS Tasks" value="4 Pending" icon="🔔" color="border-l-yellow-500" />
           </div>
         </div>
       </main>
 
-      {/* --- BOTTOM NAV (Mobile Only - Thumb Friendly) --- */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center py-2 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+      {/* --- MOBILE BOTTOM NAV --- */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around items-center py-3 z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
         {menuItems.slice(0, 4).map(item => (
-          <button key={item.name} className="flex flex-col items-center gap-1 p-2">
-            <span className="text-xl">{item.icon}</span>
-            <span className="text-[10px] font-bold text-slate-500">{item.name}</span>
+          <button key={item.name} className="flex flex-col items-center gap-1 group">
+            <span className="text-xl group-active:scale-90 transition-transform">{item.icon}</span>
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">{item.name}</span>
           </button>
         ))}
       </div>
@@ -149,15 +158,13 @@ const StudentDashboard = () => {
   );
 };
 
-// Sub-component for clean rendering
-const SummaryCard = ({ title, status, icon, desc }) => (
-  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex items-start gap-4">
-    <div className="text-3xl">{icon}</div>
+const SummaryCard = ({ title, value, icon, color }) => (
+  <div className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 ${color} flex items-center justify-between hover:shadow-md transition-shadow`}>
     <div>
-      <h3 className="font-black text-slate-800 text-sm uppercase tracking-tight">{title}</h3>
-      <p className="text-lg font-bold text-blue-600 leading-none my-1">{status}</p>
-      <p className="text-[11px] text-slate-400 font-medium uppercase tracking-tighter">{desc}</p>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
+      <p className="text-xl font-black text-slate-800 tracking-tight">{value}</p>
     </div>
+    <div className="text-3xl opacity-20">{icon}</div>
   </div>
 );
 
