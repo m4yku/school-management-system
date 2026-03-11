@@ -99,7 +99,7 @@ const LandingPage = () => {
                     </div>
                     <div className="text-left">
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-300">Staff Access</p>
-                      <p className="text-lg font-black text-slate-800 group-hover:text-white leading-none">Teacher Portal</p>
+                      <p className="text-lg font-black text-slate-800 group-hover:text-white leading-none">Staff Portal</p>
                     </div>
                   </div>
                   <ArrowRight className="text-slate-400 group-hover:text-white group-hover:translate-x-1 transition-all" />
