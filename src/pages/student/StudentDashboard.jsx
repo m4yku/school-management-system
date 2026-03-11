@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext'; // Siguraduhing tama ang path ng context mo
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const StudentDashboard = () => {
@@ -7,209 +7,162 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
-  // School Branding Constants
+  // SIMULATED DATA (Sa Phase 2, manggagaling ito sa PHP API mo)
+  const [studentInfo, setStudentInfo] = useState({
+    paymentStatus: "Unpaid", // Subukan mong gawing "Paid" para makita ang pagbabago
+    balance: "15,500.00",
+    enrollmentStatus: "Enrolled"
+  });
+
   const schoolName = "Colegio de San Pascual Baylon";
   const schoolAcronym = "CSPB";
 
   const handleLogout = () => {
-    if (window.confirm("Sigurado ka bang nais mong mag-logout?")) {
+    if (window.confirm("Logout from CSPB Portal?")) {
       logout();
       navigate('/');
     }
   };
 
-  // Sidebar Menu Items
+  // Logic para sa pag-access ng LMS
+  const handleLMSAccess = () => {
+    if (studentInfo.paymentStatus !== "Paid") {
+      alert("⚠️ ACCESS RESTRICTED: Mangyaring makipag-ugnayan sa Cashier para sa iyong bayarin upang ma-access ang LMS.");
+    } else {
+      navigate('/lms');
+    }
+  };
+
   const menuItems = [
-    { name: 'Dashboard', icon: '🏠', path: '/dashboard' },
-    { name: 'LMS (E-Learning)', icon: '📚', path: '/lms' },
-    { name: 'Accounting', icon: '💳', path: '/accounting' },
-    { name: 'Enrollment', icon: '📝', path: '/enrollment' },
-    { name: 'Grades', icon: '📊', path: '/grades' },
+    { name: 'Dashboard', icon: '🏠', path: '/dashboard', locked: false },
+    { name: 'LMS (E-Learning)', icon: '📚', action: handleLMSAccess, locked: studentInfo.paymentStatus !== "Paid" },
+    { name: 'Accounting', icon: '💳', path: '/accounting', locked: false },
+    { name: 'Enrollment', icon: '📝', path: '/enrollment', locked: false },
+    { name: 'Grades', icon: '📊', path: '/grades', locked: false },
   ];
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] flex flex-col md:flex-row font-sans text-slate-900">
+    <div className="min-h-screen bg-[#f1f5f9] flex flex-col md:flex-row font-sans">
       
-      {/* --- MOBILE TOP NAVBAR --- */}
-      <div className="md:hidden bg-[#001f3f] text-white px-5 py-4 flex justify-between items-center sticky top-0 z-50 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-yellow-500 rounded flex items-center justify-center text-[#001f3f] font-black text-xs">
-            {schoolAcronym}
-          </div>
-          <span className="font-bold text-xs uppercase tracking-widest">{schoolName}</span>
-        </div>
-        <button 
-          onClick={() => setSidebarOpen(!isSidebarOpen)}
-          className="p-2 bg-white/10 rounded-lg"
-        >
-          {isSidebarOpen ? '✕' : '☰'}
-        </button>
-      </div>
-
-      {/* --- SIDEBAR (Desktop & Mobile Drawer) --- */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-40 w-72 bg-[#001f3f] text-white transform transition-transform duration-300 ease-in-out
-        md:relative md:translate-x-0 
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+      {/* --- SIDEBAR --- */}
+      <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-[#001f3f] text-white transform transition-transform duration-300 md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col">
-          {/* School Header */}
           <div className="p-8 flex flex-col items-center border-b border-white/10">
-            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center text-[#001f3f] font-black text-2xl shadow-xl border-4 border-yellow-500 mb-4">
+            <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-[#001f3f] font-black text-xl border-4 border-yellow-500 mb-3 shadow-2xl">
               {schoolAcronym}
             </div>
-            <h2 className="text-center font-black text-sm leading-tight uppercase tracking-tighter">
-              {schoolName}
-            </h2>
-            <span className="text-yellow-500 text-[10px] font-bold mt-2 tracking-[0.3em]">STUDENT PORTAL</span>
+            <h2 className="text-center font-black text-[10px] uppercase tracking-tighter leading-tight">{schoolName}</h2>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1">
             {menuItems.map((item) => (
               <button
                 key={item.name}
-                onClick={() => { navigate(item.path); setSidebarOpen(false); }}
-                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-slate-300 hover:bg-yellow-500 hover:text-[#001f3f] transition-all font-bold text-sm group"
+                onClick={item.action ? item.action : () => { navigate(item.path); setSidebarOpen(false); }}
+                className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition-all group
+                  ${item.locked ? 'opacity-50 cursor-not-allowed bg-slate-800/50' : 'hover:bg-yellow-500 hover:text-[#001f3f] text-slate-300'}
+                `}
               >
-                <span className="text-xl group-hover:scale-110 transition-transform">{item.icon}</span>
-                {item.name}
+                <div className="flex items-center gap-4">
+                  <span>{item.icon}</span>
+                  {item.name}
+                </div>
+                {item.locked && <span className="text-xs">🔒</span>}
               </button>
             ))}
           </nav>
 
-          {/* Logout Section */}
           <div className="p-6 bg-black/20 border-t border-white/5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center border border-white/20">👤</div>
-              <div className="overflow-hidden text-left">
-                <p className="text-xs font-bold truncate uppercase">{user?.full_name || 'CSPB Student'}</p>
-                <p className="text-[10px] text-yellow-500 font-bold uppercase italic">S.Y. 2024-2025</p>
-              </div>
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="w-full py-3 rounded-xl bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest border border-red-600/30"
-            >
-              Logout Session
+            <button onClick={handleLogout} className="w-full py-3 rounded-xl bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest border border-red-600/30">
+              Logout
             </button>
           </div>
         </div>
       </aside>
 
-      {/* --- BACKDROP (Mobile Only) --- */}
-      {isSidebarOpen && (
-        <div className="fixed inset-0 bg-[#001f3f]/80 backdrop-blur-sm z-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>
-      )}
-
-      {/* --- MAIN CONTENT AREA --- */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        
-        {/* Desktop Header */}
-        <header className="hidden md:flex h-20 bg-white border-b items-center justify-between px-10 sticky top-0">
-          <div>
-            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Home / Dashboard</h2>
-            <p className="text-sm font-bold text-[#001f3f]">Student Information Management System</p>
-          </div>
-          <div className="flex items-center gap-4">
-             <div className="bg-green-50 px-4 py-1.5 rounded-full border border-green-100 flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                <span className="text-[10px] font-black text-green-700 uppercase">Account Active</span>
-             </div>
-          </div>
-        </header>
-
-        {/* Scrollable Content */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-10 pb-32">
-          <div className="max-w-6xl mx-auto">
-            
-            {/* Greeting */}
-            <div className="mb-10">
+      {/* --- MAIN CONTENT --- */}
+      <main className="flex-1 h-screen overflow-y-auto p-6 md:p-10 pb-32">
+        <div className="max-w-6xl mx-auto">
+          
+          <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
               <h1 className="text-3xl md:text-5xl font-black text-slate-900 leading-tight">
                 Mabuhay, <span className="text-[#001f3f]">{user?.full_name?.split(' ')[0] || 'Student'}</span>!
               </h1>
-              <p className="text-slate-500 font-medium text-lg mt-2">
-                Maligayang pagdating sa iyong <span className="text-yellow-600 font-bold">CSPB</span> Portal.
-              </p>
+              <p className="text-slate-500 font-medium mt-2 italic">Student ID: {user?.student_id || '2024-0001'}</p>
             </div>
-
-            {/* Top Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-              <StatCard title="Enrollment Status" value="Enrolled" icon="🎓" color="border-l-green-500" />
-              <StatCard title="Balance Due" value="₱ 0.00" icon="💳" color="border-l-blue-500" />
-              <StatCard title="LMS Assignments" value="4 Pending" icon="🔔" color="border-l-yellow-600" />
-            </div>
-
-            {/* Two Column Layout for Data */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
-              {/* Left Column: Schedule & Tasks */}
-              <div className="lg:col-span-2 space-y-8">
-                <section>
-                  <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Class Schedule Today</h3>
-                  <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div className="p-6 text-center py-10">
-                      <p className="text-slate-400 font-bold italic">Walang pasok sa kasalukuyang oras.</p>
-                      <button className="mt-4 text-xs font-black text-blue-600 uppercase border-b border-blue-600 pb-1">Tingnan ang buong schedule</button>
-                    </div>
-                  </div>
-                </section>
-              </div>
-
-              {/* Right Column: Announcements */}
-              <div className="space-y-6">
-                <section className="bg-[#001f3f] text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden group">
-                  <div className="relative z-10">
-                    <h3 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">School Bulletin</h3>
-                    <p className="text-sm font-bold leading-relaxed mb-4">
-                      Ang ating Foundation Day ay gaganapin sa darating na Biyernes. Walang pasok ang lahat.
-                    </p>
-                    <span className="text-[9px] opacity-50 font-black uppercase italic">Posted 1 hour ago</span>
-                  </div>
-                  {/* Decorative Logo Background */}
-                  <div className="absolute -bottom-6 -right-6 text-8xl font-black text-white/5 group-hover:scale-110 transition-transform">
-                    {schoolAcronym}
-                  </div>
-                </section>
-
-                <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Quick Links</h3>
-                  <div className="flex flex-col gap-2">
-                    <button className="w-full text-left p-3 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 transition-colors flex justify-between">
-                      Contact Registrar <span>→</span>
-                    </button>
-                    <button className="w-full text-left p-3 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 transition-colors flex justify-between">
-                      IT Support Ticket <span>→</span>
-                    </button>
-                  </div>
-                </section>
-              </div>
-
+            
+            {/* Status Indicator */}
+            <div className={`px-6 py-3 rounded-2xl border-2 flex items-center gap-3 shadow-sm ${studentInfo.paymentStatus === "Paid" ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200 animate-pulse'}`}>
+              <span className={`w-3 h-3 rounded-full ${studentInfo.paymentStatus === "Paid" ? 'bg-green-500' : 'bg-red-500'}`}></span>
+              <span className={`text-xs font-black uppercase tracking-widest ${studentInfo.paymentStatus === "Paid" ? 'text-green-700' : 'text-red-700'}`}>
+                {studentInfo.paymentStatus === "Paid" ? "Cleared / Paid" : "Account Locked"}
+              </span>
             </div>
           </div>
-        </main>
-      </div>
 
-      {/* --- MOBILE BOTTOM NAVIGATION --- */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center py-3 z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-        {menuItems.slice(0, 4).map(item => (
-          <button key={item.name} onClick={() => navigate(item.path)} className="flex flex-col items-center gap-1">
-            <span className="text-xl">{item.icon}</span>
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{item.name}</span>
-          </button>
-        ))}
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            {/* Payment Warning Card if Unpaid */}
+            {studentInfo.paymentStatus !== "Paid" && (
+              <div className="lg:col-span-3 bg-red-600 text-white p-6 rounded-3xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 border-4 border-red-400">
+                <div className="flex items-center gap-4 text-center md:text-left">
+                  <span className="text-4xl">⚠️</span>
+                  <div>
+                    <h3 className="font-black uppercase tracking-tighter">Urgent: Financial Hold</h3>
+                    <p className="text-xs font-medium opacity-90">Hindi mo ma-aaccess ang LMS at mga lesson dahil sa iyong balance na ₱{studentInfo.balance}.</p>
+                  </div>
+                </div>
+                <button onClick={() => navigate('/accounting')} className="bg-white text-red-600 px-8 py-3 rounded-xl font-black text-xs uppercase hover:bg-yellow-500 hover:text-[#001f3f] transition-all">
+                  Settle Payment Now
+                </button>
+              </div>
+            )}
 
+            <StatCard title="Total Balance" value={`₱${studentInfo.balance}`} icon="💳" color="border-l-red-500" />
+            <StatCard title="LMS Access" value={studentInfo.paymentStatus === "Paid" ? "Active" : "Locked"} icon="🔒" color="border-l-yellow-600" />
+            <StatCard title="Enrollment" value={studentInfo.enrollmentStatus} icon="🎓" color="border-l-blue-500" />
+          </div>
+
+          {/* Grid Layout for Features */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <button 
+              onClick={handleLMSAccess}
+              className={`p-10 rounded-[2.5rem] border-2 flex flex-col items-center gap-4 transition-all group
+                ${studentInfo.paymentStatus === "Paid" 
+                  ? 'bg-white border-slate-200 hover:border-blue-600 hover:shadow-2xl' 
+                  : 'bg-slate-100 border-dashed border-slate-300 opacity-60'}`}
+             >
+               <span className={`text-6xl ${studentInfo.paymentStatus === "Paid" ? 'group-hover:scale-110 transition-transform' : ''}`}>
+                 {studentInfo.paymentStatus === "Paid" ? "📖" : "🔒"}
+               </span>
+               <div className="text-center">
+                 <h3 className="font-black text-xl text-slate-800 uppercase">Go to LMS</h3>
+                 <p className="text-xs text-slate-500 font-bold mt-1">
+                   {studentInfo.paymentStatus === "Paid" ? "Start your lessons today" : "Payment Required to Unlock"}
+                 </p>
+               </div>
+             </button>
+
+             <button onClick={() => navigate('/accounting')} className="p-10 rounded-[2.5rem] bg-[#001f3f] text-white flex flex-col items-center gap-4 hover:shadow-2xl transition-all border-4 border-transparent hover:border-yellow-500 group">
+               <span className="text-6xl group-hover:rotate-12 transition-transform">💰</span>
+               <div className="text-center">
+                 <h3 className="font-black text-xl uppercase">View Accounting</h3>
+                 <p className="text-xs text-yellow-500 font-bold mt-1 tracking-widest uppercase">Check Fees & Dues</p>
+               </div>
+             </button>
+          </div>
+
+        </div>
+      </main>
     </div>
   );
 };
 
-// Reusable Stat Card Component
 const StatCard = ({ title, value, icon, color }) => (
-  <div className={`bg-white p-6 rounded-2xl border border-slate-200 border-l-[6px] ${color} shadow-sm hover:shadow-md transition-shadow flex justify-between items-center`}>
+  <div className={`bg-white p-6 rounded-2xl border-l-[6px] ${color} shadow-sm flex justify-between items-center`}>
     <div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">{title}</p>
-      <p className="text-2xl font-black text-slate-800 tracking-tighter">{value}</p>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
+      <p className="text-xl font-black text-slate-800">{value}</p>
     </div>
     <div className="text-3xl opacity-20">{icon}</div>
   </div>
