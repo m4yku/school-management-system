@@ -14,7 +14,7 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
   
-  // SIGURADUHIN NA TAMA ANG URL NA ITO BASE SA XAMPP MO
+  // API URL Base
   const API_BASE_URL = "http://localhost/sms-api"; 
 
   const [branding, setBranding] = useState({
@@ -26,20 +26,18 @@ const StudentDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Kunin ang Branding
+        // 1. Load Branding (Logo at Kulay)
         const brandRes = await axios.get(`${API_BASE_URL}/branding.php`);
         if (brandRes.data) {
           setBranding(brandRes.data);
         }
 
-        // 2. Kunin ang Lahat ng Students
+        // 2. Load Student Information
         const studentRes = await axios.get(`${API_BASE_URL}/get_students.php`);
-        
-        // 3. Hanapin ang data ni Joshua/User gamit ang Email
+        // Hanapin ang record ni Joshua base sa email
         const myData = studentRes.data.find(s => s.email === user.email);
         
         if (myData) {
-          console.log("Student Data Found:", myData); // Para ma-check sa console
           setStudentData(myData);
         }
       } catch (err) {
@@ -54,12 +52,12 @@ const StudentDashboard = () => {
     }
   }, [user.email]);
 
-  // Lock logic: Kung 'Pending' ang status, naka-lock ang LMS
+  // Lock logic para sa LMS
   const isLocked = !studentData || studentData.enrollment_status === 'Pending';
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-slate-50 font-black animate-pulse text-slate-400">
-      LOADING CSPB SYSTEM...
+      AUTHENTICATING...
     </div>
   );
 
@@ -75,13 +73,13 @@ const StudentDashboard = () => {
           <div className="w-20 h-20 bg-white rounded-3xl mx-auto mb-4 flex items-center justify-center overflow-hidden border-4 border-yellow-500 shadow-xl">
             {branding.school_logo ? (
               <img 
-                src={`${API_BASE_URL}/${branding.school_logo}`} 
+                src={branding.school_logo} // Ginagamit ang URL mula sa settings
                 alt="Logo" 
                 className="w-full h-full object-cover"
                 onError={(e) => { e.target.src = "https://via.placeholder.com/150?text=LOGO"; }}
               />
             ) : (
-              <span className="text-slate-800 font-black text-2xl">CSPB</span>
+              <span className="text-slate-800 font-black text-2xl italic">CSPB</span>
             )}
           </div>
           <h2 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 leading-tight">
@@ -102,7 +100,7 @@ const StudentDashboard = () => {
 
         <div className="p-6 border-t border-white/5">
           <button onClick={logout} className="w-full p-4 bg-white/5 text-white/60 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-white/10 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-3">
-            <LogOut size={16} /> Logout
+            <LogOut size={16} /> Logout System
           </button>
         </div>
       </aside>
@@ -111,16 +109,16 @@ const StudentDashboard = () => {
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto p-8 md:p-12">
           
-          {/* HEADER: BADGES & GREETING */}
+          {/* HEADER: BADGES, YEAR LEVEL & GREETING */}
           <header className="mb-10">
             <div className="flex items-center gap-2 mb-4">
               {/* YEAR LEVEL BADGE */}
               <span className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md">
-                {studentData?.grade_level || 'Grade Not Set'}
+                {studentData?.grade_level || 'Grade 12'} 
               </span>
               {/* ENROLLMENT TYPE BADGE */}
               <span className="bg-yellow-500 text-[#001f3f] px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md">
-                {studentData?.enrollment_type || 'New Student'}
+                {studentData?.enrollment_type || 'Continuing'}
               </span>
               {/* STATUS BADGE */}
               <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${studentData?.enrollment_status === 'Verified' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
@@ -129,47 +127,46 @@ const StudentDashboard = () => {
             </div>
 
             <h1 className="text-5xl font-black text-slate-900 tracking-tighter">
-              Mabuhay, <span style={{ color: branding.theme_color }}>{studentData?.first_name || 'Student'}!</span>
+              Mabuhay, <span style={{ color: branding.theme_color }}>{studentData?.first_name || 'Joshua'}!</span>
             </h1>
             <p className="text-slate-400 font-bold uppercase text-[11px] tracking-[0.3em] mt-1">
-              STUDENT ID: {studentData?.student_id || '---'} | S.Y. {studentData?.school_year || '2025-2026'}
+              STUDENT ID: {studentData?.student_id || '2026-0004'}
             </p>
           </header>
 
-          {/* DASHBOARD CONTENT GRID */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             <div className="lg:col-span-2 space-y-8">
-              {/* ANNOUNCEMENT MARQUEE */}
+              {/* ANNOUNCEMENT */}
               <div style={{ backgroundColor: branding.theme_color }} className="text-white p-5 rounded-[2rem] flex items-center gap-5 shadow-xl overflow-hidden">
                 <Megaphone size={24} className="shrink-0 animate-bounce" />
                 <marquee className="font-black text-sm uppercase tracking-widest italic">
-                   Welcome to the Official Portal. Your current status is {studentData?.enrollment_status}. Please check the Accounting tab for your balance.
+                   Attention: Please ensure your account status is verified for LMS access.
                 </marquee>
               </div>
 
-              {/* DETAILED STUDENT INFO TABLE */}
+              {/* STUDENT PROFILE TABLE */}
               <section className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-5"><Info size={100} /></div>
                 <h3 className="font-black text-slate-800 mb-8 uppercase text-[11px] tracking-[0.2em] flex items-center gap-2">
-                   <CheckCircle2 size={16} className="text-blue-500"/> Profile Information
+                   <CheckCircle2 size={16} className="text-blue-500"/> Enrollment Details
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-10 relative z-10">
                    <InfoItem label="Grade Level" value={studentData?.grade_level} />
-                   <InfoItem label="Enrollment Type" value={studentData?.enrollment_type} />
+                   <InfoItem label="Classification" value={studentData?.enrollment_type} />
                    <InfoItem label="School Year" value={studentData?.school_year} />
-                   <InfoItem label="LRN" value={studentData?.lrn} />
-                   <InfoItem label="Previous School" value={studentData?.prev_school} />
+                   <InfoItem label="Portal Access" value={studentData?.enrollment_status} />
                    <InfoItem label="Payment Plan" value={studentData?.payment_plan} />
+                   <InfoItem label="LRN Number" value={studentData?.lrn} />
                 </div>
               </section>
             </div>
 
-            {/* RIGHT SIDE: STATUS CARDS */}
+            {/* RIGHT SIDE CARDS */}
             <div className="space-y-8">
-               {/* LMS LOCK CARD */}
-               <div className={`p-8 rounded-[2.5rem] border-4 transition-all ${isLocked ? 'bg-red-50 border-red-100 shadow-red-50' : 'bg-emerald-50 border-emerald-100 shadow-emerald-50'}`}>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">LMS Access</p>
+               {/* LOCK/STATUS CARD */}
+               <div className={`p-8 rounded-[2.5rem] border-4 transition-all ${isLocked ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">System Access</p>
                  <div className="flex items-center gap-4">
                     <div className={`${isLocked ? 'bg-red-500' : 'bg-emerald-500'} text-white p-4 rounded-3xl shadow-lg`}>
                        {isLocked ? <Lock size={28}/> : <Unlock size={28}/>}
@@ -182,15 +179,6 @@ const StudentDashboard = () => {
                     </div>
                  </div>
                </div>
-
-               {/* QUICK ACTIONS */}
-               <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl">
-                 <h3 className="font-black text-[10px] uppercase tracking-widest mb-6 text-slate-500 italic underline">Downloads</h3>
-                 <div className="space-y-3">
-                    <DownloadBtn label="Class Schedule" />
-                    <DownloadBtn label="Student Handbook" />
-                 </div>
-               </div>
             </div>
 
           </div>
@@ -200,7 +188,7 @@ const StudentDashboard = () => {
   );
 };
 
-// --- MINI COMPONENTS ---
+// MINI COMPONENTS
 const SidebarBtn = ({ icon, label, active, onClick, disabled }) => (
   <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold text-sm transition-all ${active ? 'bg-yellow-500 text-[#001f3f] shadow-lg shadow-yellow-500/20' : disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10 text-slate-300'}`}>
     {icon} {label}
@@ -212,12 +200,6 @@ const InfoItem = ({ label, value }) => (
     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
     <p className="text-[14px] font-black text-slate-800">{value || '---'}</p>
   </div>
-);
-
-const DownloadBtn = ({ label }) => (
-  <button className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[11px] font-bold">
-     {label} <Download size={14} className="text-yellow-500" />
-  </button>
 );
 
 export default StudentDashboard;
