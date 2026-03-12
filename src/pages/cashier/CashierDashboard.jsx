@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Wallet, Search, Receipt, Banknote, History, CheckCircle2, X, CreditCard 
@@ -13,27 +13,44 @@ const PaymentDashboard = () => {
     category: 'Tuition'
   });
 
-  const handleSubmit = async (e) => {
+  const [stats, setStats] = useState({
+    recentTransactions: [] // Sinisiguro natin na may "empty list" siya sa simula
+  });
+
+  // 1. Dito natin ilalagay ang fetch function
+  const fetchTransactions = async () => {
+    try {
+      const response = await axios.get('http://localhost/sms-api/cashier/get_payments.php');
+      setStats(prev => ({
+        ...prev,
+        recentTransactions: response.data
+      }));
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+    }
+  };
+
+  // 2. Ito ang useEffect
+  useEffect(() => {
+    fetchTransactions(); // Tatakbo ito pagkabukas ng page
+  }, []); // Ang [] ay nangangahulugang "once" lang siya tatakbo
+
+  const handleSubmit = async (e) => { 
     e.preventDefault();
     try {
       const response = await axios.post('http://localhost/sms-api/cashier/process_payment.php', formData);
 
       if (response.status === 201 || response.data.message.includes("successfully")) {
         alert("Payment Saved Successfully!");
-
-        // 1. Isara ang modal
         setIsModalOpen(false);
-
-        // 2. I-clear ang form para sa susunod na transaction
         setFormData({
           studentId: '',
           amount: '',
           method: 'Cash',
           category: 'Tuition'
         });
-
-        // 3. (Optional) Dito natin pwedeng tawagin yung function 
         // para i-refresh ang table para makita agad yung bagong bayad.
+        fetchTransactions();
       }
     } catch (error) {
       console.error("Error:", error);
@@ -139,9 +156,49 @@ const PaymentDashboard = () => {
 
       {/* Dito mo ilalagay yung existing table mo ng recent transactions */}
       <div className="mt-8">
-         <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Live Transaction Log</p>
-         {/* ... ang table code mo dati ... */}
+        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Live Transaction Log</p>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="p-4 text-xs font-bold text-slate-500 uppercase">Student ID</th>
+                <th className="p-4 text-xs font-bold text-slate-500 uppercase">Amount</th>
+                <th className="p-4 text-xs font-bold text-slate-500 uppercase">Category</th>
+                <th className="p-4 text-xs font-bold text-slate-500 uppercase">Date</th>
+                <th className="p-4 text-xs font-bold text-slate-500 uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {stats.recentTransactions.length > 0 ? (
+                stats.recentTransactions.map((tx) => (
+                  <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 font-bold text-slate-700">{tx.student}</td>
+                    <td className="p-4 font-black text-blue-600">
+                      ₱{Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-4 text-slate-600 text-sm">{tx.type}</td>
+                    <td className="p-4 text-slate-400 text-xs">{tx.date}</td>
+                    <td className="p-4">
+                      <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
+                        {tx.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="p-10 text-center text-slate-400 italic">
+                    No transactions found. Start by adding a new payment!
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+
     </div>
   );
 };
