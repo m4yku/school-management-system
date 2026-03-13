@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Save, Lock, User, Phone, MapPin, Mail, Hash } from 'lucide-react';
+import { X, Save, Lock, User, Phone, MapPin, Mail, Hash, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const ProfileModal = ({ 
   isOpen, 
@@ -14,6 +14,10 @@ const ProfileModal = ({
   API_BASE_URL 
 }) => {
   if (!isOpen) return null;
+
+  // LOGIC PARA SA STATUS INDICATOR
+  // Kung ang status sa DB ay hindi 'Unpaid', ituturing nating Verified ang access
+  const isVerified = studentData?.payment_status !== 'Unpaid';
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
@@ -47,7 +51,16 @@ const ProfileModal = ({
                   </div>
                 )}
               </div>
-              <label className="bg-slate-900 text-white px-5 py-2.5 rounded-xl cursor-pointer text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md">
+              
+              {/* STATUS INDICATOR ADDED HERE */}
+              <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full border-2 ${isVerified ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
+                {isVerified ? <CheckCircle2 size={12}/> : <AlertCircle size={12}/>}
+                <span className="text-[9px] font-black uppercase tracking-widest">
+                  {isVerified ? 'System Verified' : 'Pending Access'}
+                </span>
+              </div>
+
+              <label className="bg-slate-900 text-white px-5 py-2.5 rounded-xl cursor-pointer text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md mt-2">
                 Change Photo
                 <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
               </label>

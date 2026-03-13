@@ -1,4 +1,3 @@
-// src/layouts/StudentLayout.jsx
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
 import { 
@@ -11,7 +10,7 @@ import ProfileModal from '../components/student/ProfileModal';
 const StudentLayout = () => {
   const { user, logout, branding } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // Modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [studentData, setStudentData] = useState(null);
   
   const location = useLocation();
@@ -22,22 +21,21 @@ const StudentLayout = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
 
   const fetchData = async () => {
-  try {
-    const res = await axios.get(`${API_BASE_URL}/get_students.php`);
-    const myData = res.data.find(s => s.email === user.email);
-    if (myData) {
-      setStudentData(myData);
-      // Siguraduhin na ang column names dito ay tugma sa database mo
-      setEditForm({ 
-        email: myData.email || '', 
-        contact_no: myData.mobile_no || '',  // Gamitin ang column name mula sa DB
-        address: myData.address_house || ''  // Gamitin ang column name mula sa DB
-      });
+    try {
+      const res = await axios.get(`${API_BASE_URL}/get_students.php`);
+      const myData = res.data.find(s => s.email === user.email);
+      if (myData) {
+        setStudentData(myData);
+        setEditForm({ 
+          email: myData.email || '', 
+          contact_no: myData.mobile_no || '',  
+          address: myData.address_house || ''  
+        });
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
     }
-  } catch (err) {
-    console.error("Fetch error:", err);
-  }
-};
+  };
 
   useEffect(() => {
     if (user?.email) fetchData();
@@ -57,40 +55,33 @@ const StudentLayout = () => {
   };
 
   const handleUpdateProfile = async (e) => {
-  e.preventDefault();
-  const formData = new FormData();
-  formData.append('student_id', studentData.student_id);
-  formData.append('email', editForm.email);
-  formData.append('contact_no', editForm.contact_no);
-  formData.append('address', editForm.address);
-  
-  if (selectedFile) formData.append('profile_image', selectedFile);
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('student_id', studentData.student_id);
+    formData.append('email', editForm.email);
+    formData.append('contact_no', editForm.contact_no);
+    formData.append('address', editForm.address);
+    
+    if (selectedFile) formData.append('profile_image', selectedFile);
 
-  try {
-    const res = await axios.post(`${API_BASE_URL}/update_student.php`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    try {
+      const res = await axios.post(`${API_BASE_URL}/update_student.php`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
 
-    if (res.data.success) {
-      alert("Profile updated successfully!");
-      
-      // 1. ISARA ANG MODAL
-      setIsEditModalOpen(false);
-      
-      // 2. I-REFRESH ANG DATA (Ito ang importante para mag-display ang bago)
-      fetchData(); 
-      
-      // 3. I-CLEAR ANG FILE PREVIEW
-      setSelectedFile(null);
-      setPreviewUrl(null);
-    } else {
-      alert("Error: " + res.data.message);
+      if (res.data.success) {
+        alert("Profile updated successfully!");
+        setIsEditModalOpen(false);
+        fetchData(); 
+        setSelectedFile(null);
+        setPreviewUrl(null);
+      } else {
+        alert("Error: " + res.data.message);
+      }
+    } catch (err) {
+      console.error("Update failed:", err);
     }
-  } catch (err) {
-    console.error("Update failed:", err);
-    alert("Update failed.");
-  }
-};
+  };
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans">
@@ -145,17 +136,19 @@ const StudentLayout = () => {
           <div className="flex items-center gap-3 relative">
             <div className="hidden md:block text-right">
               <p className="text-[11px] font-black text-slate-900 leading-none mb-1">{studentData?.first_name} {studentData?.last_name}</p>
-              <p className={`text-[9px] font-bold uppercase tracking-widest ${studentData?.enrollment_status === "Verified" ? "text-green-600" : "text-orange-500"}`}>
-                {studentData?.enrollment_status === "Verified" ? "SYSTEM VERIFIED" : "PENDING ACCESS"}
+              
+              {/* FIXED DYNAMIC STATUS LABEL */}
+              <p className={`text-[9px] font-bold uppercase tracking-widest ${
+                studentData?.payment_status === "Unpaid" ? "text-orange-500" : "text-green-600"
+              }`}>
+                {studentData?.payment_status === "Unpaid" ? "PENDING ACCESS" : "SYSTEM VERIFIED"}
               </p>
             </div>
 
-            {/* CLICKABLE PROFILE PICTURE - Deretso sa Edit Profile Modal */}
             <button
               onClick={() => setIsEditModalOpen(true)}
               style={{ backgroundColor: branding.theme_color }}
               className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white shadow-md hover:scale-110 active:scale-95 transition-all overflow-hidden cursor-pointer"
-              title="Edit Profile"
             >
               {studentData?.profile_image ? (
                 <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
@@ -171,7 +164,6 @@ const StudentLayout = () => {
         </div>
       </main>
 
-      {/* GLOBAL PROFILE MODAL */}
       <ProfileModal 
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
