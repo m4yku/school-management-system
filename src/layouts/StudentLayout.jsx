@@ -1,8 +1,8 @@
 // src/layouts/StudentLayout.jsx
 import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import { Outlet, useLocation, Link } from 'react-router-dom';
 import { 
-  User, BookOpen, CreditCard, LogOut, Menu, X, Edit3 
+  User, BookOpen, CreditCard, LogOut, Menu, X 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -11,12 +11,10 @@ import ProfileModal from '../components/student/ProfileModal';
 const StudentLayout = () => {
   const { user, logout, branding } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // Modal state
   const [studentData, setStudentData] = useState(null);
   
   const location = useLocation();
-  const navigate = useNavigate();
   const API_BASE_URL = "http://localhost/sms-api";
 
   const [editForm, setEditForm] = useState({ email: '', contact_no: '', address: '' });
@@ -83,7 +81,7 @@ const StudentLayout = () => {
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans">
       
-      {/* 1. SIDEBAR */}
+      {/* SIDEBAR */}
       <aside 
         style={{ backgroundColor: branding.theme_color }} 
         className={`fixed inset-y-0 left-0 z-50 w-72 text-white transform transition-transform duration-300 lg:relative lg:translate-x-0 border-r-4 border-yellow-500 shadow-2xl shrink-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
@@ -110,19 +108,15 @@ const StudentLayout = () => {
           ))}
         </nav>
 
-        {/* SIDEBAR FOOTER - CLEAN SIGN OUT ONLY */}
         <div className="p-4 border-t border-white/5 bg-black/20">
-          <button 
-            onClick={logout} 
-            className="flex items-center space-x-3 p-4 w-full rounded-2xl hover:bg-red-500 text-white transition-all duration-200 group"
-          >
+          <button onClick={logout} className="flex items-center space-x-3 p-4 w-full rounded-2xl hover:bg-red-500 text-white transition-all duration-200 group">
             <LogOut size={20} className="group-hover:rotate-12 transition-transform" />
             <span className="text-sm font-black uppercase tracking-widest">Sign Out</span>
           </button>
         </div>
       </aside>
 
-      {/* 2. MAIN CONTENT AREA */}
+      {/* MAIN CONTENT AREA */}
       <main className="flex-1 overflow-y-auto relative flex flex-col">
         
         {/* TOP NAV */}
@@ -142,10 +136,12 @@ const StudentLayout = () => {
               </p>
             </div>
 
+            {/* CLICKABLE PROFILE PICTURE - Deretso sa Edit Profile Modal */}
             <button
-              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              onClick={() => setIsEditModalOpen(true)}
               style={{ backgroundColor: branding.theme_color }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white shadow-md hover:scale-105 transition-transform overflow-hidden"
+              className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white shadow-md hover:scale-110 active:scale-95 transition-all overflow-hidden cursor-pointer"
+              title="Edit Profile"
             >
               {studentData?.profile_image ? (
                 <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
@@ -153,24 +149,6 @@ const StudentLayout = () => {
                 <span className="text-white font-black text-sm">{studentData?.first_name?.charAt(0)}</span>
               )}
             </button>
-
-            {isProfileOpen && (
-              <div className="absolute right-0 top-14 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in duration-200">
-                <button
-                  onClick={() => {
-                    setIsEditModalOpen(true);
-                    setIsProfileOpen(false);
-                  }}
-                  className="w-full px-5 py-3 text-left hover:bg-slate-50 text-[10px] font-black uppercase flex items-center gap-3 text-slate-700"
-                >
-                  <Edit3 size={16} className="text-blue-500" /> View Profile
-                </button>
-                <div className="h-[1px] bg-slate-100 my-1"></div>
-                <button onClick={logout} className="w-full px-5 py-3 text-left hover:bg-red-50 text-[10px] font-black uppercase flex items-center gap-3 text-red-600">
-                  <LogOut size={16} /> Logout System
-                </button>
-              </div>
-            )}
           </div>
         </nav>
 
@@ -179,7 +157,7 @@ const StudentLayout = () => {
         </div>
       </main>
 
-      {/* 3. GLOBAL PROFILE MODAL */}
+      {/* GLOBAL PROFILE MODAL */}
       <ProfileModal 
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
