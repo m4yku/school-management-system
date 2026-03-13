@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-
   User, BookOpen, CreditCard, Lock, Unlock,
-
   LogOut, CheckCircle2, Megaphone, Wallet,
-
   Info, Download, Menu, X, Camera, Save, Edit3, ArrowRight
-
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -17,11 +13,6 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  
-  const [editForm, setEditForm] = useState({ email: '', contact_no: '', address: '' });
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
 
   const API_BASE_URL = "http://localhost/sms-api"; 
 
@@ -31,11 +22,6 @@ const StudentDashboard = () => {
       const myData = studentRes.data.find(s => s.email === user.email);
       if (myData) {
         setStudentData(myData);
-        setEditForm({ 
-          email: myData.email || '', 
-          contact_no: myData.contact_no || '', 
-          address: myData.address || '' 
-        });
       }
     } catch (err) {
       console.error("Error fetching student data:", err);
@@ -48,37 +34,6 @@ const StudentDashboard = () => {
     if (user?.email) fetchData();
   }, [user.email]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
-  };
-
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append('student_id', studentData.student_id);
-    formData.append('email', editForm.email);
-    formData.append('contact_no', editForm.contact_no);
-    formData.append('address', editForm.address);
-    if (selectedFile) formData.append('profile_image', selectedFile);
-
-    try {
-      const res = await axios.post(`${API_BASE_URL}/update_profile.php`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (res.data.success) {
-        alert("Profile updated!");
-        setIsEditModalOpen(false);
-        fetchData();
-      }
-    } catch (err) {
-      alert("Update failed.");
-    }
-  };
-
   const isLocked = !studentData || studentData.enrollment_status === 'Pending';
 
   if (loading) return (
@@ -90,7 +45,7 @@ const StudentDashboard = () => {
   return (
     <div className="max-w-6xl mx-auto p-6 md:p-12 w-full space-y-8 animate-in fade-in duration-500">
       
-      {/* 1. WELCOME HEADER */}
+      {/* 1. WELCOME HEADER - Inalis ang Edit Profile Button */}
       <header className="flex justify-between items-end">
         <div>
           <div className="flex flex-wrap gap-2 mb-4">
@@ -106,13 +61,6 @@ const StudentDashboard = () => {
           </h1>
           <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Student ID: {studentData?.student_id}</p>
         </div>
-        
-        <button 
-          onClick={() => setIsEditModalOpen(true)}
-          className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all shadow-sm"
-        >
-          <Edit3 size={14} /> Edit Profile
-        </button>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -191,21 +139,6 @@ const StudentDashboard = () => {
            </div>
         </div>
       </div>
-
-      {/* EDIT PROFILE MODAL (Nanatili dito dahil specific ito sa Dashboard/Profile Page) */}
-      {isEditModalOpen && (
-        <ProfileModal 
-          branding={branding}
-          studentData={studentData}
-          editForm={editForm}
-          setEditForm={setEditForm}
-          previewUrl={previewUrl}
-          handleFileChange={handleFileChange}
-          handleUpdateProfile={handleUpdateProfile}
-          setIsEditModalOpen={setIsEditModalOpen}
-          API_BASE_URL={API_BASE_URL}
-        />
-      )}
     </div>
   );
 };
@@ -222,63 +155,6 @@ const DownloadBtn = ({ label }) => (
   <button className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-bold uppercase tracking-widest group">
     {label} <Download size={14} className="text-yellow-500 group-hover:scale-125 transition-transform" />
   </button>
-);
-
-const ProfileModal = ({ branding, studentData, editForm, setEditForm, previewUrl, handleFileChange, handleUpdateProfile, setIsEditModalOpen, API_BASE_URL }) => (
-  <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
-    <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col animate-in zoom-in duration-300">
-      <div style={{ backgroundColor: branding.theme_color }} className="px-10 py-6 text-white flex justify-between items-center">
-        <h3 className="font-black text-xs uppercase tracking-widest">Update Profile</h3>
-        <button onClick={() => setIsEditModalOpen(false)} className="hover:bg-white/20 p-2 rounded-xl"><Save size={20}/></button>
-      </div>
-
-      <form onSubmit={handleUpdateProfile} className="p-10 overflow-y-auto space-y-8">
-        <div className="flex flex-col md:flex-row gap-8">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-32 h-32 rounded-3xl overflow-hidden bg-slate-100 border-4 border-white shadow-lg">
-              {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : 
-               studentData?.profile_image ? <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" /> : 
-               <User size={40} className="text-slate-300 mt-8 mx-auto"/>}
-            </div>
-            <label className="bg-yellow-500 text-[#001f3f] px-4 py-2 rounded-xl cursor-pointer text-[10px] font-black uppercase tracking-widest shadow-md">
-              Change Photo
-              <input type="file" className="hidden" onChange={handleFileChange} />
-            </label>
-          </div>
-
-          <div className="flex-1 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <LockedInput label="Student ID" value={studentData?.student_id} />
-              <LockedInput label="LRN" value={studentData?.lrn} />
-            </div>
-            <EditInput label="Email Address" value={editForm.email} onChange={(e) => setEditForm({...editForm, email: e.target.value})} />
-            <EditInput label="Contact Number" value={editForm.contact_no} onChange={(e) => setEditForm({...editForm, contact_no: e.target.value})} />
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Home Address</label>
-              <textarea value={editForm.address} onChange={(e) => setEditForm({...editForm, address: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-[11px] font-bold h-20 outline-none" />
-            </div>
-          </div>
-        </div>
-        <button type="submit" style={{ backgroundColor: branding.theme_color }} className="w-full py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg">
-          Save All Updates
-        </button>
-      </form>
-    </div>
-  </div>
-);
-
-const LockedInput = ({ label, value }) => (
-  <div className="space-y-1">
-    <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-widest">{label}</label>
-    <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl text-[11px] font-black text-slate-500 flex justify-between items-center">{value} <Lock size={12}/></div>
-  </div>
-);
-
-const EditInput = ({ label, value, onChange }) => (
-  <div className="space-y-1">
-    <label className="text-[9px] font-black text-slate-400 uppercase ml-1 tracking-widest">{label}</label>
-    <input type="text" value={value} onChange={onChange} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-[11px] font-bold outline-none focus:border-blue-500" />
-  </div>
 );
 
 export default StudentDashboard;
