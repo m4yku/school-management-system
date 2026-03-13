@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { 
   UserPlus, X, Mail, RefreshCw, Calendar, Phone, GraduationCap, 
-  BookOpen, User, Users, CreditCard, ChevronRight, ChevronLeft, Check, MapPin, Camera 
+  BookOpen, User, Users, CreditCard, ChevronRight, ChevronLeft, Check, MapPin, Camera,
+  Search, Filter // <-- DAGDAG NA ICONS
 } from 'lucide-react'; 
 import { useAuth } from '../../context/AuthContext';
 
@@ -13,6 +14,10 @@ const StudentManagement = () => {
   const [saveLoading, setSaveLoading] = useState(false); 
   const [showModal, setShowModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+
+  // Search & Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [gradeFilter, setGradeFilter] = useState('All');
 
   // View Modal states
   const [viewModal, setViewModal] = useState(false);
@@ -84,16 +89,33 @@ const StudentManagement = () => {
     } catch (err) { alert("Server Error"); } finally { setSaveLoading(false); }
   };
 
+  // --- FILTERING LOGIC ---
+  const filteredStudents = students.filter(student => {
+    const searchLower = searchQuery.toLowerCase();
+    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+    
+    // Check if search matches Name, ID, or LRN
+    const matchesSearch = 
+      fullName.includes(searchLower) ||
+      (student.student_id && student.student_id.toLowerCase().includes(searchLower)) ||
+      (student.lrn && student.lrn.toLowerCase().includes(searchLower));
+
+    // Check if grade matches the dropdown
+    const matchesGrade = gradeFilter === 'All' || student.grade_level === gradeFilter;
+
+    return matchesSearch && matchesGrade;
+  });
+
   // UI Helpers
   const StepIndicator = () => (
     <div className="flex items-center justify-between mb-8 px-4">
       {[1, 2, 3, 4].map((step) => (
         <div key={step} className="flex items-center">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${currentStep >= step ? 'text-white' : 'bg-slate-100 text-slate-400'}`}
-               style={currentStep >= step ? {backgroundColor: branding.theme_color} : {}}>
+               style={currentStep >= step ? {backgroundColor: branding.theme_color || '#2563eb'} : {}}>
             {currentStep > step ? <Check size={14} /> : step}
           </div>
-          {step < 4 && <div className={`w-12 h-1 mx-2 rounded ${currentStep > step ? 'bg-blue-500' : 'bg-slate-100'}`} style={currentStep > step ? {backgroundColor: branding.theme_color} : {}} />}
+          {step < 4 && <div className={`w-12 h-1 mx-2 rounded ${currentStep > step ? 'bg-blue-500' : 'bg-slate-100'}`} style={currentStep > step ? {backgroundColor: branding.theme_color || '#2563eb'} : {}} />}
         </div>
       ))}
     </div>
@@ -101,10 +123,11 @@ const StudentManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-            <GraduationCap className="text-blue-500" size={32} /> Student Enrollment
+            <GraduationCap className="text-blue-500" size={32} /> Student Masterlist
           </h1>
           <p className="text-slate-500 text-sm italic">Enterprise Registrar Module</p>
         </div>
@@ -113,6 +136,7 @@ const StudentManagement = () => {
           <button 
             onClick={fetchStudents}
             className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
+            title="Refresh Data"
           >
             <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
           </button>
@@ -120,15 +144,47 @@ const StudentManagement = () => {
           <button 
             onClick={() => { setFormData(initialFormState); setShowModal(true); }} 
             className="group relative overflow-hidden text-white px-8 py-4 rounded-2xl flex items-center gap-2 shadow-xl font-bold transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-2xl" 
-            style={{backgroundColor: branding.theme_color}}
+            style={{backgroundColor: branding.theme_color || '#2563eb'}}
           >
             <div className="absolute inset-0 w-full h-full bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-500 ease-in-out skew-x-12" />
             <UserPlus size={20} className="group-hover:rotate-12 transition-transform" /> 
-            <span>Enroll New Student</span>
+            <span>Create Profile</span>
           </button>
         </div>
       </div>
 
+      {/* SEARCH AND FILTER BAR (BAGONG DAGDAG) */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search by Student Name, ID, or LRN..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-all text-sm font-bold text-slate-700 shadow-sm"
+          />
+        </div>
+        <div className="relative w-full md:w-64">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <select 
+            value={gradeFilter}
+            onChange={(e) => setGradeFilter(e.target.value)}
+            className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-all text-sm font-bold text-slate-700 shadow-sm appearance-none cursor-pointer"
+          >
+            <option value="All">All Grade Levels</option>
+            <option value="Grade 7">Grade 7</option>
+            <option value="Grade 8">Grade 8</option>
+            <option value="Grade 9">Grade 9</option>
+            <option value="Grade 10">Grade 10</option>
+            <option value="Grade 11">Grade 11</option>
+            <option value="Grade 12">Grade 12</option>
+            <option value="College">College</option>
+          </select>
+        </div>
+      </div>
+
+      {/* STUDENT TABLE */}
       <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
          <table className="w-full text-left border-collapse">
             <thead className="bg-slate-50 border-b border-slate-100">
@@ -140,7 +196,7 @@ const StudentManagement = () => {
                </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-          {loading && students.length === 0 ? (
+          {loading ? (
             <tr>
               <td colSpan="4" className="p-20 text-center">
                 <div className="flex flex-col items-center gap-3">
@@ -149,17 +205,18 @@ const StudentManagement = () => {
                 </div>
               </td>
             </tr>
-          ) : students.length === 0 ? (
+          ) : filteredStudents.length === 0 ? (
             <tr>
               <td colSpan="4" className="p-20 text-center">
-                <div className="opacity-20 flex flex-col items-center">
-                  <GraduationCap size={64} className="text-slate-400" />
-                  <p className="mt-4 font-black text-slate-500">No Students Enrolled Yet</p>
+                <div className="opacity-40 flex flex-col items-center">
+                  <Search size={48} className="text-slate-400 mb-3" />
+                  <p className="font-black text-slate-600 text-lg">No Results Found</p>
+                  <p className="text-xs text-slate-400 mt-1">Try adjusting your search or grade filter.</p>
                 </div>
               </td>
             </tr>
           ) : (
-            students.map((s) => (
+            filteredStudents.map((s) => (
               <tr 
                 key={s.student_id} 
                 onClick={() => handleViewProfile(s)} 
@@ -172,7 +229,7 @@ const StudentManagement = () => {
                       style={{ backgroundColor: branding.theme_color || '#2563eb' }}
                     >
                       {s.profile_image ? (
-                        <img src={`${API_BASE_URL}/uploads/profiles/${s.profile_image}`} className="w-full h-full object-cover" />
+                        <img src={`${API_BASE_URL}/uploads/profiles/${s.profile_image}`} className="w-full h-full object-cover" alt="profile"/>
                       ) : s.first_name?.charAt(0)}
                     </div>
                     <div>
@@ -195,7 +252,7 @@ const StudentManagement = () => {
                   <p className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
                     <Phone size={12} className="text-blue-500" /> {s.mobile_no || 'N/A'}
                   </p>
-                  <p className="text-[10px] text-slate-400 flex items-center gap-1 truncate max-w-[150px]">
+                  <p className="text-[10px] text-slate-400 flex items-center gap-1 truncate max-w-[150px]" title={s.address_house}>
                     <MapPin size={10} /> {s.address_house || 'N/A'}
                   </p>
                 </td>
@@ -216,7 +273,7 @@ const StudentManagement = () => {
          </table>
       </div>
 
-      {/* MULTI-STEP MODAL */}
+      {/* MULTI-STEP MODAL FOR CREATING PROFILE */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm overflow-hidden">
           <div className="bg-white rounded-[3rem] w-full max-w-4xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-in zoom-in duration-300">
@@ -301,11 +358,11 @@ const StudentManagement = () => {
               </button>
               
               {currentStep < 4 ? (
-                <button onClick={nextStep} className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white shadow-lg active:scale-95 transition-all" style={{backgroundColor: branding.theme_color}}>
+                <button onClick={nextStep} className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white shadow-lg active:scale-95 transition-all" style={{backgroundColor: branding.theme_color || '#2563eb'}}>
                   Next Step <ChevronRight size={20}/>
                 </button>
               ) : (
-                <button onClick={handleSubmit} disabled={saveLoading} className="flex items-center gap-2 px-10 py-3 rounded-xl font-black text-white shadow-xl active:scale-95 transition-all" style={{backgroundColor: branding.theme_color}}>
+                <button onClick={handleSubmit} disabled={saveLoading} className="flex items-center gap-2 px-10 py-3 rounded-xl font-black text-white shadow-xl active:scale-95 transition-all" style={{backgroundColor: branding.theme_color || '#2563eb'}}>
                   {saveLoading ? <RefreshCw className="animate-spin" /> : <><Check size={20}/> Finish Enrollment</>}
                 </button>
               )}
@@ -314,7 +371,7 @@ const StudentManagement = () => {
         </div>
       )}
 
-      {/* STUDENT PROFILE VIEW MODAL */}
+      {/* STUDENT PROFILE VIEW MODAL (PRINT/PDF) */}
       {viewModal && selectedStudent && (
         <div className="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm print:p-0 print:bg-white">
           <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden print:shadow-none print:max-h-full print:rounded-none animate-in slide-in-from-bottom-4 duration-300">
@@ -332,7 +389,7 @@ const StudentManagement = () => {
             </div>
 
             <div className="p-10 overflow-y-auto flex-1 print:overflow-visible font-sans">
-              <div className="flex justify-between items-start mb-10 border-b-4 pb-8" style={{borderColor: branding.theme_color}}>
+              <div className="flex justify-between items-start mb-10 border-b-4 pb-8" style={{borderColor: branding.theme_color || '#2563eb'}}>
                  <div className="flex items-center gap-8">
                     {/* PROFILE IMAGE IN MODAL */}
                     <div className="relative group">
