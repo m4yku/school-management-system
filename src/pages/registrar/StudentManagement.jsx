@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { 
   UserPlus, X, Mail, RefreshCw, Calendar, Phone, GraduationCap, 
-  BookOpen, User, Users, CreditCard, ChevronRight, ChevronLeft, Check, MapPin 
+  BookOpen, User, Users, CreditCard, ChevronRight, ChevronLeft, Check, MapPin, Camera 
 } from 'lucide-react'; 
 import { useAuth } from '../../context/AuthContext';
 
@@ -20,7 +20,7 @@ const StudentManagement = () => {
 
   const API_BASE_URL = "http://localhost/sms-api";
 
-  // --- ADDED: FETCH/REFRESH FUNCTION ---
+  // --- FETCH/REFRESH FUNCTION ---
   const fetchStudents = async () => {
     setLoading(true);
     try {
@@ -110,7 +110,6 @@ const StudentManagement = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* --- ADDED: REFRESH BUTTON --- */}
           <button 
             onClick={fetchStudents}
             className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
@@ -136,7 +135,6 @@ const StudentManagement = () => {
                <tr>
                   <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Student ID & Name</th>
                   <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Grade & LRN</th>
-                  {/* ADDED COLUMN FOR UPDATES */}
                   <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contact & Address</th>
                   <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
                </tr>
@@ -193,7 +191,6 @@ const StudentManagement = () => {
                   </p>
                   <p className="text-[10px] text-slate-400 font-medium">LRN: {s.lrn || 'NOT PROVIDED'}</p>
                 </td>
-                {/* ADDED CONTACT & ADDRESS UPDATES DISPLAY */}
                 <td className="p-5">
                   <p className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
                     <Phone size={12} className="text-blue-500" /> {s.mobile_no || 'N/A'}
@@ -335,18 +332,47 @@ const StudentManagement = () => {
             </div>
 
             <div className="p-10 overflow-y-auto flex-1 print:overflow-visible font-sans">
-              <div className="flex justify-between items-start mb-10 border-b-4 pb-6" style={{borderColor: branding.theme_color}}>
-                <div className="flex items-center gap-4">
-                   <img src={branding.school_logo} className="w-16 h-16 rounded-xl object-cover" alt="Logo" />
-                   <div>
-                      <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{branding.school_name}</h2>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Official Student Enrollment Record</p>
-                   </div>
-                </div>
-                <div className="text-right">
-                   <p className="text-[10px] font-black text-slate-400 uppercase">Student ID</p>
-                   <p className="text-xl font-mono font-black text-blue-600">{selectedStudent.student_id}</p>
-                </div>
+              <div className="flex justify-between items-start mb-10 border-b-4 pb-8" style={{borderColor: branding.theme_color}}>
+                 <div className="flex items-center gap-8">
+                    {/* PROFILE IMAGE IN MODAL */}
+                    <div className="relative group">
+                       <div className="w-28 h-28 rounded-[2rem] bg-slate-100 overflow-hidden border-4 border-white shadow-xl flex items-center justify-center">
+                          {selectedStudent.profile_image ? (
+                             <img 
+                                src={`${API_BASE_URL}/uploads/profiles/${selectedStudent.profile_image}`} 
+                                className="w-full h-full object-cover"
+                                alt="Profile"
+                             />
+                          ) : (
+                             <div className="flex flex-col items-center text-slate-300">
+                                <User size={48} />
+                                <span className="text-[10px] font-black mt-1">NO PHOTO</span>
+                             </div>
+                          )}
+                       </div>
+                       <div className="absolute -bottom-2 -right-2 bg-white p-2 rounded-xl shadow-lg border border-slate-100 text-blue-500 print:hidden">
+                          <Camera size={16} />
+                       </div>
+                    </div>
+
+                    <div>
+                       <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-1">Official Enrollment File</p>
+                       <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight">
+                          {selectedStudent.first_name} {selectedStudent.middle_name} {selectedStudent.last_name}
+                       </h2>
+                       <div className="flex items-center gap-4 mt-2">
+                          <p className="font-mono text-lg font-black text-slate-400 tracking-tighter">ID: {selectedStudent.student_id}</p>
+                          <span className="h-4 w-[2px] bg-slate-200"></span>
+                          <p className="font-bold text-slate-600 uppercase tracking-widest text-xs flex items-center gap-2">
+                             <BookOpen size={14} className="text-blue-500"/> {selectedStudent.grade_level}
+                          </p>
+                       </div>
+                    </div>
+                 </div>
+                 <div className="text-right print:hidden">
+                    <img src={branding.school_logo} className="w-16 h-16 rounded-xl object-cover mb-2 ml-auto" alt="Logo" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{branding.school_name}</p>
+                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-8">
@@ -362,7 +388,6 @@ const StudentManagement = () => {
                       <InfoBox label="LRN" value={selectedStudent.lrn} />
                       <InfoBox label="Gender" value={selectedStudent.gender} />
                       <InfoBox label="Date of Birth" value={selectedStudent.dob} />
-                      {/* UPDATED CONTACTS */}
                       <InfoBox label="Email Address" value={selectedStudent.email} bold />
                       <InfoBox label="Mobile Number" value={selectedStudent.mobile_no} bold />
                       <div className="col-span-3"><InfoBox label="Home Address" value={selectedStudent.address_house} bold /></div>
