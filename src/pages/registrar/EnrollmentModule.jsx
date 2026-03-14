@@ -263,7 +263,85 @@ const EnrollmentModule = () => {
         </div>
       )}
 
-      {/* COR Modal remains same... */}
+      {/* COR PRINT MODAL */}
+{/* COR PRINT MODAL */}
+{corModal && selectedStudent && (
+  <div className="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm print:p-0 print:bg-white">
+    <div className="bg-white rounded-[2.5rem] w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden print:shadow-none print:max-h-full print:rounded-none animate-in zoom-in duration-300">
+      
+      {/* MODAL HEADER (HIDDEN ON PRINT) */}
+      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white print:hidden">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl"><Printer size={24}/></div>
+          <h3 className="font-black text-slate-800 tracking-tight">Print Enrollment Form</h3>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition-all shadow-lg">
+              <Printer size={18} /> Print to PDF
+          </button>
+          <button onClick={() => setCorModal(false)} className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 rounded-xl transition-colors"><X size={20}/></button>
+        </div>
+      </div>
+
+      <div className="p-12 overflow-y-auto flex-1 print:overflow-visible font-sans bg-white">
+        
+        {/* OFFICIAL LETTERHEAD (ONLY ON PRINT) */}
+        <div className="hidden print:flex items-center justify-center gap-4 mb-8 border-b-4 border-double border-slate-800 pb-6">
+          <img src={branding.school_logo} className="w-20 h-20 object-cover" alt="Logo" />
+          <div className="text-center">
+            <h1 className="text-2xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
+            <p className="text-xs font-bold text-slate-500 tracking-widest uppercase">Office of the School Registrar</p>
+            <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">Certificate of Registration - S.Y. 2026-2027</p>
+          </div>
+        </div>
+
+        {/* CONTENT AREA */}
+        <div className="space-y-8">
+          <div className="flex justify-between items-end border-b-2 border-slate-100 pb-4">
+            <div>
+              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Student Name</p>
+              <h2 className="text-2xl font-black text-slate-800 uppercase">{selectedStudent.first_name} {selectedStudent.last_name}</h2>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID</p>
+              <p className="font-mono text-lg font-bold text-slate-800">{selectedStudent.student_id}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-4">
+               <div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grade Level</p>
+                 <p className="font-bold text-slate-700">{selectedStudent.grade_level}</p>
+               </div>
+               <div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enrollment Status</p>
+                 <p className="font-black text-emerald-600 uppercase tracking-tight">Officially Enrolled</p>
+               </div>
+            </div>
+            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 text-center">School Seal</p>
+               <div className="w-24 h-24 border-2 border-dashed border-slate-200 rounded-full mx-auto flex items-center justify-center text-[8px] font-bold text-slate-300 text-center uppercase">Place Seal Here</div>
+            </div>
+          </div>
+        </div>
+
+        {/* SIGNATURE SECTION (FOR PRINT) */}
+        <div className="hidden print:grid grid-cols-2 gap-20 mt-24">
+           <div className="text-center">
+              <div className="border-b-2 border-slate-800 mb-2"></div>
+              <p className="text-[10px] font-black uppercase text-slate-600">Registrar Signature</p>
+           </div>
+           <div className="text-center">
+              <div className="border-b-2 border-slate-800 mb-2"></div>
+              <p className="text-[10px] font-black uppercase text-slate-600">Parent/Guardian Signature</p>
+           </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

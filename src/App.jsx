@@ -17,7 +17,7 @@ import RegistrarDashboard from './pages/registrar/RegistrarDashboard'; // Placeh
 import StudentManagement from './pages/registrar/StudentManagement'; // Dito ang Profile & Print Profile
 import EnrollmentModule from './pages/registrar/EnrollmentModule';   // Dito ang Fees, Pending/Enrolled, Print COR
 import TeacherAssignments from './pages/registrar/TeacherAssignments'; // Dito ang pag-assign ng Teacher sa Subjects
-
+import StudentRequests from './pages/registrar/StudentRequests'; // <--- Ito yung bagong page
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentAccounting from './pages/student/StudentAccounting';
@@ -143,6 +143,9 @@ function App() {
             {/* Sidenav Item 2: Masterlist & Profiles (Walang enrollment details dito) */}
             <Route path="students" element={<StudentManagement />} />
             
+            {/* BAGONG DAGDAG - Sidenav Item 4: Student Requests (TOR, COE, etc.) */}
+              <Route path="requests" element={<StudentRequests />} />
+
             {/* Sidenav Item 3: Enrollment Module (Checklist ng Fees, Sectioning) */}
             <Route path="enrollment" element={<EnrollmentModule />} />
             

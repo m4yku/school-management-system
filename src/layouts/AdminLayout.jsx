@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Settings, LogOut, Menu, X, 
   BookOpen, CreditCard, UserCircle, Search, Receipt, 
-  History, ClipboardList, GraduationCap // <-- DAGDAG NA ICONS
+  History, ClipboardList, GraduationCap, FileText // <-- DAGDAG NA ICONS
 } from 'lucide-react'; 
 import { useAuth } from '../context/AuthContext';
 
@@ -22,10 +22,14 @@ const AdminLayout = () => {
     // ==========================================
     // NA-UPDATE NA REGISTRAR FLOW
     // ==========================================
+// Sa loob ng AdminLayout.jsx, i-update ang registrar part ng menuConfig:
+
     registrar: [
       { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/registrar/dashboard' },
       { icon: <UserCircle size={20} />, label: 'Student Masterlist', path: '/registrar/students' },
       { icon: <ClipboardList size={20} />, label: 'Enrollment Module', path: '/registrar/enrollment' },
+      // ITO ANG DAGDAG:
+      { icon: <FileText size={20} />, label: 'Student Requests', path: '/registrar/requests' }, 
       { icon: <GraduationCap size={20} />, label: 'Class Assignments', path: '/registrar/assignments' },
     ],
     teacher: [
