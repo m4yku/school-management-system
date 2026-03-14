@@ -16,7 +16,6 @@ const ProfileModal = ({
   if (!isOpen) return null;
 
   // LOGIC PARA SA STATUS INDICATOR
-  // Kung ang status sa DB ay hindi 'Unpaid', ituturing nating Verified ang access
   const isVerified = studentData?.payment_status !== 'Unpaid';
 
   return (
@@ -29,7 +28,7 @@ const ProfileModal = ({
             <User size={20} />
             <h3 className="font-black text-xs uppercase tracking-widest">Update Profile Information</h3>
           </div>
-          <button onClick={onClose} className="hover:bg-white/20 p-2 rounded-xl transition-colors">
+          <button onClick={onClose} type="button" className="hover:bg-white/20 p-2 rounded-xl transition-colors">
             <X size={20}/>
           </button>
         </div>
@@ -52,7 +51,7 @@ const ProfileModal = ({
                 )}
               </div>
               
-              {/* STATUS INDICATOR ADDED HERE */}
+              {/* STATUS INDICATOR */}
               <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full border-2 ${isVerified ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
                 {isVerified ? <CheckCircle2 size={12}/> : <AlertCircle size={12}/>}
                 <span className="text-[9px] font-black uppercase tracking-widest">
@@ -76,7 +75,7 @@ const ProfileModal = ({
                     <Hash size={10}/> Student ID
                   </label>
                   <div className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-black text-slate-400 flex justify-between items-center cursor-not-allowed">
-                    {studentData?.student_id} <Lock size={12}/>
+                    {studentData?.student_id || '---'} <Lock size={12}/>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -98,9 +97,10 @@ const ProfileModal = ({
                   <input 
                     type="email"
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-[11px] font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
-                    value={editForm.email} 
+                    value={editForm?.email || ''} 
                     onChange={(e) => setEditForm({...editForm, email: e.target.value})}
                     placeholder="Enter email"
+                    required
                   />
                 </div>
 
@@ -111,7 +111,7 @@ const ProfileModal = ({
                   <input 
                     type="text"
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-[11px] font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
-                    value={editForm.contact_no} 
+                    value={editForm?.contact_no || ''} 
                     onChange={(e) => setEditForm({...editForm, contact_no: e.target.value})}
                     placeholder="e.g. 09123456789"
                   />
@@ -123,7 +123,7 @@ const ProfileModal = ({
                   </label>
                   <textarea 
                     className="w-full p-3 bg-white border border-slate-200 rounded-xl text-[11px] font-bold outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[80px] resize-none"
-                    value={editForm.address} 
+                    value={editForm?.address || ''} 
                     onChange={(e) => setEditForm({...editForm, address: e.target.value})}
                     placeholder="Enter full address"
                   />

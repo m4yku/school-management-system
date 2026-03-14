@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   CreditCard, CheckCircle2, Megaphone, Wallet, 
-  Receipt, Calendar, Download, Lock, Loader2, ArrowLeft, Info
+  Receipt, Calendar, Download, Lock, Loader2, ArrowLeft, Info, Tags
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -12,18 +12,31 @@ const StudentAccounting = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
+  const [billingItems, setBillingItems] = useState([]); // State para sa listahan ng items mula sa database
 
   const API_BASE_URL = "http://localhost/sms-api"; 
 
   const fetchData = async () => {
     try {
-      const studentRes = await axios.get(`${API_BASE_URL}/get_students.php`);
-      const myData = studentRes.data.find(s => s.email === user.email);
+      const res = await axios.get(`${API_BASE_URL}/get_students.php`);
+      
+      // Kunin ang data base sa bagong JSON structure (students at billing_items)
+      const allStudents = res.data.students; 
+      const allItems = res.data.billing_items;
+
+      const myData = allStudents.find(s => s.email === user.email);
+      
       if (myData) {
         setStudentData(myData);
+        
+        // I-filter ang items base sa billing_id ng student
+        const myItems = allItems.filter(item => 
+          parseInt(item.billing_id) === parseInt(myData.billing_id)
+        );
+        setBillingItems(myItems);
       }
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error fetching accounting data:", err);
     } finally {
       setLoading(false);
     }
@@ -36,6 +49,8 @@ const StudentAccounting = () => {
   // --- LOGIC PARA SA DOWNLOAD ---
   const handleDownload = (type) => {
     if (!studentData) return;
+
+    const itemsText = billingItems.map(item => `${item.item_name}: PHP ${item.amount}`).join('\n');
 
     const content = `
 ========================================
@@ -50,12 +65,14 @@ ID: ${studentData.student_id}
 Name: ${studentData.first_name} ${studentData.last_name}
 Grade Level: ${studentData.grade_level}
 
+ASSESSMENT BREAKDOWN:
+${itemsText}
+
 FINANCIAL SUMMARY:
 Total Assessment: PHP ${studentData.total_amount}
 Total Paid:       PHP ${studentData.paid_amount}
 Balance Due:      PHP ${studentData.balance}
 Status:           ${studentData.payment_status}
-Payment Plan:     ${studentData.payment_plan}
 
 Last Payment Date: ${studentData.last_payment_date || 'N/A'}
 ========================================
@@ -104,7 +121,9 @@ Last Payment Date: ${studentData.last_payment_date || 'N/A'}
       {isUnpaid && (
         <div className="bg-red-50 border-2 border-red-100 p-6 rounded-[2rem] flex items-center gap-5">
           <div className="bg-red-500 text-white p-3 rounded-2xl shadow-lg">
-            <Info size={24} />
+            <div className="bg-red-500 text-white p-3 rounded-2xl shadow-lg">
+                <Info size={24} />
+            </div>
           </div>
           <div>
             <p className="text-[11px] font-black text-red-900 uppercase tracking-widest leading-none">Account Pending</p>
@@ -122,9 +141,6 @@ Last Payment Date: ${studentData.last_payment_date || 'N/A'}
               <Wallet size={40} className="mb-6 text-yellow-500" />
               <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Remaining Balance</p>
               <h2 className="text-4xl font-black mt-1">₱ {studentData?.balance || '0.00'}</h2>
-              <div className="mt-6 flex gap-3">
-                <span className="bg-black/10 px-4 py-2 rounded-xl text-[9px] font-black uppercase border border-white/5">Plan: {studentData?.payment_plan || 'N/A'}</span>
-              </div>
             </div>
 
             <div className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] shadow-sm relative overflow-hidden">
@@ -149,6 +165,7 @@ Last Payment Date: ${studentData.last_payment_date || 'N/A'}
             <marquee className="font-black text-xs uppercase tracking-widest italic">Important: Please settle any outstanding balance to avoid late enrollment penalties.</marquee>
           </div>
 
+          {/* ASSESSMENT DETAILS WITH DYNAMIC BREAKDOWN */}
           <section className="bg-white border border-slate-200 rounded-[2.5rem] p-8 md:p-10 shadow-sm">
             <h3 className="font-black text-slate-800 mb-8 uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
               <Receipt size={16} className="text-blue-500"/> Assessment Details
@@ -162,15 +179,26 @@ Last Payment Date: ${studentData.last_payment_date || 'N/A'}
                   </tr>
                 </thead>
                 <tbody className="text-sm font-bold text-slate-700">
-                  <tr className="border-b border-slate-50">
-                    <td className="py-6">Tuition & Miscellaneous Fees (SY {studentData?.school_year})</td>
-                    <td className="py-6 text-right font-black text-slate-900 text-lg">₱ {studentData?.total_amount}</td>
-                  </tr>
+                  {/* Dynamic Rendering ng items mula sa student_billing_items */}
+                  {billingItems.length > 0 ? (
+                    billingItems.map((item, index) => (
+                      <tr key={index} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                        <td className="py-5 text-slate-600 font-medium">{item.item_name}</td>
+                        <td className="py-5 text-right font-black text-slate-900">₱ {parseFloat(item.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr className="border-b border-slate-50">
+                      <td className="py-6">Tuition & Miscellaneous Fees (General)</td>
+                      <td className="py-6 text-right font-black text-slate-900">₱ {studentData?.total_amount}</td>
+                    </tr>
+                  )}
+
                   <tr className="border-b border-slate-50 text-emerald-600">
                     <td className="py-6 italic font-medium">Total Paid Amount</td>
                     <td className="py-6 text-right font-black text-lg">- ₱ {studentData?.paid_amount}</td>
                   </tr>
-                  <tr className={isUnpaid ? 'text-red-600' : 'text-slate-900'}>
+                  <tr className={`border-t-2 border-slate-100 ${isUnpaid ? 'text-red-600' : 'text-slate-900'}`}>
                     <td className="py-6 uppercase tracking-widest text-[10px] font-black">Current Balance Due</td>
                     <td className="py-6 text-right font-black text-2xl underline decoration-double">₱ {studentData?.balance}</td>
                   </tr>
@@ -208,7 +236,6 @@ Last Payment Date: ${studentData.last_payment_date || 'N/A'}
   );
 };
 
-// MINI COMPONENTS - In-update para tumanggap ng onClick
 const DownloadBtn = ({ label, onClick }) => (
   <button 
     onClick={onClick}

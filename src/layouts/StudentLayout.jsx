@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
 import { 
   User, BookOpen, CreditCard, LogOut, Menu, X 
@@ -20,12 +20,16 @@ const StudentLayout = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
 
-  const fetchData = async () => {
+  // FETCH DATA WITH CORRECT MAPPING
+  const fetchData = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/get_students.php`);
-      const myData = res.data.find(s => s.email === user.email);
+      const studentsList = res.data.students || [];
+      const myData = studentsList.find(s => s.email === user.email);
+
       if (myData) {
         setStudentData(myData);
+        // Itutugma natin ang mobile_no at address_house sa form fields
         setEditForm({ 
           email: myData.email || '', 
           contact_no: myData.mobile_no || '',  
@@ -35,11 +39,13 @@ const StudentLayout = () => {
     } catch (err) {
       console.error("Fetch error:", err);
     }
-  };
+  }, [user.email, API_BASE_URL]);
 
   useEffect(() => {
-    if (user?.email) fetchData();
-  }, [user.email]);
+    if (user?.email) {
+      fetchData();
+    }
+  }, [user?.email, fetchData]);
 
   const studentMenu = [
     { icon: <User size={18}/>, label: "Dashboard", path: "/student/dashboard" },
@@ -59,10 +65,14 @@ const StudentLayout = () => {
     const formData = new FormData();
     formData.append('student_id', studentData.student_id);
     formData.append('email', editForm.email);
-    formData.append('contact_no', editForm.contact_no);
-    formData.append('address', editForm.address);
     
-    if (selectedFile) formData.append('profile_image', selectedFile);
+    // IPADALA ANG DATA GAMIT ANG TAMANG DB COLUMN NAMES
+    formData.append('mobile_no', editForm.contact_no); 
+    formData.append('address_house', editForm.address);
+    
+    if (selectedFile) {
+      formData.append('profile_image', selectedFile);
+    }
 
     try {
       const res = await axios.post(`${API_BASE_URL}/update_student.php`, formData, {
@@ -71,8 +81,8 @@ const StudentLayout = () => {
 
       if (res.data.success) {
         alert("Profile updated successfully!");
+        await fetchData(); // Refresh data para mag-update ang display
         setIsEditModalOpen(false);
-        fetchData(); 
         setSelectedFile(null);
         setPreviewUrl(null);
       } else {
@@ -80,6 +90,19 @@ const StudentLayout = () => {
       }
     } catch (err) {
       console.error("Update failed:", err);
+      alert("Failed to update profile.");
+    }
+  };
+
+  const handleOpenModal = () => {
+    if (studentData) {
+      // Sinisiguro na pagbukas ng modal, latest data ang nasa fields
+      setEditForm({
+        email: studentData.email || '',
+        contact_no: studentData.mobile_no || '',
+        address: studentData.address_house || ''
+      });
+      setIsEditModalOpen(true);
     }
   };
 
@@ -92,7 +115,9 @@ const StudentLayout = () => {
         className={`fixed inset-y-0 left-0 z-50 w-72 text-white transform transition-transform duration-300 lg:relative lg:translate-x-0 border-r-4 border-yellow-500 shadow-2xl shrink-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="p-8 text-center border-b border-white/5 relative">
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden absolute top-4 right-4 text-white/50 hover:text-white"><X size={20}/></button>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden absolute top-4 right-4 text-white/50 hover:text-white">
+            <X size={20}/>
+          </button>
           <div className="w-16 h-16 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center overflow-hidden border-2 border-yellow-500 shadow-xl">
             {branding.school_logo ? <img src={branding.school_logo} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-slate-800 font-black text-xl italic">CSPB</span>}
           </div>
@@ -106,7 +131,7 @@ const StudentLayout = () => {
               key={item.path}
               to={item.path}
               onClick={() => setIsSidebarOpen(false)}
-              className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold text-sm transition-all ${location.pathname === item.path ? 'bg-yellow-500 text-[#001f3f] shadow-lg' : 'hover:bg-white/10 text-slate-300'}`}
+              className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold text-sm transition-all ${location.pathname === item.path ? 'bg-yellow-50 text-[#001f3f] shadow-lg' : 'hover:bg-white/10 text-slate-300'}`}
             >
               {item.icon} {item.label}
             </Link>
@@ -127,7 +152,9 @@ const StudentLayout = () => {
         {/* TOP NAV */}
         <nav className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center shadow-sm">
           <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600 bg-slate-100 rounded-xl"><Menu size={20} /></button>
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600 bg-slate-100 rounded-xl">
+              <Menu size={20} />
+            </button>
             <h2 className="font-black text-slate-800 text-sm uppercase tracking-widest hidden sm:block">
               {getPageTitle()}
             </h2>
@@ -135,9 +162,9 @@ const StudentLayout = () => {
 
           <div className="flex items-center gap-3 relative">
             <div className="hidden md:block text-right">
-              <p className="text-[11px] font-black text-slate-900 leading-none mb-1">{studentData?.first_name} {studentData?.last_name}</p>
-              
-              {/* FIXED DYNAMIC STATUS LABEL */}
+              <p className="text-[11px] font-black text-slate-900 leading-none mb-1">
+                {studentData?.first_name} {studentData?.last_name}
+              </p>
               <p className={`text-[9px] font-bold uppercase tracking-widest ${
                 studentData?.payment_status === "Unpaid" ? "text-orange-500" : "text-green-600"
               }`}>
@@ -146,7 +173,7 @@ const StudentLayout = () => {
             </div>
 
             <button
-              onClick={() => setIsEditModalOpen(true)}
+              onClick={handleOpenModal}
               style={{ backgroundColor: branding.theme_color }}
               className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white shadow-md hover:scale-110 active:scale-95 transition-all overflow-hidden cursor-pointer"
             >

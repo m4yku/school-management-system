@@ -18,10 +18,17 @@ const StudentDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const studentRes = await axios.get(`${API_BASE_URL}/get_students.php`);
-      const myData = studentRes.data.find(s => s.email === user.email);
-      if (myData) {
-        setStudentData(myData);
+      const res = await axios.get(`${API_BASE_URL}/get_students.php`);
+      
+      // FIX: Dahil ang response ay { students: [], billing_items: [] }, 
+      // kailangang kunin ang array mula sa 'students' key.
+      const studentsArray = res.data.students;
+
+      if (studentsArray && Array.isArray(studentsArray)) {
+        const myData = studentsArray.find(s => s.email === user.email);
+        if (myData) {
+          setStudentData(myData);
+        }
       }
     } catch (err) {
       console.error("Error fetching student data:", err);
@@ -34,7 +41,7 @@ const StudentDashboard = () => {
     if (user?.email) fetchData();
   }, [user.email]);
 
-  // Status check para lang sa display (hindi na ito pang-block)
+  // Status check para sa display
   const isUnpaid = studentData?.payment_status === 'Unpaid';
 
   if (loading) return (
@@ -57,7 +64,6 @@ const StudentDashboard = () => {
             <span className="bg-yellow-500 text-[#001f3f] px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">
               {studentData?.enrollment_type || 'Continuing'}
             </span>
-            {/* Displaying Payment Status Badge */}
             <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md ${isUnpaid ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
               {studentData?.payment_status || 'Pending'}
             </span>
@@ -69,7 +75,7 @@ const StudentDashboard = () => {
         </div>
       </header>
 
-      {/* 2. PAYMENT NOTIFICATION (Visible regardless of status, alert style) */}
+      {/* 2. PAYMENT NOTIFICATION */}
       {isUnpaid && (
         <div className="bg-red-50 border-2 border-red-100 p-5 rounded-3xl flex items-center gap-4">
           <div className="bg-red-500 text-white p-2 rounded-xl shadow-lg shadow-red-200">
@@ -84,7 +90,7 @@ const StudentDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           
-          {/* 3. FINANCIAL OVERVIEW - Displaying Balance from Database */}
+          {/* 3. FINANCIAL OVERVIEW */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <div style={{ backgroundColor: branding.theme_color }} className="p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
                 <Wallet size={40} className="mb-6 text-yellow-500" />
@@ -152,9 +158,9 @@ const StudentDashboard = () => {
            <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl">
               <h3 className="font-black text-[9px] uppercase tracking-widest mb-6 text-slate-500 italic underline decoration-yellow-500">Quick Access</h3>
               <div className="space-y-3">
-                 <DownloadBtn label="Class Schedule" />
+                 <DownloadBtn label="Class Schedule" onClick={() => navigate('/student/schedule')} />
                  <DownloadBtn label="Student Handbook" />
-                 <DownloadBtn label="Billing Statement" />
+                 <DownloadBtn label="Billing Statement" onClick={() => navigate('/student/accounting')} />
               </div>
            </div>
         </div>
@@ -170,8 +176,11 @@ const InfoItem = ({ label, value }) => (
   </div>
 );
 
-const DownloadBtn = ({ label }) => (
-  <button className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-bold uppercase tracking-widest group">
+const DownloadBtn = ({ label, onClick }) => (
+  <button 
+    onClick={onClick}
+    className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all text-[10px] font-bold uppercase tracking-widest group"
+  >
     {label} <Download size={14} className="text-yellow-500 group-hover:scale-125 transition-transform" />
   </button>
 );
