@@ -151,40 +151,61 @@ const StudentLayout = () => {
         
         {/* TOP NAV */}
         <nav className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center shadow-sm">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600 bg-slate-100 rounded-xl">
-              <Menu size={20} />
-            </button>
-            <h2 className="font-black text-slate-800 text-sm uppercase tracking-widest hidden sm:block">
-              {getPageTitle()}
-            </h2>
-          </div>
+  <div className="flex items-center gap-4">
+    <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600 bg-slate-100 rounded-xl">
+      <Menu size={20} />
+    </button>
+    <h2 className="font-black text-slate-800 text-sm uppercase tracking-widest hidden sm:block">
+      {getPageTitle()}
+    </h2>
+  </div>
 
-          <div className="flex items-center gap-3 relative">
-            <div className="hidden md:block text-right">
-              <p className="text-[11px] font-black text-slate-900 leading-none mb-1">
-                {studentData?.first_name} {studentData?.last_name}
-              </p>
-              <p className={`text-[9px] font-bold uppercase tracking-widest ${
-                studentData?.payment_status === "Unpaid" ? "text-orange-500" : "text-green-600"
-              }`}>
-                {studentData?.payment_status === "Unpaid" ? "PENDING ACCESS" : "SYSTEM VERIFIED"}
-              </p>
-            </div>
+  <div className="flex items-center gap-3 relative">
+    <div className="hidden md:block text-right">
+      <p className="text-[11px] font-black text-slate-900 leading-none mb-1 uppercase">
+        {studentData?.first_name} {studentData?.last_name}
+      </p>
+      
+      {/* --- PAYMENT STATUS INDICATOR --- */}
+      <p className={`text-[9px] font-black uppercase tracking-[0.15em] flex items-center justify-end gap-1.5 ${
+        studentData?.payment_status === "Unpaid" 
+          ? "text-red-500" 
+          : (studentData?.payment_status === "Partial" || studentData?.payment_status === "Partial Payment")
+            ? "text-yellow-500" 
+            : "text-emerald-600"
+      }`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${
+          studentData?.payment_status === "Unpaid" 
+            ? "bg-red-500 animate-pulse" 
+            : (studentData?.payment_status === "Partial" || studentData?.payment_status === "Partial Payment")
+              ? "bg-yellow-500" 
+              : "bg-emerald-600"
+        }`}></span>
+        {studentData?.payment_status === "Unpaid" 
+          ? "Unpaid Account" 
+          : (studentData?.payment_status === "Partial" || studentData?.payment_status === "Partial Payment")
+            ? "Partial Access" 
+            : "System Verified"}
+      </p>
+    </div>
 
-            <button
-              onClick={handleOpenModal}
-              style={{ backgroundColor: branding.theme_color }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white shadow-md hover:scale-110 active:scale-95 transition-all overflow-hidden cursor-pointer"
-            >
-              {studentData?.profile_image ? (
-                <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
-              ) : (
-                <span className="text-white font-black text-sm">{studentData?.first_name?.charAt(0)}</span>
-              )}
-            </button>
-          </div>
-        </nav>
+    <button
+      onClick={handleOpenModal}
+      style={{ backgroundColor: branding.theme_color }}
+      className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white shadow-md hover:scale-110 active:scale-95 transition-all overflow-hidden cursor-pointer"
+    >
+      {studentData?.profile_image ? (
+        <img 
+          src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} 
+          className="w-full h-full object-cover" 
+          alt="Profile" 
+        />
+      ) : (
+        <span className="text-white font-black text-sm">{studentData?.first_name?.charAt(0)}</span>
+      )}
+    </button>
+  </div>
+</nav>
 
         <div className="flex-1">
           <Outlet />
