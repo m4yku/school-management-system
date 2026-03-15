@@ -25,7 +25,15 @@ const StudentAccounting = () => {
       const myData = allStudents.find(s => s.email === user.email);
       
       if (myData) {
-        let currentPaidPool = parseFloat(myData.paid_amount || 0);
+        // --- CALCULATION LOGIC ---
+        const total = parseFloat(myData.total_amount || 0);
+        const paid = parseFloat(myData.paid_amount || 0);
+        
+        // Accurate Balance: Hindi mag-ne-negative
+        const calculatedBalance = Math.max(0, total - paid);
+        myData.balance = calculatedBalance.toFixed(2);
+
+        let currentPaidPool = paid;
         const rawItems = allItems.filter(item => 
           parseInt(item.billing_id) === parseInt(myData.billing_id)
         );
@@ -45,9 +53,6 @@ const StudentAccounting = () => {
           return item;
         }).filter(item => item !== null);
 
-        const displayBalance = Math.max(0, parseFloat(myData.balance)).toFixed(2);
-        myData.balance = displayBalance;
-
         setStudentData(myData);
         setBillingItems(remainingItems);
       }
@@ -66,10 +71,13 @@ const StudentAccounting = () => {
     window.print();
   };
 
-  // Status Check Helpers
-  const isUnpaid = studentData?.payment_status === 'Unpaid';
-  const isPartial = studentData?.payment_status === 'Partial';
-  const isPaid = studentData?.payment_status === 'Paid';
+  // --- STRICT STATUS CHECKS (MATH BASED) ---
+  const totalAmt = parseFloat(studentData?.total_amount || 0);
+  const paidAmt = parseFloat(studentData?.paid_amount || 0);
+
+  const isPaid = paidAmt >= totalAmt && totalAmt > 0;
+  const isPartial = paidAmt > 0 && paidAmt < totalAmt;
+  const isUnpaid = paidAmt <= 0;
 
   // Helper para siguraduhing HEX ang kulay (iwas oklch error)
   const safeThemeColor = branding?.theme_color?.startsWith('#') ? branding.theme_color : '#3b82f6';
@@ -91,8 +99,9 @@ const StudentAccounting = () => {
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">Finance Portal</span>
               <span className="bg-yellow-500 text-[#001f3f] px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md italic">S.Y. {studentData?.school_year}</span>
+              {/* Dynamic Tag based on Math */}
               <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md ${isUnpaid ? 'bg-red-500 text-white' : isPartial ? 'bg-yellow-500 text-[#001f3f]' : 'bg-emerald-500 text-white'}`}>
-                {studentData?.payment_status}
+                {isPaid ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid'}
               </span>
             </div>
             <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter mb-2">
@@ -112,7 +121,7 @@ const StudentAccounting = () => {
                 {isUnpaid ? 'Account Pending' : 'Balance Remaining'}
               </p>
               <p className={`text-[10px] font-bold mt-1 uppercase ${isUnpaid ? 'text-red-600/70' : 'text-yellow-600/70'}`}>
-                {isUnpaid ? 'Please settle your remaining balance to activate all LMS features.' : 'You have an outstanding partial balance. Please settle to complete your record.'}
+                {isUnpaid ? 'Please settle your remaining balance to activate all LMS features.' : `You have an outstanding partial balance of ₱${parseFloat(studentData?.balance).toLocaleString()}. Please settle to complete your record.`}
               </p>
             </div>
           </div>
@@ -125,21 +134,20 @@ const StudentAccounting = () => {
                 <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
                 <Wallet size={40} className="mb-6 text-yellow-500" />
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Remaining Balance</p>
-                <h2 className="text-4xl font-black mt-1">₱ {studentData?.balance || '0.00'}</h2>
+                <h2 className="text-4xl font-black mt-1">₱ {parseFloat(studentData?.balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</h2>
               </div>
 
               <div className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] shadow-sm relative overflow-hidden">
                 <div className="flex justify-between items-start mb-6">
                   <div className={`p-4 rounded-2xl ${isUnpaid ? 'bg-red-50' : isPartial ? 'bg-yellow-50' : 'bg-emerald-50'}`}>
-                    {/* ICON LOGIC: Lock for Unpaid, Check for Partial/Paid */}
                     {isUnpaid ? <Lock size={24} className="text-red-500" /> : <CheckCircle2 size={24} className={isPartial ? 'text-yellow-600' : 'text-emerald-600'} />}
                   </div>
                   <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase ${isUnpaid ? 'bg-red-100 text-red-700' : isPartial ? 'bg-yellow-100 text-yellow-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                     {studentData?.payment_status}
+                     {isPaid ? 'Paid' : isPartial ? 'Partial' : 'Unpaid'}
                   </span>
                 </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Latest Payment</p>
-                <h2 className="text-2xl font-black text-slate-900 mt-1">₱ {studentData?.paid_amount || '0.00'}</h2>
+                <h2 className="text-2xl font-black text-slate-900 mt-1">₱ {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2})}</h2>
                 <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase italic flex items-center gap-2">
                   <Calendar size={12}/> {studentData?.last_payment_date || 'N/A'}
                 </p>
@@ -179,11 +187,11 @@ const StudentAccounting = () => {
                     )}
                     <tr className="border-b border-slate-50 text-emerald-600">
                       <td className="py-6 italic font-medium">Total Paid Amount</td>
-                      <td className="py-6 text-right font-black text-lg">- ₱ {studentData?.paid_amount}</td>
+                      <td className="py-6 text-right font-black text-lg">- ₱ {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                     </tr>
                     <tr className={`border-t-2 border-slate-100 ${isUnpaid ? 'text-red-600' : isPartial ? 'text-yellow-600' : 'text-slate-900'}`}>
                       <td className="py-6 uppercase tracking-widest text-[10px] font-black">Current Balance Due</td>
-                      <td className="py-6 text-right font-black text-2xl underline decoration-double">₱ {studentData?.balance}</td>
+                      <td className="py-6 text-right font-black text-2xl underline decoration-double">₱ {parseFloat(studentData?.balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -195,12 +203,11 @@ const StudentAccounting = () => {
             <div className={`p-8 rounded-[2.5rem] border-4 ${isUnpaid ? 'bg-red-50 border-red-100' : isPartial ? 'bg-yellow-50 border-yellow-100' : 'bg-emerald-50 border-emerald-100'}`}>
               <div className="flex items-center gap-4">
                 <div style={{ backgroundColor: isUnpaid ? '#ef4444' : isPartial ? '#eab308' : '#10b981' }} className="text-white p-4 rounded-2xl shadow-lg transition-colors duration-500">
-                  {/* ICON LOGIC: CreditCard for Unpaid, Check for Paid/Partial */}
-                  {isUnpaid ? <CreditCard size={24}/> : <CheckCircle2 size={24}/>}
+                   {isUnpaid ? <CreditCard size={24}/> : <CheckCircle2 size={24}/>}
                 </div>
                 <div>
                   <p className={`font-black text-xl leading-none ${isUnpaid ? 'text-red-700' : isPartial ? 'text-yellow-700' : 'text-emerald-700'}`}>
-                    {studentData?.payment_status?.toUpperCase()}
+                    {isPaid ? 'PAID' : isPartial ? 'PARTIAL' : 'UNPAID'}
                   </p>
                   <p className={`text-[9px] font-bold uppercase mt-1 ${isUnpaid ? 'text-red-500' : isPartial ? 'text-yellow-600' : 'text-emerald-600'}`}>
                     Record Status: {isUnpaid ? 'Inactive' : 'Active'}
@@ -263,7 +270,7 @@ const StudentAccounting = () => {
                   <div className="text-right">
                     <p><span className="font-black">DATE:</span> {new Date().toLocaleDateString()}</p>
                     <p><span className="font-black">SY:</span> {studentData.school_year}</p>
-                    <p><span className="font-black">STATUS:</span> {studentData.payment_status}</p>
+                    <p><span className="font-black">STATUS:</span> {isPaid ? 'Fully Paid' : isPartial ? 'Partial' : 'Unpaid'}</p>
                   </div>
                 </div>
 
@@ -290,10 +297,10 @@ const StudentAccounting = () => {
                 </table>
 
                 <div className="space-y-1 text-right border-t-2 border-slate-900 pt-4">
-                  <p className="text-[10px]"><span className="font-black uppercase">TOTAL ASSESSMENT:</span> ₱ {studentData.total_amount}</p>
-                  <p className="text-[10px] text-emerald-600"><span className="font-black uppercase">TOTAL PAID:</span> - ₱ {studentData.paid_amount}</p>
+                  <p className="text-[10px]"><span className="font-black uppercase">TOTAL ASSESSMENT:</span> ₱ {totalAmt.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                  <p className="text-[10px] text-emerald-600"><span className="font-black uppercase">TOTAL PAID:</span> - ₱ {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                   <div className="pt-2 border-t border-slate-200 mt-2">
-                    <p className="text-lg font-black underline underline-offset-4 decoration-double">BALANCE: ₱ {studentData.balance}</p>
+                    <p className="text-lg font-black underline underline-offset-4 decoration-double">BALANCE: ₱ {parseFloat(studentData.balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                   </div>
                 </div>
 

@@ -38,10 +38,22 @@ const StudentDashboard = () => {
     if (user?.email) fetchData();
   }, [user.email]);
 
-  // Status checks for dynamic UI
-  const isUnpaid = studentData?.payment_status === 'Unpaid';
-  const isPartial = studentData?.payment_status === 'Partial';
-  const isPaid = studentData?.payment_status === 'Paid';
+  // --- ARITHMETIC LOGIC PARA SA FINANCIAL ACCURACY ---
+  const totalAmount = parseFloat(studentData?.total_amount || 0);
+  const paidAmount = parseFloat(studentData?.paid_amount || 0);
+  
+  // Siguraduhin na hindi mag-negative ang balance (0 kung paid na)
+  const remainingBalance = Math.max(0, totalAmount - paidAmount);
+
+  // Status checks for dynamic UI (Strict Implementation)
+  // Mag-re-green (isPaid) LANG kapag bayad na ang buong halaga 
+  const isPaid = paidAmount >= totalAmount && totalAmount > 0;
+  
+  // Kapag may bayad na pero kulang pa sa total, matic na Partial [cite: 82]
+  const isPartial = paidAmount > 0 && paidAmount < totalAmount;
+  
+  // Kapag zero ang bayad [cite: 67]
+  const isUnpaid = paidAmount <= 0;
 
   // Helper para sa theme color safety
   const safeThemeColor = branding?.theme_color?.startsWith('#') ? branding.theme_color : '#3b82f6';
@@ -66,8 +78,9 @@ const StudentDashboard = () => {
             <span className="bg-yellow-500 text-[#001f3f] px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">
               {studentData?.enrollment_type || 'Continuing'}
             </span>
+            {/* Status Indicator: Green only if Fully Paid */}
             <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md ${isUnpaid ? 'bg-red-500 text-white' : isPartial ? 'bg-yellow-500 text-[#001f3f]' : 'bg-emerald-500 text-white'}`}>
-              {studentData?.payment_status || 'Pending'}
+              {isPaid ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid'}
             </span>
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter mb-2">
@@ -84,8 +97,8 @@ const StudentDashboard = () => {
             {isUnpaid ? <Lock size={20} /> : <Info size={20} />}
           </div>
           <p className={`text-[11px] font-black uppercase tracking-tight ${isUnpaid ? 'text-red-900' : 'text-yellow-900'}`}>
-            Account Notice: Your account status is {studentData?.payment_status?.toUpperCase()}. 
-            {isUnpaid ? ' Please settle your balance to activate all features.' : ' You have a remaining balance to settle.'}
+            Account Notice: Your account status is {isUnpaid ? 'UNPAID' : 'PARTIAL'}. 
+            {isUnpaid ? ' Please settle your balance to activate all features.' : ` You have a remaining balance of ₱${remainingBalance.toLocaleString()} to settle.`}
           </p>
         </div>
       )}
@@ -95,22 +108,22 @@ const StudentDashboard = () => {
           
           {/* 3. FINANCIAL OVERVIEW */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div style={{ backgroundColor: safeThemeColor }} className="p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
+              <div style={{ backgroundColor: safeThemeColor }} className="p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
                 <Wallet size={40} className="mb-6 text-yellow-500" />
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Remaining Balance</p>
-                <h2 className="text-4xl font-black mt-1">₱ {studentData?.balance || '0.00'}</h2>
+                {/* Fixed Negative Display: Gumagamit ng remainingBalance variable */}
+                <h2 className="text-4xl font-black mt-1">₱ {remainingBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</h2>
                 <button 
                   onClick={() => navigate('/student/accounting')}
                   className="mt-6 flex items-center gap-2 text-[9px] font-black uppercase bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full transition-all"
                 >
                   View Breakdown <ArrowRight size={14}/>
                 </button>
-             </div>
+              </div>
 
-             <div className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] shadow-sm relative overflow-hidden group">
+              <div className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] shadow-sm relative overflow-hidden group">
                 <div className="flex justify-between items-start mb-6">
                   <div className={`p-4 rounded-2xl ${isUnpaid ? 'bg-red-50' : isPartial ? 'bg-yellow-50' : 'bg-emerald-50'}`}>
-                    {/* DYNAMIC ICON: Red Lock for Unpaid, Yellow Info/Check for Partial, Green Check for Paid */}
                     {isUnpaid ? (
                       <Lock size={24} className="text-red-500" />
                     ) : (
@@ -118,13 +131,13 @@ const StudentDashboard = () => {
                     )}
                   </div>
                   <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase ${isUnpaid ? 'bg-red-100 text-red-700' : isPartial ? 'bg-yellow-100 text-yellow-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                    {studentData?.payment_status}
+                    {isPaid ? 'Paid' : isPartial ? 'Partial' : 'Unpaid'}
                   </span>
                 </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Latest Payment</p>
-                <h2 className="text-2xl font-black text-slate-900 mt-1">₱ {studentData?.paid_amount || '0.00'}</h2>
+                <h2 className="text-2xl font-black text-slate-900 mt-1">₱ {paidAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</h2>
                 <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase italic">Processed: {studentData?.last_payment_date || 'N/A'}</p>
-             </div>
+              </div>
           </div>
 
           {/* 4. ANNOUNCEMENTS */}
@@ -142,7 +155,7 @@ const StudentDashboard = () => {
                <InfoItem label="Grade Level" value={studentData?.grade_level} />
                <InfoItem label="Classification" value={studentData?.enrollment_type} />
                <InfoItem label="School Year" value={studentData?.school_year} />
-               <InfoItem label="Payment Status" value={studentData?.payment_status} />
+               <InfoItem label="Payment Status" value={isPaid ? 'Fully Paid' : isPartial ? 'Partial' : 'Unpaid'} />
                <InfoItem label="Payment Plan" value={studentData?.payment_plan} />
                <InfoItem label="LRN Number" value={studentData?.lrn} />
             </div>
@@ -154,7 +167,6 @@ const StudentDashboard = () => {
            <div className={`p-8 rounded-[2.5rem] border-4 ${isUnpaid ? 'bg-red-50 border-red-100' : isPartial ? 'bg-yellow-50 border-yellow-100' : 'bg-emerald-50 border-emerald-100'}`}>
              <div className="flex items-center gap-4">
                 <div style={{ backgroundColor: isUnpaid ? '#ef4444' : isPartial ? '#eab308' : '#10b981' }} className="text-white p-4 rounded-2xl shadow-lg transition-colors duration-500">
-                   {/* DYNAMIC ICON: Lock kapag Unpaid, Unlock kapag may bayad na (Partial/Paid) */}
                    {isUnpaid ? <Lock size={24}/> : <Unlock size={24}/>}
                 </div>
                 <div>

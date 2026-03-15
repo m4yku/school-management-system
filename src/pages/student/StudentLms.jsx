@@ -250,4 +250,4 @@ const StatusItem = ({ label, value }) => (
   </div>
 );
 
-export default StudentLms;   
+export default StudentLms; 
