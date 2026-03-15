@@ -38,20 +38,22 @@ const StudentDashboard = () => {
     if (user?.email) fetchData();
   }, [user.email]);
 
-  // --- ARITHMETIC LOGIC PARA SA FINANCIAL ACCURACY ---
+  // --- ARITHMETIC LOGIC (SYNCED WITH STUDENT LMS) ---
   const totalAmount = parseFloat(studentData?.total_amount || 0);
   const paidAmount = parseFloat(studentData?.paid_amount || 0);
   const tuitionOnly = parseFloat(studentData?.tuition_only_amount || 0); 
   
   const remainingBalance = Math.max(0, totalAmount - paidAmount);
 
-  // Status checks
+  // Status checks for box colors
   const isPaid = paidAmount >= totalAmount && totalAmount > 0;
   const isPartial = paidAmount > 0 && paidAmount < totalAmount;
   const isUnpaid = paidAmount <= 0;
 
-  // LMS Gatekeeper: Active basta may bayad (Partial or Fully Paid)
-  const isLmsActive = paidAmount > 0;
+  // --- GATEKEEPER LOGIC (GINAYA SA STUDENT LMS) ---
+  // Magiging ACTIVE lang kung >= 50% ng Tuition Fee ang naibayad
+  const tuitionThreshold = tuitionOnly * 0.5;
+  const isLmsActive = paidAmount >= tuitionThreshold && tuitionThreshold > 0;
 
   const safeThemeColor = branding?.theme_color?.startsWith('#') ? branding.theme_color : '#3b82f6';
 
@@ -102,6 +104,7 @@ const StudentDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           
+          {/* 3. FINANCIAL OVERVIEW */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div style={{ backgroundColor: safeThemeColor }} className="p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
                 <Wallet size={40} className="mb-6 text-yellow-500" />
@@ -127,11 +130,13 @@ const StudentDashboard = () => {
               </div>
           </div>
 
+          {/* 4. ANNOUNCEMENTS */}
           <div style={{ backgroundColor: safeThemeColor }} className="text-white p-5 rounded-3xl flex items-center gap-5 shadow-xl overflow-hidden relative">
             <Megaphone size={24} className="shrink-0 animate-bounce text-yellow-500" />
             <marquee className="font-black text-xs uppercase tracking-widest italic">Important: School Year {studentData?.school_year} enrollment is ongoing.</marquee>
           </div>
 
+          {/* 5. ENROLLMENT DETAILS */}
           <section className="bg-white border border-slate-200 rounded-[2.5rem] p-6 md:p-10 shadow-sm">
             <h3 className="font-black text-slate-800 mb-8 uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
               <CheckCircle2 size={16} className="text-blue-500"/> Enrollment Details
@@ -147,7 +152,7 @@ const StudentDashboard = () => {
           </section>
         </div>
 
-        {/* 6. SIDE CARDS (GATEKEEPER SECTION - UPDATED LOGIC) */}
+        {/* 6. SIDE CARDS (LMS ACCESS STATUS - SYNCED LOGIC) */}
         <div className="space-y-8">
             <div className={`p-8 rounded-[2.5rem] border-4 transition-all duration-500 
               ${isPaid ? 'bg-emerald-50 border-emerald-100' : 
@@ -158,6 +163,7 @@ const StudentDashboard = () => {
                     ${isPaid ? 'bg-emerald-500' : 
                       isUnpaid ? 'bg-red-500' : 
                       'bg-yellow-500'}`}>
+                    {/* Icon base sa 50% Tuition threshold */}
                     {isLmsActive ? <Unlock size={24}/> : <Lock size={24}/>}
                  </div>
                  <div>
@@ -165,6 +171,7 @@ const StudentDashboard = () => {
                       ${isPaid ? 'text-emerald-700' : 
                         isUnpaid ? 'text-red-700' : 
                         'text-yellow-700'}`}>
+                      {/* Text base sa 50% Tuition threshold */}
                       {isLmsActive ? 'ACTIVE' : 'INACTIVE'}
                     </p>
                     <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">LMS Access Status</p>
