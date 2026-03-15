@@ -185,7 +185,7 @@ const StudentLayout = () => {
           ? "Unpaid Account" 
           : (studentData?.payment_status === "Partial" || studentData?.payment_status === "Partial Payment")
             ? "Partial Access" 
-            : "System Verified"}
+            : "Fully Paid"}
       </p>
     </div>
 
