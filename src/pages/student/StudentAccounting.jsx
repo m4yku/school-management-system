@@ -66,7 +66,10 @@ const StudentAccounting = () => {
     window.print();
   };
 
+  // Status Check Helpers
   const isUnpaid = studentData?.payment_status === 'Unpaid';
+  const isPartial = studentData?.payment_status === 'Partial';
+  const isPaid = studentData?.payment_status === 'Paid';
 
   // Helper para siguraduhing HEX ang kulay (iwas oklch error)
   const safeThemeColor = branding?.theme_color?.startsWith('#') ? branding.theme_color : '#3b82f6';
@@ -88,7 +91,7 @@ const StudentAccounting = () => {
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">Finance Portal</span>
               <span className="bg-yellow-500 text-[#001f3f] px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md italic">S.Y. {studentData?.school_year}</span>
-              <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md ${isUnpaid ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
+              <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md ${isUnpaid ? 'bg-red-500 text-white' : isPartial ? 'bg-yellow-500 text-[#001f3f]' : 'bg-emerald-500 text-white'}`}>
                 {studentData?.payment_status}
               </span>
             </div>
@@ -99,14 +102,18 @@ const StudentAccounting = () => {
           </div>
         </header>
 
-        {isUnpaid && (
-          <div className="bg-red-50 border-2 border-red-100 p-6 rounded-[2rem] flex items-center gap-5">
-            <div className="bg-red-500 text-white p-3 rounded-2xl shadow-lg">
+        {(isUnpaid || isPartial) && (
+          <div className={`${isUnpaid ? 'bg-red-50 border-red-100' : 'bg-yellow-50 border-yellow-100'} border-2 p-6 rounded-[2rem] flex items-center gap-5`}>
+            <div className={`${isUnpaid ? 'bg-red-500' : 'bg-yellow-500'} text-white p-3 rounded-2xl shadow-lg`}>
                <Info size={24} />
             </div>
             <div>
-              <p className="text-[11px] font-black text-red-900 uppercase tracking-widest leading-none">Account Pending</p>
-              <p className="text-[10px] font-bold text-red-600/70 mt-1 uppercase">Please settle your remaining balance to activate all LMS features.</p>
+              <p className={`text-[11px] font-black uppercase tracking-widest leading-none ${isUnpaid ? 'text-red-900' : 'text-yellow-900'}`}>
+                {isUnpaid ? 'Account Pending' : 'Balance Remaining'}
+              </p>
+              <p className={`text-[10px] font-bold mt-1 uppercase ${isUnpaid ? 'text-red-600/70' : 'text-yellow-600/70'}`}>
+                {isUnpaid ? 'Please settle your remaining balance to activate all LMS features.' : 'You have an outstanding partial balance. Please settle to complete your record.'}
+              </p>
             </div>
           </div>
         )}
@@ -123,10 +130,11 @@ const StudentAccounting = () => {
 
               <div className="bg-white border-2 border-slate-100 p-8 rounded-[2.5rem] shadow-sm relative overflow-hidden">
                 <div className="flex justify-between items-start mb-6">
-                  <div className={`p-4 rounded-2xl ${isUnpaid ? 'bg-red-50' : 'bg-emerald-50'}`}>
-                    {isUnpaid ? <Lock size={24} className="text-red-500" /> : <CheckCircle2 size={24} className="text-emerald-600" />}
+                  <div className={`p-4 rounded-2xl ${isUnpaid ? 'bg-red-50' : isPartial ? 'bg-yellow-50' : 'bg-emerald-50'}`}>
+                    {/* ICON LOGIC: Lock for Unpaid, Check for Partial/Paid */}
+                    {isUnpaid ? <Lock size={24} className="text-red-500" /> : <CheckCircle2 size={24} className={isPartial ? 'text-yellow-600' : 'text-emerald-600'} />}
                   </div>
-                  <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase ${isUnpaid ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase ${isUnpaid ? 'bg-red-100 text-red-700' : isPartial ? 'bg-yellow-100 text-yellow-700' : 'bg-emerald-100 text-emerald-700'}`}>
                      {studentData?.payment_status}
                   </span>
                 </div>
@@ -173,7 +181,7 @@ const StudentAccounting = () => {
                       <td className="py-6 italic font-medium">Total Paid Amount</td>
                       <td className="py-6 text-right font-black text-lg">- ₱ {studentData?.paid_amount}</td>
                     </tr>
-                    <tr className={`border-t-2 border-slate-100 ${isUnpaid ? 'text-red-600' : 'text-slate-900'}`}>
+                    <tr className={`border-t-2 border-slate-100 ${isUnpaid ? 'text-red-600' : isPartial ? 'text-yellow-600' : 'text-slate-900'}`}>
                       <td className="py-6 uppercase tracking-widest text-[10px] font-black">Current Balance Due</td>
                       <td className="py-6 text-right font-black text-2xl underline decoration-double">₱ {studentData?.balance}</td>
                     </tr>
@@ -184,14 +192,19 @@ const StudentAccounting = () => {
           </div>
 
           <div className="space-y-8">
-            <div className={`p-8 rounded-[2.5rem] border-4 ${isUnpaid ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
+            <div className={`p-8 rounded-[2.5rem] border-4 ${isUnpaid ? 'bg-red-50 border-red-100' : isPartial ? 'bg-yellow-50 border-yellow-100' : 'bg-emerald-50 border-emerald-100'}`}>
               <div className="flex items-center gap-4">
-                <div style={{ backgroundColor: isUnpaid ? '#ef4444' : safeThemeColor }} className="text-white p-4 rounded-2xl shadow-lg">
-                  <CreditCard size={24}/>
+                <div style={{ backgroundColor: isUnpaid ? '#ef4444' : isPartial ? '#eab308' : '#10b981' }} className="text-white p-4 rounded-2xl shadow-lg transition-colors duration-500">
+                  {/* ICON LOGIC: CreditCard for Unpaid, Check for Paid/Partial */}
+                  {isUnpaid ? <CreditCard size={24}/> : <CheckCircle2 size={24}/>}
                 </div>
                 <div>
-                  <p className={`font-black text-xl leading-none ${isUnpaid ? 'text-red-700' : 'text-emerald-700'}`}>{studentData?.payment_status?.toUpperCase()}</p>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">Record Status: Active</p>
+                  <p className={`font-black text-xl leading-none ${isUnpaid ? 'text-red-700' : isPartial ? 'text-yellow-700' : 'text-emerald-700'}`}>
+                    {studentData?.payment_status?.toUpperCase()}
+                  </p>
+                  <p className={`text-[9px] font-bold uppercase mt-1 ${isUnpaid ? 'text-red-500' : isPartial ? 'text-yellow-600' : 'text-emerald-600'}`}>
+                    Record Status: {isUnpaid ? 'Inactive' : 'Active'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -213,7 +226,6 @@ const StudentAccounting = () => {
         <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static">
           <div className="bg-white w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in duration-300 print:shadow-none print:rounded-none print:w-full print:max-w-none">
             
-            {/* Modal Header - Hidden on print */}
             <div className="flex justify-between items-center p-8 border-b border-slate-100 print:hidden">
               <h2 className="font-black uppercase tracking-tighter text-slate-900 flex items-center gap-2">
                 <Eye size={20} className="text-blue-600"/> {viewModal.type} Preview
@@ -223,7 +235,6 @@ const StudentAccounting = () => {
               </button>
             </div>
             
-            {/* Printable Content */}
             <div className="p-8 max-h-[60vh] overflow-y-auto bg-slate-50 print:bg-white print:max-h-none print:overflow-visible print:p-0">
               <div id="printable-document" className="bg-white p-10 shadow-sm border border-slate-200 mx-auto font-mono text-[11px] leading-relaxed text-slate-800 print:border-none print:shadow-none print:w-full">
                 
@@ -292,7 +303,6 @@ const StudentAccounting = () => {
               </div>
             </div>
 
-            {/* Print Button - Hidden on print */}
             <div className="p-8 bg-white border-t border-slate-100 flex gap-4 print:hidden">
               <button 
                 onClick={handlePrint} 
