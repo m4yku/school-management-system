@@ -46,19 +46,20 @@ const StudentLms = () => {
         const paidAmount = parseFloat(myData.paid_amount || 0);
         const tuitionOnly = parseFloat(myData.tuition_only_amount || 0);
         
-        // Gatekeeper Logic: 50% of Tuition Requirement
+        // Gatekeeper Logic: 50% of Tuition Requirement [cite: 23, 96]
         const tuitionThreshold = tuitionOnly * 0.5;
         const isEnrolled = (myData.enrollment_status || "").trim() === 'Enrolled';
         
-        // Status checks for dynamic UI
+        // Status checks for dynamic UI [cite: 81, 82]
         const isPaid = paidAmount >= totalAmount && totalAmount > 0;
         const isPartial = paidAmount > 0 && paidAmount < totalAmount;
         const isUnpaid = paidAmount <= 0;
 
         // Custom Display Status
         myData.computedPaymentStatus = isPaid ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid';
+        myData.displayTuition = tuitionOnly; // Para sa display sa lock screen
 
-        // LMS LOCK LOGIC: Unlock kung Enrolled at naabot ang 50% ng TUITION
+        // LMS LOCK LOGIC [cite: 92, 94]
         if (isEnrolled && paidAmount >= tuitionThreshold) {
           myData.isLmsLocked = false;
         } else {
@@ -104,6 +105,10 @@ const StudentLms = () => {
             Naka-lock ang iyong access. Mahalagang <strong className="font-bold text-slate-900">bayaran ang 50% ng Tuition Fee</strong> para ma-activate ang iyong modules.
             <br/><br/>
             <div className="bg-red-50 p-6 rounded-[1.5rem] text-[11px] space-y-2 border border-red-100 shadow-inner">
+                <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
+                  Tuition Fee (Total): 
+                  <span className="font-black text-slate-900 bg-white px-2 py-1 rounded shadow-sm">₱{studentData?.displayTuition?.toLocaleString()}</span>
+                </p>
                 <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
                   Payment Status: 
                   <span className={`font-black px-2 py-1 rounded shadow-sm italic ${studentData?.computedPaymentStatus === 'Unpaid' ? 'text-red-600 bg-white' : 'text-blue-600 bg-white'}`}>
@@ -214,6 +219,7 @@ const StudentLms = () => {
         </div>
 
         <div className="space-y-8">
+          {/* ENROLLMENT INFO WITH SCHOLARSHIP */}
           <div className="bg-white border-2 border-slate-50 p-10 rounded-[3rem] shadow-xl">
             <h3 className="font-black text-slate-900 mb-8 uppercase text-[11px] tracking-[0.2em] flex items-center gap-3">
               <GraduationCap size={20} className="text-emerald-500"/> Enrollment Info
