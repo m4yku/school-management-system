@@ -18,20 +18,40 @@ const StudentLms = () => {
 
   const API_BASE_URL = "http://localhost/sms-api"; 
 
-  // --- LOGIC PARA SA DEPARTMENT AT SECTION/STRAND ---
-  const getStudentDetails = (grade, section, program) => {
-    if (!grade) return { dept: "N/A", displaySection: section || "TBA" };
-    const g = grade.toString().toUpperCase();
-    const gNum = parseInt(g.replace(/\D/g, ''));
+  // --- UPDATED LOGIC FOR COLLEGE, SHS, AND PROGRAMS ---
+  const getStudentDetails = (data) => {
+    const grade = (data.grade_level || "").toString().toUpperCase();
+    const gNum = parseInt(grade.replace(/\D/g, ''));
+    const isCollege = grade.includes('YEAR') || gNum > 12 || grade.includes('COLLEGE');
+    const isSHS = gNum === 11 || gNum === 12;
 
-    if (g.includes('KINDER') || (gNum >= 1 && gNum <= 6)) return { dept: "Elementary", displaySection: section || "TBA" };
-    if (gNum >= 7 && gNum <= 10) return { dept: "Junior High School", displaySection: section || "TBA" };
-    if (gNum === 11 || gNum === 12) {
-      const strand = program || ""; 
-      return { dept: "Senior High School", displaySection: strand ? `${strand} - ${section}` : section };
+    // Default values
+    let dept = data.department_name || "Basic Education";
+    let displayMain = data.section || "TBA"; // Default to Section
+    let majorDisplay = data.major || "N/A";
+
+    if (isCollege) {
+        dept = data.department_name || "College";
+        // Para sa College: Mawawala ang section, Program Code at Major ang ipapakita
+        displayMain = data.program_code || "N/A"; 
+    } else if (isSHS) {
+        dept = data.department_name || "Senior High School";
+        // Para sa SHS: Program Code (Strand) + Section
+        displayMain = data.program_code ? `${data.program_code} - ${data.section}` : data.section;
+    } else {
+        // Elementary / JHS
+        if (grade.includes('KINDER') || (gNum >= 1 && gNum <= 6)) dept = "Elementary";
+        if (gNum >= 7 && gNum <= 10) dept = "Junior High School";
+        displayMain = data.section || "TBA";
     }
-    if (g.includes('YEAR') || gNum > 12 || g.includes('COLLEGE')) return { dept: "College", displaySection: section || "TBA" };
-    return { dept: "Basic Education", displaySection: section || "TBA" };
+
+    return { 
+        dept, 
+        displayMain, 
+        major: majorDisplay, 
+        isCollege,
+        programDesc: data.program_description || "" 
+    };
   };
 
   const fetchData = async () => {
@@ -41,25 +61,21 @@ const StudentLms = () => {
       const myData = studentList.find(s => s.email === user.email);
       
       if (myData) {
-        // --- ARITHMETIC LOGIC (GAYA NG SA DASHBOARD) ---
+        // --- ARITHMETIC LOGIC ---
         const totalAmount = parseFloat(myData.total_amount || 0);
         const paidAmount = parseFloat(myData.paid_amount || 0);
         const tuitionOnly = parseFloat(myData.tuition_only_amount || 0);
         
-        // Gatekeeper Logic: 50% of Tuition Requirement [cite: 23, 96]
         const tuitionThreshold = tuitionOnly * 0.5;
         const isEnrolled = (myData.enrollment_status || "").trim() === 'Enrolled';
         
-        // Status checks for dynamic UI [cite: 81, 82]
         const isPaid = paidAmount >= totalAmount && totalAmount > 0;
         const isPartial = paidAmount > 0 && paidAmount < totalAmount;
-        const isUnpaid = paidAmount <= 0;
-
-        // Custom Display Status
+        
         myData.computedPaymentStatus = isPaid ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid';
-        myData.displayTuition = tuitionOnly; // Para sa display sa lock screen
+        myData.displayTuition = tuitionOnly; 
 
-        // LMS LOCK LOGIC [cite: 92, 94]
+        // LMS LOCK LOGIC
         if (isEnrolled && paidAmount >= tuitionThreshold) {
           myData.isLmsLocked = false;
         } else {
@@ -67,9 +83,13 @@ const StudentLms = () => {
           myData.neededForUnlock = Math.max(0, tuitionThreshold - paidAmount);
         }
 
-        const { dept, displaySection } = getStudentDetails(myData.grade_level, myData.section, myData.program_name);
-        myData.dynamicDept = dept;
-        myData.formattedSection = displaySection;
+        // Apply new College/SHS Program Logic
+        const details = getStudentDetails(myData);
+        myData.dynamicDept = details.dept;
+        myData.formattedMain = details.displayMain; // Ito na ang papalit sa Section display
+        myData.major = details.major;
+        myData.isCollege = details.isCollege;
+        myData.programDesc = details.programDesc;
         
         setStudentData(myData);
       }
@@ -149,7 +169,9 @@ const StudentLms = () => {
           <div className="z-10">
             <span className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 inline-block shadow-sm">{studentData?.dynamicDept}</span>
             <h2 className="text-4xl font-black tracking-tighter leading-none">{title}</h2>
-            <p className="text-white/90 font-bold text-sm mt-1">{studentData?.grade_level} - {studentData?.formattedSection} | SY {studentData?.school_year}</p>
+            <p className="text-white/90 font-bold text-sm mt-1">
+                {studentData?.grade_level} - {studentData?.formattedMain} {studentData?.isCollege && `(${studentData?.major})`} | SY {studentData?.school_year}
+            </p>
           </div>
         </div>
         <div className="p-8">
@@ -161,7 +183,9 @@ const StudentLms = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-lg font-black text-slate-900 tracking-tight leading-tight">{placeholderText} #{i}</p>
-                      <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-1 italic">Target: {studentData?.grade_level}</p>
+                      <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-1 italic">
+                          Target: {studentData?.isCollege ? studentData?.programDesc : studentData?.grade_level}
+                      </p>
                     </div>
                     <MoreVertical size={20} className="text-slate-300 group-hover:text-slate-900 transition-colors" />
                   </div>
@@ -185,7 +209,7 @@ const StudentLms = () => {
         <div>
           <div className="flex flex-wrap gap-3 mb-5">
             <span className="bg-yellow-400 text-[#001f3f] px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md italic">
-              {studentData?.grade_level} - {studentData?.formattedSection}
+              {studentData?.grade_level} - {studentData?.formattedMain}
             </span>
             <span className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md italic ${studentData?.computedPaymentStatus === 'Unpaid' ? 'bg-red-500 text-white' : studentData?.computedPaymentStatus === 'Partial Payment' ? 'bg-yellow-500 text-[#001f3f]' : 'bg-emerald-500 text-white'}`}>
               Status: {studentData?.computedPaymentStatus}
@@ -219,16 +243,21 @@ const StudentLms = () => {
         </div>
 
         <div className="space-y-8">
-          {/* ENROLLMENT INFO WITH SCHOLARSHIP */}
+          {/* ENROLLMENT INFO WITH NEW ACADEMIC DETAILS */}
           <div className="bg-white border-2 border-slate-50 p-10 rounded-[3rem] shadow-xl">
             <h3 className="font-black text-slate-900 mb-8 uppercase text-[11px] tracking-[0.2em] flex items-center gap-3">
-              <GraduationCap size={20} className="text-emerald-500"/> Enrollment Info
+              <GraduationCap size={20} className="text-emerald-500"/> Academic Profile
             </h3>
             <div className="space-y-5">
               <StatusItem label="Department" value={studentData?.dynamicDept} />
+              <StatusItem label={studentData?.isCollege ? "Program" : "Grade Level"} value={studentData?.isCollege ? studentData?.formattedMain : studentData?.grade_level} />
+              {studentData?.isCollege ? (
+                  <StatusItem label="Major" value={studentData?.major} />
+              ) : (
+                  <StatusItem label="Section" value={studentData?.formattedMain} />
+              )}
               <StatusItem label="Scholarship" value={studentData?.scholarship_type || 'None'} />
               <StatusItem label="Payment Status" value={studentData?.computedPaymentStatus} />
-              <StatusItem label="Section" value={studentData?.formattedSection} />
             </div>
           </div>
 
