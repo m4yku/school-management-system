@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; // Siguraduhing naka-import ang axios
+import axios from 'axios'; 
 import { 
   Users, UserCheck, Clock, TrendingUp, Calendar, 
-  FileText, Activity, ChevronRight, GraduationCap
+  FileText, Activity, ChevronRight, GraduationCap, ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -11,12 +11,13 @@ const RegistrarDashboard = () => {
   const { user, branding } = useAuth();
   const [loading, setLoading] = useState(true);
   
-  // Dashboard Data States
+  // Dashboard Data States (Dinagdag ang pendingRequests)
   const [stats, setStats] = useState({
     totalStudents: 0,
     enrolledCurrentSY: 0,
     pendingEnrollment: 0,
-    awaitingPayment: 0 // Dagdag natin ito para sa Registrar view
+    awaitingPayment: 0,
+    pendingRequests: 0 // <--- BAGONG DAGDAG
   });
 
   const [recentActivities, setRecentActivities] = useState([]);
@@ -28,8 +29,7 @@ const RegistrarDashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Palitan ang URL base sa location ng PHP mo
-      const response = await axios.get('http://localhost/sms-api/get_registrar_dashboard.php');
+      const response = await axios.get('http://localhost/sms-api/registrar/get_registrar_dashboard.php');
       
       if (response.data.success) {
         const data = response.data;
@@ -38,15 +38,14 @@ const RegistrarDashboard = () => {
           totalStudents: data.stats.total_students,
           enrolledCurrentSY: data.stats.total_enrolled,
           pendingEnrollment: data.stats.pending_registrar,
-          awaitingPayment: data.stats.awaiting_payment
+          awaitingPayment: data.stats.awaiting_payment,
+          pendingRequests: data.stats.pending_requests || 0 // <--- KUKUNIN MULA SA PHP
         });
 
-        // INAYOS NA MAPPING: I-map natin ang data mula DB papunta sa format ng table mo
         const activities = data.recent_activities.map((act, index) => {
           let displayAction = "";
           let statusColor = "";
 
-          // Logic para sa tamang Label at Kulay
           if (act.status === 'Enrolled') {
             displayAction = "OFFICIALLY ENROLLED";
             statusColor = "success";
@@ -76,16 +75,16 @@ const RegistrarDashboard = () => {
     }
   };
 
-  // UI Helper for Stat Cards (Same as your original)
+  // UI Helper for Stat Cards
   const StatCard = ({ title, value, subtitle, icon: Icon, colorClass, bgColorClass }) => (
-    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-6 transition-all hover:shadow-md hover:-translate-y-1">
-      <div className={`p-4 rounded-2xl ${bgColorClass} ${colorClass}`}>
-        <Icon size={28} />
+    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center items-start gap-3 transition-all hover:shadow-md hover:-translate-y-1">
+      <div className={`p-4 rounded-2xl w-fit ${bgColorClass} ${colorClass}`}>
+        <Icon size={24} />
       </div>
       <div>
-        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
         <h3 className="text-3xl font-black text-slate-800 tracking-tight">{loading ? '...' : value}</h3>
-        <p className="text-xs font-bold text-slate-500 mt-1">{subtitle}</p>
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-1 mb-0.5">{title}</p>
+        <p className="text-[10px] font-bold text-slate-400">{subtitle}</p>
       </div>
     </div>
   );
@@ -117,8 +116,8 @@ const RegistrarDashboard = () => {
         <div className="absolute right-0 top-0 w-64 h-64 bg-gradient-to-br from-blue-50 to-white rounded-full blur-3xl -z-0 opacity-50 transform translate-x-1/2 -translate-y-1/2" />
       </div>
 
-      {/* STATS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* STATS GRID (GINAWANG 5 COLUMNS PARA KASYA ANG PENDING REQUESTS) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard 
           title="Total Students" 
           value={stats.totalStudents} 
@@ -128,7 +127,7 @@ const RegistrarDashboard = () => {
           bgColorClass="bg-blue-50"
         />
         <StatCard 
-          title="Officially Enrolled" 
+          title="Enrolled" 
           value={stats.enrolledCurrentSY} 
           subtitle="Paid and Validated"
           icon={UserCheck} 
@@ -136,20 +135,29 @@ const RegistrarDashboard = () => {
           bgColorClass="bg-emerald-50"
         />
         <StatCard 
-          title="Pending Assessment" 
+          title="Assessment" 
           value={stats.pendingEnrollment} 
-          subtitle="Registrar's Action Needed"
+          subtitle="Action Needed"
           icon={Clock} 
           colorClass="text-amber-600" 
           bgColorClass="bg-amber-50"
         />
         <StatCard 
-          title="Awaiting Payment" 
+          title="For Payment" 
           value={stats.awaitingPayment} 
-          subtitle="Forwarded to Cashier"
+          subtitle="At Cashier"
           icon={TrendingUp} 
           colorClass="text-indigo-600" 
           bgColorClass="bg-indigo-50"
+        />
+        {/* BAGONG CARD PARA SA REQUESTS */}
+        <StatCard 
+          title="Doc Requests" 
+          value={stats.pendingRequests} 
+          subtitle="Active Documents"
+          icon={FileText} 
+          colorClass="text-purple-600" 
+          bgColorClass="bg-purple-50"
         />
       </div>
 
@@ -201,7 +209,7 @@ const RegistrarDashboard = () => {
         {/* QUICK TASKS SECTION */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 flex flex-col">
           <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-            <FileText className="text-blue-500" size={20}/> Registrar Tasks
+            <ClipboardList className="text-blue-500" size={20}/> Quick Tasks
           </h3>
           
           <div className="space-y-4 flex-1">
@@ -226,6 +234,19 @@ const RegistrarDashboard = () => {
               </div>
               <ChevronRight size={16} className="text-slate-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-transform" />
             </Link>
+
+            {/* BAGONG TASK: STUDENT REQUESTS SHORTCUT */}
+            <Link to="/registrar/requests" className="group flex items-center p-4 rounded-2xl border border-slate-100 hover:border-purple-200 hover:bg-purple-50 transition-all cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                <FileText size={20} />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-slate-800 group-hover:text-purple-700">Student Requests</h4>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Process docs & forms</p>
+              </div>
+              <ChevronRight size={16} className="text-slate-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-transform" />
+            </Link>
+
           </div>
         </div>
       </div>
