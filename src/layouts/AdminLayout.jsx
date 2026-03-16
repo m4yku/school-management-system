@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import axios from 'axios'; // <-- DINAGDAG ANG AXIOS
 import { 
   LayoutDashboard, Users, Settings, LogOut, Menu, X, 
   BookOpen, CreditCard, UserCircle, Search, Receipt, 
-  History, ClipboardList, GraduationCap, Layers, FileText // <-- DAGDAG NA ICONS
+  History, ClipboardList, GraduationCap, Layers, FileText,
+  Library, Camera, Lock, Save // <-- DINAGDAG ANG ICONS PARA SA PROFILE
 } from 'lucide-react'; 
 import { useAuth } from '../context/AuthContext';
 
@@ -12,6 +14,58 @@ const AdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
 
+  // ==========================================
+  // PROFILE MODAL STATES & LOGIC
+  // ==========================================
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileData, setProfileData] = useState({
+    full_name: user?.full_name || '',
+    password: ''
+  });
+  const [profileImage, setProfileImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+
+  const API_BASE_URL = "http://localhost/sms-api";
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProfileImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const submitProfileUpdate = async (e) => {
+    e.preventDefault();
+    setProfileLoading(true);
+
+    const formData = new FormData();
+    // Assuming user id is in user.id or user.user_id
+    formData.append('id', user?.id || user?.user_id || 1); 
+    formData.append('full_name', profileData.full_name);
+    if (profileData.password) formData.append('password', profileData.password);
+    if (profileImage) formData.append('profile_image', profileImage);
+
+    try {
+      const res = await axios.post(`${API_BASE_URL}/update_user_profile.php`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data.success) {
+        alert("Profile updated! Please log in again to see changes.");
+        logout(); // Force logout para mag-update ang session at local storage
+      } else {
+        alert("Error: " + res.data.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Server error updating profile.");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   // --- ROLE-BASED NAVIGATION CONFIG ---
   const menuConfig = {
     admin: [
@@ -19,16 +73,11 @@ const AdminLayout = () => {
       { icon: <Users size={20} />, label: 'User Management', path: '/admin/users' },
       { icon: <Settings size={20} />, label: 'Branding Engine', path: '/admin/branding' },
     ],
-    // ==========================================
-    // NA-UPDATE NA REGISTRAR FLOW
-    // ==========================================
-// Sa loob ng AdminLayout.jsx, i-update ang registrar part ng menuConfig:
-
     registrar: [
       { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/registrar/dashboard' },
       { icon: <UserCircle size={20} />, label: 'Student Masterlist', path: '/registrar/students' },
+      { icon: <Library size={20} />, label: 'Academic Programs', path: '/registrar/programs' }, 
       { icon: <ClipboardList size={20} />, label: 'Enrollment Module', path: '/registrar/enrollment' },
-      // ITO ANG DAGDAG:
       { icon: <FileText size={20} />, label: 'Student Requests', path: '/registrar/requests' }, 
       { icon: <GraduationCap size={20} />, label: 'Class Assignments', path: '/registrar/assignments' },
     ],
@@ -115,16 +164,26 @@ const AdminLayout = () => {
 
         {/* USER INFO & LOGOUT */}
         <div className="p-4 border-t border-slate-800 bg-slate-950/50">
-          <div className="flex items-center space-x-3 mb-4 px-2">
-             <div 
-               className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border border-slate-600"
-               style={{ color: branding.theme_color || '#2563eb' }}
-             >
-                {user?.role?.toUpperCase().charAt(0)}
-             </div>
+          <div 
+            className="flex items-center space-x-3 mb-4 px-2 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => setIsProfileOpen(true)}
+            title="Edit Profile"
+          >
+             {user?.profile_image ? (
+                <img src={`${API_BASE_URL}/uploads/profiles/${user.profile_image}`} className="w-8 h-8 rounded-full object-cover border border-slate-600" alt="Avatar"/>
+             ) : (
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border border-slate-600"
+                  style={{ color: branding.theme_color || '#2563eb' }}
+                >
+                  {user?.full_name?.charAt(0) || user?.role?.charAt(0)}
+                </div>
+             )}
              <div className="overflow-hidden">
                 <p className="text-xs font-bold text-white truncate">{user?.full_name}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-tighter">{user?.role}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-tighter flex items-center gap-1">
+                  {user?.role} • Edit Profile
+                </p>
              </div>
           </div>
           <button 
@@ -152,7 +211,10 @@ const AdminLayout = () => {
             </h2>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div 
+            className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity" 
+            onClick={() => setIsProfileOpen(true)}
+          >
             <div className="hidden sm:block text-right">
                 <p className="text-xs font-bold text-slate-800 leading-none">{user?.full_name}</p>
                 <p 
@@ -162,12 +224,16 @@ const AdminLayout = () => {
                   System Verified
                 </p>
             </div>
-            <div 
-              className="w-10 h-10 text-white rounded-xl flex items-center justify-center font-bold shadow-md transition-colors"
-              style={{ backgroundColor: branding.theme_color || '#2563eb' }}
-            >
-              {user?.full_name?.charAt(0)}
-            </div>
+            {user?.profile_image ? (
+               <img src={`${API_BASE_URL}/uploads/profiles/${user.profile_image}`} className="w-10 h-10 rounded-xl object-cover shadow-md" alt="Avatar"/>
+            ) : (
+              <div 
+                className="w-10 h-10 text-white rounded-xl flex items-center justify-center font-bold shadow-md transition-colors"
+                style={{ backgroundColor: branding.theme_color || '#2563eb' }}
+              >
+                {user?.full_name?.charAt(0)}
+              </div>
+            )}
           </div>
         </header>
 
@@ -178,6 +244,85 @@ const AdminLayout = () => {
           </div>
         </div>
       </main>
+
+      {/* ========================================================= */}
+      {/* 4. USER PROFILE MODAL */}
+      {/* ========================================================= */}
+      {isProfileOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[90] flex items-center justify-center p-4 backdrop-blur-sm">
+          <form onSubmit={submitProfileUpdate} className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl flex flex-col animate-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <Settings size={20} className="text-blue-500" /> Account Settings
+              </h3>
+              <button type="button" onClick={() => setIsProfileOpen(false)} className="p-2 text-slate-400 hover:text-red-500"><X size={20}/></button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              
+              {/* IMAGE UPLOAD SECTION */}
+              <div className="flex flex-col items-center">
+                <div className="relative group cursor-pointer">
+                  <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-100 border-4 border-slate-50 shadow-md">
+                    {imagePreview ? (
+                      <img src={imagePreview} className="w-full h-full object-cover" alt="Preview"/>
+                    ) : user?.profile_image ? (
+                      <img src={`${API_BASE_URL}/uploads/profiles/${user.profile_image}`} className="w-full h-full object-cover" alt="Current"/>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-4xl font-black text-slate-300">
+                        {user?.full_name?.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <Camera size={24} />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                  </label>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-3 tracking-widest">Click photo to update</p>
+              </div>
+
+              {/* USER DETAILS */}
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest flex items-center gap-1.5">
+                    <UserCircle size={12}/> Full Name
+                  </label>
+                  <input 
+                    type="text" 
+                    required
+                    value={profileData.full_name} 
+                    onChange={e=>setProfileData({...profileData, full_name: e.target.value})} 
+                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700" 
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest flex items-center gap-1.5">
+                    <Lock size={12}/> New Password (Optional)
+                  </label>
+                  <input 
+                    type="password" 
+                    placeholder="Leave blank to keep current"
+                    value={profileData.password} 
+                    onChange={e=>setProfileData({...profileData, password: e.target.value})} 
+                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700" 
+                  />
+                </div>
+              </div>
+
+            </div>
+
+            <div className="p-6 border-t border-slate-100 bg-slate-50 rounded-b-[2.5rem] flex gap-3">
+              <button type="button" onClick={() => setIsProfileOpen(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">Cancel</button>
+              <button type="submit" disabled={profileLoading} className="flex-1 py-3 font-black text-white rounded-xl shadow-lg transition-all flex justify-center items-center gap-2" style={{ backgroundColor: branding.theme_color || '#2563eb' }}>
+                {profileLoading ? <span className="animate-spin">⌛</span> : <><Save size={18}/> Save Changes</>}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
     </div>
   );
 };

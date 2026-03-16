@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  FileText, Search, Plus, Clock, CheckCircle, 
-  AlertCircle, Printer, X, User, ClipboardList 
+  FileText, Search, Plus, CheckCircle, 
+  X, User, Trash2, AlertCircle 
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -19,6 +19,10 @@ const StudentRequests = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedFee, setSelectedFee] = useState('');
 
+  // States para sa Cancel Modal
+  const [cancelModal, setCancelModal] = useState(false);
+  const [requestToCancel, setRequestToCancel] = useState(null);
+
   const API_BASE_URL = "http://localhost/sms-api";
 
   useEffect(() => {
@@ -30,7 +34,6 @@ const StudentRequests = () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE_URL}/registrar/get_registrar_requests.php`);
-      // PUMIPIGIL SA WHITE SCREEN
       if (Array.isArray(res.data)) {
         setRequests(res.data);
       } else {
@@ -46,10 +49,9 @@ const StudentRequests = () => {
 
   const fetchDocFees = async () => {
     try {
-      // Assuming get_fees_catalog is in root sms-api based on your previous codes
       const res = await axios.get(`${API_BASE_URL}/get_fees_catalog.php`);
       if (Array.isArray(res.data)) {
-        const docs = res.data.filter(f => f.category === 'DocumentRequest' || f.category === 'Other');
+        const docs = res.data.filter(f => f.category === 'Document' || f.category === 'Other');
         setDocFees(docs);
       }
     } catch (err) { console.error(err); }
@@ -60,7 +62,6 @@ const StudentRequests = () => {
     if (query.length > 2) {
       try {
         const res = await axios.get(`${API_BASE_URL}/registrar/search_students.php?q=${query}`);
-        // PUMIPIGIL SA WHITE SCREEN
         if (Array.isArray(res.data)) {
           setStudents(res.data);
         } else {
@@ -79,7 +80,6 @@ const StudentRequests = () => {
     if (!selectedStudent || !selectedFee) return alert("Piliin ang student at dokumento.");
 
     try {
-      // IN-UPDATE ANG PATH: Dinagdag ang /registrar/
       const res = await axios.post(`${API_BASE_URL}/registrar/add_request.php`, {
         student_id: selectedStudent.student_id,
         fee_id: selectedFee
@@ -89,7 +89,6 @@ const StudentRequests = () => {
         alert("Request Added! Forwarded to Cashier for payment.");
         setRequestModal(false);
         fetchRequests();
-        // Reset fields
         setSelectedStudent(null);
         setSelectedFee('');
         setSearchQuery('');
@@ -99,16 +98,41 @@ const StudentRequests = () => {
     } catch (err) { console.error(err); }
   };
 
+  // Logic para sa Cancel Confirmation
+  const handleCancelClick = (req) => {
+    setRequestToCancel(req);
+    setCancelModal(true);
+  };
+
+  const confirmCancel = async () => {
+    if (!requestToCancel) return;
+    
+    try {
+      const res = await axios.post(`${API_BASE_URL}/registrar/cancel_request.php`, { id: requestToCancel.id });
+      if (res.data.success) {
+        fetchRequests(); // I-refresh ang table after ma-cancel
+        setCancelModal(false);
+        setRequestToCancel(null);
+      } else {
+        alert("Error: " + res.data.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Server error while cancelling.");
+    }
+  };
+
   // Status Badge Helper
   const getStatusBadge = (status) => {
     const styles = {
       'Pending Payment': 'bg-amber-50 text-amber-600 border-amber-100',
       'Paid': 'bg-blue-50 text-blue-600 border-blue-100',
       'Processing': 'bg-indigo-50 text-indigo-600 border-indigo-100',
-      'Released': 'bg-emerald-50 text-emerald-600 border-emerald-100'
+      'Released': 'bg-emerald-50 text-emerald-600 border-emerald-100',
+      'Cancelled': 'bg-red-50 text-red-500 border-red-100 line-through' // <--- BAGONG DAGDAG
     };
     return (
-      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${styles[status]}`}>
+      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${styles[status] || 'bg-slate-50 text-slate-500 border-slate-200'}`}>
         {status}
       </span>
     );
@@ -142,13 +166,14 @@ const StudentRequests = () => {
               <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Requested Document</th>
               <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</th>
               <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Status</th>
+              <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Action</th> {/* BAGONG DAGDAG */}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {loading ? (
-              <tr><td colSpan="4" className="p-10 text-center font-bold text-slate-400">Loading requests...</td></tr>
+              <tr><td colSpan="5" className="p-10 text-center font-bold text-slate-400">Loading requests...</td></tr>
             ) : requests.length === 0 ? (
-              <tr><td colSpan="4" className="p-10 text-center text-slate-400 font-bold">No active requests found.</td></tr>
+              <tr><td colSpan="5" className="p-10 text-center text-slate-400 font-bold">No active requests found.</td></tr>
             ) : (
               requests.map((req) => (
                 <tr key={req.id} className="hover:bg-slate-50 transition-colors">
@@ -159,12 +184,59 @@ const StudentRequests = () => {
                   <td className="p-5 font-bold text-slate-600">{req.item_name}</td>
                   <td className="p-5 text-xs font-bold text-slate-500">{new Date(req.created_at).toLocaleDateString()}</td>
                   <td className="p-5 text-center">{getStatusBadge(req.status)}</td>
+                  <td className="p-5 text-center">
+                    {/* CANCEL BUTTON - Lalabas lang kapag Pending Payment pa */}
+                    {req.status === 'Pending Payment' ? (
+                      <button 
+                        onClick={() => handleCancelClick(req)}
+                        className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm border border-red-100"
+                        title="Cancel Request"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    ) : req.status === 'Cancelled' ? (
+                      <span className="text-[10px] text-red-400 font-bold uppercase tracking-widest">Voided</span>
+                    ) : (
+                      <span className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">Locked</span>
+                    )}
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {/* --- CUSTOM CANCEL CONFIRMATION MODAL --- */}
+      {cancelModal && requestToCancel && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[80] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl flex flex-col animate-in zoom-in duration-200 overflow-hidden">
+            <div className="p-6 text-center pt-8">
+              <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle size={32} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">Cancel Request?</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                Are you sure you want to cancel the <span className="font-bold text-slate-700">{requestToCancel.item_name}</span> request for <span className="font-bold text-slate-700">{requestToCancel.first_name}</span>?
+              </p>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button 
+                onClick={() => { setCancelModal(false); setRequestToCancel(null); }} 
+                className="flex-1 py-3 font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-all"
+              >
+                Go Back
+              </button>
+              <button 
+                onClick={confirmCancel}
+                className="flex-1 py-3 font-black text-white bg-red-500 hover:bg-red-600 shadow-md rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                <Trash2 size={18} /> Cancel It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* NEW REQUEST MODAL */}
       {requestModal && (

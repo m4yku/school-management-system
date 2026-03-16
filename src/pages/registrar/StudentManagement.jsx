@@ -29,20 +29,20 @@ const StudentManagement = () => {
   ];
 
   // --- FETCH DATA ---
-  const fetchData = async () => {
+const fetchData = async () => {
     setLoading(true);
     try {
+      // 1. Fetch Students
       const stdResponse = await axios.get(`${API_BASE_URL}/registrar/get_students_list.php`);
       if (Array.isArray(stdResponse.data)) setStudents(stdResponse.data);
 
-      // MOCK FETCH PARA SA PROGRAMS (Palitan niyo na lang ng totoong PHP API later)
-      setPrograms([
-        { id: 1, dept: 'SHS', code: 'STEM', desc: 'Science, Tech, Eng, Math', major: '' },
-        { id: 2, dept: 'SHS', code: 'ABM', desc: 'Accountancy, Business, Mgt', major: '' },
-        { id: 3, dept: 'College', code: 'BSIT', desc: 'BS Information Tech', major: 'Network Security' },
-        { id: 4, dept: 'College', code: 'BSIT', desc: 'BS Information Tech', major: 'Web Development' },
-        { id: 5, dept: 'College', code: 'BSBA', desc: 'BS Business Admin', major: 'Financial Management' }
-      ]);
+      // 2. REAL FETCH PARA SA PROGRAMS (Pinalitan na natin ang Mock Data)
+      const progResponse = await axios.get(`${API_BASE_URL}/registrar/get_academic_programs.php`);
+      if (Array.isArray(progResponse.data)) {
+        // Kukunin lang natin yung mga "Active" na programs
+        setPrograms(progResponse.data.filter(p => p.status === 'Active'));
+      }
+
     } catch (error) { 
       console.error("Error fetching data:", error); 
     } finally { 
@@ -110,11 +110,19 @@ const StudentManagement = () => {
   });
 
   // HELPER PARA SA DROPDOWNS NG SHS / COLLEGE
+// HELPER PARA SA DROPDOWNS NG SHS / COLLEGE
   const getProgramOptions = () => {
     if (formData.grade_level === 'Grade 11' || formData.grade_level === 'Grade 12') {
-      return programs.filter(p => p.dept === 'SHS').map(p => ({ value: p.id, label: `${p.code} - ${p.desc}` }));
+      return programs
+        .filter(p => p.department === 'SHS')
+        .map(p => ({ value: p.id, label: `${p.program_code} - ${p.program_description}` }));
     } else if (formData.grade_level === 'College') {
-      return programs.filter(p => p.dept === 'College').map(p => ({ value: p.id, label: `${p.code} Major in ${p.major}` }));
+      return programs
+        .filter(p => p.department === 'College')
+        .map(p => ({ 
+          value: p.id, 
+          label: p.major ? `${p.program_code} Major in ${p.major}` : `${p.program_code} - ${p.program_description}` 
+        }));
     }
     return [];
   };
