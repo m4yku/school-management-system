@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   CreditCard, CheckCircle2, Megaphone, Wallet, 
-  Receipt, Calendar, Lock, Loader2, ArrowLeft, Info, Tags, Eye, X, Printer, Image as ImageIcon
+  Receipt, Calendar, Lock, Loader2, Info, Eye, X, Printer, Image as ImageIcon 
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -83,9 +83,9 @@ const StudentAccounting = () => {
   );
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 md:p-12 w-full space-y-6 md:space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 md:p-12 w-full space-y-6 md:space-y-8 animate-in fade-in duration-500 font-sans print:p-0 print:m-0 print:max-w-none">
       
-      {/* DASHBOARD - HIDDEN ON PRINT */}
+      {/* MAIN CONTENT (HIDDEN ON PRINT) */}
       <div className="print:hidden space-y-6 md:space-y-8">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
@@ -159,20 +159,20 @@ const StudentAccounting = () => {
                   <thead className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                     <tr>
                       <th className="pb-4">Description</th>
-                      <th className="pb-4 text-right">Amount</th>
+                      <th className="pb-4 text-right">Amount Due</th>
                     </tr>
                   </thead>
                   <tbody className="text-xs md:text-sm font-bold text-slate-700">
                     {billingItems.length > 0 ? (
                       billingItems.map((item, index) => (
                         <tr key={index} className="border-b border-slate-50">
-                          <td className="py-4 text-slate-600 font-medium">{item.item_name}</td>
+                          <td className="py-4 text-slate-600 font-medium uppercase">{item.item_name}</td>
                           <td className="py-4 text-right font-black text-slate-900 whitespace-nowrap">₱ {parseFloat(item.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                         </tr>
                       ))
                     ) : (
                       <tr className="border-b border-slate-50">
-                        <td className="py-5 text-emerald-600 italic font-medium">All settled.</td>
+                        <td className="py-5 text-emerald-600 italic font-medium">All items settled.</td>
                         <td className="py-5 text-right font-black text-slate-400">₱ 0.00</td>
                       </tr>
                     )}
@@ -198,7 +198,7 @@ const StudentAccounting = () => {
                 </div>
                 <div>
                   <p className={`font-black text-lg md:text-xl leading-none ${isUnpaid ? 'text-red-700' : isPartial ? 'text-yellow-700' : 'text-emerald-700'}`}>
-                    {isPaid ? 'PAID' : isPartial ? 'PARTIAL' : 'UNPAID'}
+                    {isPaid ? 'FULLY PAID' : isPartial ? 'PARTIAL' : 'UNPAID'}
                   </p>
                   <p className="text-[8px] font-bold uppercase mt-1 opacity-70">Status: {isUnpaid ? 'Inactive' : 'Active'}</p>
                 </div>
@@ -218,58 +218,69 @@ const StudentAccounting = () => {
       </div>
 
       {/* DOCUMENT PREVIEW MODAL */}
-      {viewModal.open && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:static">
-          <div className="bg-white w-full max-w-2xl rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in duration-300 print:shadow-none print:rounded-none print:w-full">
-            <div className="flex justify-between items-center p-5 md:p-8 border-b border-slate-100 print:hidden">
-              <h2 className="font-black uppercase tracking-tighter text-slate-900 flex items-center gap-2 text-sm md:text-base">
-                <Eye size={18} className="text-blue-600"/> Preview
-              </h2>
-              <button onClick={() => setViewModal({ open: false, type: '' })} className="p-2 hover:bg-slate-100 rounded-full text-slate-400">
-                <X size={20} />
-              </button>
-            </div>
+      {viewModal.open && studentData && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[100] flex items-start justify-center p-4 pt-10 backdrop-blur-sm print:p-0 print:bg-white">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden print:shadow-none print:max-h-full print:rounded-none animate-in slide-in-from-top-4 duration-300">
             
-            <div className="p-4 md:p-8 max-h-[70vh] overflow-y-auto bg-slate-50 print:bg-white print:max-h-none print:p-0">
-              <div className="bg-white p-6 md:p-10 shadow-sm border border-slate-200 mx-auto font-mono text-[10px] md:text-[11px] print:border-none print:w-full">
-                <div className="flex flex-col items-center text-center mb-6 border-b-2 border-slate-900 pb-6">
-                  {branding.school_logo ? <img src={branding.school_logo} alt="Logo" className="w-16 h-16 md:w-20 md:h-20 object-contain mb-3" /> : <ImageIcon className="text-slate-300 mb-3" size={30} />}
-                  <h1 className="text-sm md:text-base font-black uppercase leading-tight">{branding.school_name || "SMS"}</h1>
-                  <p className="text-[8px] font-bold uppercase opacity-60 italic mt-1">Digital Finance Record</p>
-                </div>
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white print:hidden">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><Receipt size={24}/></div>
+                <h3 className="font-black text-slate-800 tracking-tight">Statement of Account</h3>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition-all shadow-lg">
+                   <Printer size={18} /> Print to PDF
+                </button>
+                <button onClick={() => setViewModal({ open: false, type: '' })} className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 rounded-xl transition-colors"><X size={20}/></button>
+              </div>
+            </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-6 text-[9px] md:text-[10px]">
+            <div className="p-8 overflow-y-auto flex-1 print:overflow-visible font-sans">
+              <div className="flex items-start justify-between mb-8 border-b-4 border-slate-900 pb-6">
+                <div className="flex items-center gap-6">
+                  <div className="w-24 h-24 rounded-2xl bg-slate-100 overflow-hidden border-2 border-slate-200 shadow-md">
+                    {studentData.profile_image ? (
+                      <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full text-slate-400 font-black text-4xl">{studentData.first_name?.charAt(0)}</div>
+                    )}
+                  </div>
                   <div>
-                    <p><span className="font-black">ID:</span> {studentData.student_id}</p>
-                    <p className="truncate"><span className="font-black">NAME:</span> {studentData.first_name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p><span className="font-black">SY:</span> {studentData.school_year}</p>
-                    <p><span className="font-black">STATUS:</span> {isPaid ? 'Paid' : 'Partial'}</p>
+                    <h1 className="text-xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
+                    <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-2">Office of the Finance & Accounting</p>
+                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-none mb-2">{studentData.first_name} {studentData.last_name}</h2>
+                    <p className="font-mono text-sm font-bold text-slate-500">ID: {studentData.student_id} • ₱ {parseFloat(studentData.balance).toLocaleString()} Balance</p>
                   </div>
                 </div>
+                <div className="text-right">
+                  {branding.school_logo && <img src={branding.school_logo} className="w-16 h-16 object-cover ml-auto mb-1" alt="Logo" />}
+                  <p className="text-[8px] font-bold text-slate-400 italic">SOA Date: {new Date().toLocaleDateString()}</p>
+                </div>
+              </div>
 
-                <table className="w-full mb-6 border-t border-b border-slate-900 py-4">
+              <div className="space-y-6">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-slate-200">
+                      <th className="py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Particulars</th>
+                      <th className="py-4 text-right text-[10px] font-black uppercase text-slate-400 tracking-widest">Amount Due</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {billingItems.map((item, i) => (
-                      <tr key={i} className="text-[9px]">
-                        <td className="py-1 uppercase">{item.item_name}</td>
-                        <td className="text-right py-1">₱{parseFloat(item.amount).toLocaleString()}</td>
+                      <tr key={i} className="border-b border-slate-50">
+                        <td className="py-4 font-bold text-slate-700 uppercase text-xs">{item.item_name}</td>
+                        <td className="py-4 text-right font-black text-slate-900">₱ {parseFloat(item.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
 
-                <div className="space-y-1 text-right border-t border-slate-200 pt-4">
-                  <p className="text-sm md:text-lg font-black underline decoration-double">TOTAL: ₱{parseFloat(studentData.balance).toLocaleString()}</p>
+                <div className="bg-slate-900 text-white p-6 rounded-3xl flex justify-between items-center mt-4 print:bg-slate-100 print:text-slate-900">
+                   <p className="font-black uppercase text-[10px] tracking-widest opacity-70">Grand Total Balance</p>
+                   <p className="text-3xl font-black">₱ {parseFloat(studentData.balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                 </div>
               </div>
-            </div>
-
-            <div className="p-5 md:p-8 bg-white border-t border-slate-100 print:hidden">
-              <button onClick={handlePrint} className="w-full py-3 md:py-4 text-white rounded-xl md:rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2" style={{ backgroundColor: safeThemeColor }}>
-                <Printer size={16} /> Print Document
-              </button>
             </div>
           </div>
         </div>

@@ -15,9 +15,10 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
 
-  // --- ADDED STATES FOR MODAL ---
+  // --- STATES FOR MODALS ---
   const [billingItems, setBillingItems] = useState([]); 
   const [viewModal, setViewModal] = useState({ open: false, type: '' });
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const API_BASE_URL = "http://localhost/sms-api"; 
 
@@ -30,16 +31,13 @@ const StudentDashboard = () => {
       if (studentsArray && Array.isArray(studentsArray)) {
         const myData = studentsArray.find(s => s.email === user.email);
         if (myData) {
-          // Calculation logic for modal consistency
           const total = parseFloat(myData.total_amount || 0);
           const paid = parseFloat(myData.paid_amount || 0);
           
-          // Filter items for this specific student's billing
           const rawItems = allItems.filter(item => 
             parseInt(item.billing_id) === parseInt(myData.billing_id)
           );
 
-          // Logic to calculate remaining items for the statement
           let currentPaidPool = paid;
           const remainingItems = rawItems.map(item => {
             let itemAmount = parseFloat(item.amount);
@@ -71,16 +69,13 @@ const StudentDashboard = () => {
     if (user?.email) fetchData();
   }, [user.email]);
 
-  // --- ADDED PRINT HANDLER ---
   const handlePrint = () => {
     window.print();
   };
 
-  // --- ARITHMETIC LOGIC ---
   const totalAmount = parseFloat(studentData?.total_amount || 0);
   const paidAmount = parseFloat(studentData?.paid_amount || 0);
   const tuitionOnly = parseFloat(studentData?.tuition_only_amount || 0); 
-  
   const remainingBalance = Math.max(0, totalAmount - paidAmount);
 
   const isPaid = paidAmount >= totalAmount && totalAmount > 0;
@@ -89,7 +84,7 @@ const StudentDashboard = () => {
 
   const tuitionThreshold = tuitionOnly * 0.5;
   const isLmsActive = paidAmount >= tuitionThreshold && tuitionThreshold > 0;
-
+  
   const safeThemeColor = branding?.theme_color?.startsWith('#') ? branding.theme_color : '#3b82f6';
 
   if (loading) return (
@@ -100,7 +95,7 @@ const StudentDashboard = () => {
   );
 
   return (
-    <div className="max-w-6xl mx-auto p-6 md:p-12 w-full space-y-8 animate-in fade-in duration-500 font-sans">
+    <div className="max-w-6xl mx-auto p-6 md:p-12 w-full space-y-8 animate-in fade-in duration-500 font-sans print:p-0 print:m-0 print:max-w-none">
       
       {/* 1. DASHBOARD CONTENT (HIDDEN ON PRINT) */}
       <div className="print:hidden space-y-8">
@@ -206,112 +201,142 @@ const StudentDashboard = () => {
                    </div>
                 </div>
               </div>
-              
+
               <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl">
                  <h3 className="font-black text-[9px] uppercase tracking-widest mb-6 text-slate-500 italic underline decoration-yellow-500">Quick Access</h3>
                  <div className="space-y-3">
-                    <ViewBtn label="Class Schedule" onClick={() => navigate('')} />
-                    <ViewBtn label="Student Handbook" />
-                    {/* TRIGGER PARA SA MODAL */}
+                    <ViewBtn label="My Full Profile" onClick={() => setIsProfileOpen(true)} />
                     <ViewBtn 
                       label="Billing Statement" 
                       onClick={() => setViewModal({ open: true, type: 'Billing Statement' })} 
                     />
+                    <ViewBtn label="Class Schedule" onClick={() => navigate('')} />
+                    <ViewBtn label="Student Handbook" />
                  </div>
               </div>
           </div>
         </div>
       </div>
 
-      {/* 2. MODAL UI (GINAYA SA ACCOUNTING) */}
-      {viewModal.open && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in duration-300 print:shadow-none print:rounded-none print:w-full">
+      {/* BILLING MODAL */}
+      {viewModal.open && studentData && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[100] flex items-start justify-center p-4 pt-10 backdrop-blur-sm print:p-0 print:bg-white">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden print:shadow-none print:max-h-full print:rounded-none animate-in slide-in-from-top-4 duration-300">
             
-            <div className="flex justify-between items-center p-8 border-b border-slate-100 print:hidden">
-              <h2 className="font-black uppercase tracking-tighter text-slate-900 flex items-center gap-2">
-                <Eye size={20} className="text-blue-600"/> {viewModal.type} Preview
-              </h2>
-              <button onClick={() => setViewModal({ open: false, type: '' })} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="p-8 max-h-[60vh] overflow-y-auto bg-slate-50 print:bg-white print:max-h-none print:overflow-visible print:p-0">
-              <div id="printable-document" className="bg-white p-10 shadow-sm border border-slate-200 mx-auto font-mono text-[11px] leading-relaxed text-slate-800 print:border-none print:shadow-none print:w-full">
-                
-                <div className="flex flex-col items-center text-center mb-8 border-b-2 border-slate-900 pb-6">
-                  {branding.school_logo ? (
-                    <img src={branding.school_logo} alt="School Logo" className="w-24 h-24 object-contain mb-3" />
-                  ) : (
-                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-                      <ImageIcon className="text-slate-300" size={30} />
-                    </div>
-                  )}
-                  <h1 className="text-xl font-black uppercase tracking-widest leading-tight">
-                    {branding.school_name || "SCHOOL MANAGEMENT SYSTEM"}
-                  </h1>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] opacity-60 italic mt-1">
-                    Official Digital Finance Record
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-8 text-[10px]">
-                  <div>
-                    <p><span className="font-black">STUDENT ID:</span> {studentData?.student_id}</p>
-                    <p><span className="font-black">NAME:</span> {studentData?.first_name} {studentData?.last_name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p><span className="font-black">DATE:</span> {new Date().toLocaleDateString()}</p>
-                    <p><span className="font-black">SY:</span> {studentData?.school_year}</p>
-                    <p><span className="font-black">STATUS:</span> {isPaid ? 'Fully Paid' : isPartial ? 'Partial' : 'Unpaid'}</p>
-                  </div>
-                </div>
-
-                <table className="w-full mb-8 border-t border-b border-slate-900 py-4">
-                  <thead>
-                    <tr className="font-black border-b border-slate-200 text-left">
-                      <th className="py-2 uppercase">Particulars</th>
-                      <th className="py-2 text-right uppercase">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {billingItems.length > 0 ? billingItems.map((item, i) => (
-                      <tr key={i}>
-                        <td className="py-1 uppercase text-[10px]">{item.item_name}</td>
-                        <td className="text-right py-1">₱ {parseFloat(item.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td className="py-2 italic text-emerald-600">All current assessment items settled.</td>
-                        <td className="text-right py-2">₱ 0.00</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-
-                <div className="space-y-1 text-right border-t-2 border-slate-900 pt-4">
-                  <p className="text-[10px]"><span className="font-black uppercase">TOTAL ASSESSMENT:</span> ₱ {totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-                  <p className="text-[10px] text-emerald-600"><span className="font-black uppercase">TOTAL PAID:</span> - ₱ {paidAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-                  <div className="pt-2 border-t border-slate-200 mt-2">
-                    <p className="text-lg font-black underline underline-offset-4 decoration-double">BALANCE: ₱ {remainingBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-                  </div>
-                </div>
-
-                <div className="mt-12 pt-8 border-t border-slate-100 text-center opacity-40 italic text-[8px]">
-                  Generated via Student Dashboard | {new Date().toLocaleString()}
-                </div>
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white print:hidden">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><CreditCard size={24}/></div>
+                <h3 className="font-black text-slate-800 tracking-tight">Student Billing Statement</h3>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition-all shadow-lg">
+                   <Printer size={18} /> Print to PDF
+                </button>
+                <button onClick={() => setViewModal({ open: false, type: '' })} className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 rounded-xl transition-colors"><X size={20}/></button>
               </div>
             </div>
 
-            <div className="p-8 bg-white border-t border-slate-100 flex gap-4 print:hidden">
-              <button 
-                onClick={handlePrint} 
-                className="flex-1 py-4 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:brightness-90 transition-all flex items-center justify-center gap-2 shadow-lg"
-                style={{ backgroundColor: safeThemeColor }}
-              >
-                <Printer size={16} /> Print Statement
-              </button>
+            <div className="p-8 overflow-y-auto flex-1 print:overflow-visible font-sans">
+              <div className="flex items-start justify-between mb-8 border-b-4 border-slate-900 pb-6">
+                <div className="flex items-center gap-6">
+                  <div className="w-24 h-24 rounded-2xl bg-slate-100 overflow-hidden border-2 border-slate-200 shadow-md">
+                    {studentData.profile_image ? (
+                      <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full text-slate-400 font-black text-4xl">{studentData.first_name?.charAt(0)}</div>
+                    )}
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
+                    <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-2">Office of the Finance & Accounting</p>
+                    {/* BINALIK SA text-xl DITO PARA PANTAY SA SCHOOL NAME */}
+                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-none mb-2">{studentData.first_name} {studentData.last_name}</h2>
+                    <p className="font-mono text-sm font-bold text-slate-500">ID: {studentData.student_id} • ₱ {remainingBalance.toLocaleString()} Balance</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <img src={branding.school_logo} className="w-16 h-16 object-cover ml-auto mb-1" alt="Logo" />
+                  <p className="text-[8px] font-bold text-slate-400 italic">SOA Date: {new Date().toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-slate-200">
+                      <th className="py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Particulars</th>
+                      <th className="py-4 text-right text-[10px] font-black uppercase text-slate-400 tracking-widest">Amount Due</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {billingItems.map((item, i) => (
+                      <tr key={i} className="border-b border-slate-50">
+                        <td className="py-4 font-bold text-slate-700 uppercase text-xs">{item.item_name}</td>
+                        <td className="py-4 text-right font-black text-slate-900">₱ {parseFloat(item.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div className="bg-slate-900 text-white p-6 rounded-3xl flex justify-between items-center mt-4 print:bg-slate-100 print:text-slate-900">
+                   <p className="font-black uppercase text-[10px] tracking-widest opacity-70">Grand Total Balance</p>
+                   <p className="text-3xl font-black">₱ {remainingBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STUDENT PROFILE MODAL */}
+      {isProfileOpen && studentData && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[100] flex items-start justify-center p-4 pt-10 backdrop-blur-sm print:p-0 print:bg-white">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden print:shadow-none print:max-h-full print:rounded-none animate-in slide-in-from-top-4 duration-300">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white print:hidden">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><User size={24}/></div>
+                <h3 className="font-black text-slate-800 tracking-tight">Student Full Profile</h3>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition-all shadow-lg">
+                   <Printer size={18} /> Print to PDF
+                </button>
+                <button onClick={() => setIsProfileOpen(false)} className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 rounded-xl transition-colors"><X size={20}/></button>
+              </div>
+            </div>
+
+            <div className="p-8 overflow-y-auto flex-1 print:overflow-visible font-sans">
+              <div className="flex items-start justify-between mb-10 border-b-4 border-slate-900 pb-8">
+                <div className="flex items-center gap-8">
+                  <div className="w-28 h-28 rounded-2xl bg-slate-100 overflow-hidden border-2 border-slate-200 shadow-md">
+                    {studentData.profile_image ? (
+                      <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full text-slate-400 font-black text-5xl">{studentData.first_name?.charAt(0)}</div>
+                    )}
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
+                    <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-4">Official Enrollment Profile</p>
+                    {/* BINALIK SA text-xl DITO PARA PANTAY SA SCHOOL NAME */}
+                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">{studentData.first_name} {studentData.last_name}</h2>
+                    <div className="flex items-center gap-3">
+                      <span className="bg-slate-900 text-white px-3 py-1 rounded-lg font-mono text-xs">ID: {studentData.student_id}</span>
+                      <span className="text-slate-400 font-black uppercase text-[10px] tracking-widest">{studentData.grade_level}</span>
+                    </div>
+                  </div>
+                </div>
+                <img src={branding.school_logo} className="w-24 h-24 object-cover" alt="Logo" />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-12">
+                 <InfoItem label="Enrollment Type" value={studentData.enrollment_type} />
+                 <InfoItem label="Grade Level" value={studentData.grade_level} />
+                 <InfoItem label="LRN Number" value={studentData.lrn} />
+                 <InfoItem label="Contact Email" value={studentData.email} />
+                 <InfoItem label="Account Status" value={isPaid ? 'Fully Paid' : isPartial ? 'Partial' : 'Unpaid'} />
+                 <InfoItem label="School Year" value={studentData.school_year} />
+              </div>
             </div>
           </div>
         </div>
@@ -323,7 +348,7 @@ const StudentDashboard = () => {
 const InfoItem = ({ label, value }) => (
   <div>
     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-    <p className="text-[13px] font-black text-slate-900">{value || '---'}</p>
+    <p className="text-[14px] font-black text-slate-900">{value || '---'}</p>
   </div>
 );
 

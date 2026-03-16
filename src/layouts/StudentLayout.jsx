@@ -166,38 +166,38 @@ const StudentLayout = () => {
                 {studentData?.first_name} {studentData?.last_name}
               </p>
               
-              {/* STATUS INDICATOR LOGIC */}
-          {(() => {
-          // Siguraduhin na Numbers ang hawak natin
-         const total = Number(studentData?.total_amount || 0);
-         const paid = Number(studentData?.paid_amount || 0);
-         const balance = Number(studentData?.balance || 0);
+      {/* STATUS INDICATOR LOGIC */}
+{(() => {
+  // Siguraduhin na Numbers ang hawak natin para sa accurate na computation
+  const total = Number(studentData?.total_amount || 0);
+  const paid = Number(studentData?.paid_amount || 0);
+  const balance = Number(studentData?.balance || 0);
 
-        let statusLabel = "";
-        let statusColor = "";
+  let statusLabel = "";
+  let statusColor = "";
 
-           // 1. UNPAID: Zero ang bayad
-          if (paid <= 0) {
-          statusLabel = "Unpaid";
-          statusColor = "text-red-500";
-       } 
-          // 2. FULLY PAID: Ang balance ay 0 at ang bayad ay >= sa total
-         else if (balance <= 0 && paid >= total) {
-          statusLabel = "Fully Paid";
-          statusColor = "text-green-600";
-       } 
-          // 3. PARTIAL: May bayad na (paid > 0) pero may balance pa (balance > 0)
-         else {
-          statusLabel = "Partial";
-          statusColor = "text-yellow-500";
-       }
+  // 1. UNPAID: Zero ang bayad at ang total amount ay hindi pa nababawasan [cite: 82]
+  if (paid <= 0) {
+    statusLabel = "Unpaid";
+    statusColor = "text-red-500";
+  } 
+  // 2. FULLY PAID: Kapag ang balance ay 0 na (Total - Paid = 0) 
+  else if (balance <= 0 || paid >= total) {
+    statusLabel = "Fully Paid";
+    statusColor = "text-green-600";
+  } 
+  // 3. PARTIAL: May bayad na (paid > 0) pero may kulang pa; May access na sa LMS 
+  else {
+    statusLabel = "Partial";
+    statusColor = "text-yellow-500";
+  }
 
-        return (
-       <p className={`text-[9px] font-bold uppercase tracking-widest ${statusColor}`}>
+  return (
+    <p className={`text-[9px] font-bold uppercase tracking-widest ${statusColor}`}>
       {statusLabel}
-       </p>
-       );
-      })()}
+    </p>
+  );
+})()}
             </div>
 
             <button
