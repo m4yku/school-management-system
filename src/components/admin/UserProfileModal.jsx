@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Settings, X, Camera, UserCircle, Lock, Save } from 'lucide-react';
+import { Settings, X, Camera, UserCircle, Save } from 'lucide-react';
 
 const UserProfileModal = ({ isOpen, onClose, user, branding, logout }) => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileData, setProfileData] = useState({
-    full_name: user?.full_name || '',
-    password: ''
+    full_name: user?.full_name || ''
   });
   const [profileImage, setProfileImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -31,7 +30,7 @@ const UserProfileModal = ({ isOpen, onClose, user, branding, logout }) => {
     const formData = new FormData();
     formData.append('id', user?.id || user?.user_id || 1); 
     formData.append('full_name', profileData.full_name);
-    if (profileData.password) formData.append('password', profileData.password);
+    // TINANGGAL NA NATIN YUNG PASSWORD APPEND DITO
     if (profileImage) formData.append('profile_image', profileImage);
 
     try {
@@ -88,7 +87,7 @@ const UserProfileModal = ({ isOpen, onClose, user, branding, logout }) => {
             <p className="text-[10px] font-bold text-slate-400 uppercase mt-3 tracking-widest">Click photo to update</p>
           </div>
 
-          {/* USER DETAILS */}
+          {/* USER DETAILS - TINANGGAL ANG PASSWORD FIELD */}
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest flex items-center gap-1.5">
@@ -99,19 +98,6 @@ const UserProfileModal = ({ isOpen, onClose, user, branding, logout }) => {
                 required
                 value={profileData.full_name} 
                 onChange={e=>setProfileData({...profileData, full_name: e.target.value})} 
-                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700" 
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest flex items-center gap-1.5">
-                <Lock size={12}/> New Password (Optional)
-              </label>
-              <input 
-                type="password" 
-                placeholder="Leave blank to keep current"
-                value={profileData.password} 
-                onChange={e=>setProfileData({...profileData, password: e.target.value})} 
                 className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-blue-500 text-sm font-bold text-slate-700" 
               />
             </div>

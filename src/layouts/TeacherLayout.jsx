@@ -2,14 +2,12 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Settings, LogOut, Menu, X, 
-  BookOpen, CreditCard, UserCircle, Search, Receipt, 
-  History, ClipboardList, GraduationCap, Layers, FileText,
-  Library
+  BellDot, UserCircle
 } from 'lucide-react'; 
 import { useAuth } from '../context/AuthContext';
 import UserProfileModal from '../components/admin/UserProfileModal'; 
 
-const AdminLayout = () => {
+const TeacherLayout = () => {
   const { logout, user, branding } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
@@ -18,37 +16,17 @@ const AdminLayout = () => {
   const API_BASE_URL = "http://localhost/sms-api";
 
   const menuConfig = {
-    admin: [
-      { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/admin/dashboard' },
-      { icon: <Users size={20} />, label: 'User Management', path: '/admin/users' },
-      { icon: <Settings size={20} />, label: 'Branding Engine', path: '/admin/branding' },
-    ],
-    registrar: [
-      { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/registrar/dashboard' },
-      { icon: <UserCircle size={20} />, label: 'Student Masterlist', path: '/registrar/students' },
-      { icon: <Library size={20} />, label: 'Academic Programs', path: '/registrar/programs' }, 
-      { icon: <ClipboardList size={20} />, label: 'Enrollment Module', path: '/registrar/enrollment' },
-      { icon: <FileText size={20} />, label: 'Student Requests', path: '/registrar/requests' }, 
-      { icon: <GraduationCap size={20} />, label: 'Class Assignments', path: '/registrar/assignments' },
-    ],
     teacher: [
-      { icon: <LayoutDashboard size={20} />, label: 'LMS Dashboard', path: '/teacher/dashboard' },
-      { icon: <BookOpen size={20} />, label: 'My Lessons', path: '/teacher/lessons' },
+      { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/teacher/dashboard' },
+      { icon: <BellDot size={20} />, label: 'Announcements', path: '/teacher/announcements' },
+      { icon: <UserCircle size={20} />, label: 'Profile', path: '/teacher/profile' },
     ],
-    cashier: [
-      { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/cashier/dashboard' },
-      { icon: <Search size={20} />, label: 'Student Billing', path: '/cashier/billing' },
-      { icon: <CreditCard size={20} />, label: 'Process Payment', path: '/cashier/payments' },
-      { icon: <Layers size={20} />, label: 'Fee Catalog', path: '/cashier/fees' },
-      { icon: <Receipt size={20} />, label: 'Scholarships', path: '/cashier/scholarships' },
-      { icon: <History size={20} />, label: 'Collection Reports', path: '/cashier/reports' },
-    ]
   };
 
   const currentMenu = menuConfig[user?.role] || [];
 
   return (
-    // FIX: Nilagyan ng h-screen at overflow-hidden para ma-lock ang view
+    /* FIX 1: Idinagdag ang h-screen at overflow-hidden sa main container para hindi buong page ang nag-scroscroll */
     <div className="flex h-screen bg-slate-50 relative font-sans overflow-hidden">
       
       {/* 1. MOBILE OVERLAY */}
@@ -60,7 +38,7 @@ const AdminLayout = () => {
       )}
 
       {/* 2. SIDEBAR */}
-      {/* FIX: Nilagyan ng lg:h-full at lg:sticky */}
+      {/* FIX 2: Sinigurado na lg:sticky at h-full para laging nasa gilid lang siya */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 transform
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
@@ -89,12 +67,11 @@ const AdminLayout = () => {
         </div>
         
         {/* NAVIGATION LINKS */}
-        {/* FIX: overflow-y-auto dito para kung marami ang menu (tulad sa Registrar/Cashier), sidebar lang ang mag-scroll */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {/* Ito lang ang part ng sidebar na pwedeng mag-scroll kung sobrang daming menu items */}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Main Menu</p>
           {currentMenu.map((item, index) => {
             const isActive = location.pathname === item.path;
-
             return (
               <Link 
                 key={index} 
@@ -126,7 +103,7 @@ const AdminLayout = () => {
                   className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border border-slate-600"
                   style={{ color: branding.theme_color || '#2563eb' }}
                 >
-                  {user?.full_name?.charAt(0) || user?.role?.charAt(0)}
+                  {user?.full_name?.charAt(0)}
                 </div>
              )}
              <div className="overflow-hidden">
@@ -147,7 +124,7 @@ const AdminLayout = () => {
       </aside>
 
       {/* 3. MAIN CONTENT AREA */}
-      {/* FIX: Idinagdag ang h-full at overflow-y-auto */}
+      {/* FIX 3: Idinagdag ang overflow-y-auto dito para ang content lang ang mag-scroll */}
       <main className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 shrink-0">
           <div className="flex items-center space-x-4">
@@ -205,4 +182,4 @@ const AdminLayout = () => {
   );
 };
 
-export default AdminLayout;
+export default TeacherLayout;

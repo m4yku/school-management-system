@@ -39,6 +39,7 @@ import TeacherProfile from './pages/teacher/TeacherProfile';
 // Layouts
 import AdminLayout from './layouts/AdminLayout';
 import StudentLayout from './layouts/StudentLayout';
+import TeacherLayout from './layouts/TeacherLayout';
 
 // Pages
 import LandingPage from './pages/landingpage'; 
@@ -114,7 +115,7 @@ function App() {
           {/* 5. LMS / TEACHER ROUTES */}
           <Route path="/teacher" element={
             <ProtectedRoute allowedRoles={['teacher']}>
-              <AdminLayout />
+              <TeacherLayout />
             </ProtectedRoute>
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
