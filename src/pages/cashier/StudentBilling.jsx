@@ -22,16 +22,18 @@ const StudentBilling = () => {
     setLoading(true);
     try {
       const res = await axios.get(`http://localhost/sms-api/cashier/get_billing_details.php?id=${searchId}`);
+
       if (res.data.status === "success") {
+        // Direkta na sa res.data dahil sa format ng PHP mo
         setBillingData(res.data);
         setAllocations({});
-        setManualStatus('Enrolled'); // Default option
       } else {
+        // Lalabas dito yung message galing sa PHP (mas accurate)
         alert(res.data.message);
         setBillingData(null);
       }
     } catch (err) {
-      alert("Error connecting to server.");
+      alert("Connection error to API.");
     } finally {
       setLoading(false);
     }
@@ -129,6 +131,7 @@ const StudentBilling = () => {
             <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-slate-50">
 
               {/* STUDENT IDENTITY BAR */}
+
               <div className="flex justify-between items-center mb-8 border-b pb-6">
                 <div className="flex items-center gap-5">
                   <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
@@ -160,11 +163,15 @@ const StudentBilling = () => {
 
               <div className="grid grid-cols-1 gap-4">
                 {billingData.items.map((item, i) => {
-                  const balance = parseFloat(item.amount) - (parseFloat(item.paid_amount) || 0);
+                  const itemAmount = parseFloat(item.amount) || 0;
+                  const itemPaid = parseFloat(item.paid_amount) || 0;
+                  const balance = itemAmount - itemPaid;
                   return (
                     <div key={i} className="flex flex-col p-5 bg-slate-50 rounded-[1.8rem] border-2 border-transparent hover:border-blue-100 hover:bg-white transition-all">
                       <div className="flex justify-between items-center mb-3">
-                        <span className="font-black text-slate-700 uppercase text-sm tracking-tight">{item.item_name}</span>
+                        <span className="font-black text-slate-700 uppercase text-sm tracking-tight">
+                          {item.item_name}
+                        </span>
                         <span className="font-bold text-slate-400 text-xs italic">
                           Rem. Balance: ₱{balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </span>
@@ -322,421 +329,6 @@ const StudentBilling = () => {
       )}
 
       {/* HIDDEN PRINT RECEIPT SECTION */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @media print {
-          /* Itago lahat ng UI elements */
-          body * { 
-            visibility: hidden; 
-            margin: 0;
-          }
-          /* Ipakita lang ang print-area */
-          .print-area, .print-area * { 
-            visibility: visible; 
-          }
-          .print-area { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            padding: 40px;
-            display: block !important;
-            color: black !important;
-          }
-          /* Tanggalin ang mga browser headers/footers */
-          @page { size: auto; margin: 0mm; }
-        }
-      `}} />
-
-      {receiptInfo && (
-        <div className="hidden print-area text-left font-serif">
-          <div className="text-center border-b-2 border-black pb-4 mb-6">
-            <h1 className="text-2xl font-black uppercase">Official Receipt</h1>
-            <p className="text-sm">Smart Management School System</p>
-            <p className="text-[10px] italic">Date Processed: {receiptInfo.date}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
-            <div>
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student Name</p>
-              <p className="font-black text-lg">{receiptInfo.name}</p>
-            </div>
-            <div className="text-right">
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student ID</p>
-              <p className="font-black text-lg">{receiptInfo.id}</p>
-            </div>
-          </div>
-
-          <div className="mb-8">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-black">
-                  <th className="text-left py-2 uppercase text-xs">Description</th>
-                  <th className="text-right py-2 uppercase text-xs">Amount Paid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receiptInfo.items.map((item, i) => (
-                  <tr key={i} className="border-b border-dotted border-slate-300">
-                    <td className="py-3 text-sm">{item.name}</td>
-                    <td className="text-right py-3 font-bold text-sm">₱{Number(item.paid).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td className="py-6 text-right font-bold uppercase text-xs">Total Amount Paid:</td>
-                  <td className="py-6 text-right text-2xl font-black border-t-2 border-black">
-                    ₱{Number(receiptInfo.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div className="mt-20 flex justify-between items-end">
-            <div className="text-center">
-              <div className="w-48 border-b border-black mb-1"></div>
-              <p className="text-[10px] uppercase font-bold text-slate-500 text-center">Cashier's Signature</p>
-            </div>
-            <div className="text-[10px] italic text-slate-400">
-              Thank you for your payment. This serves as your official record.
-            </div>
-          </div>
-        </div>
-      )}{/* HIDDEN PRINT RECEIPT SECTION */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @media print {
-          /* Itago lahat ng UI elements */
-          body * { 
-            visibility: hidden; 
-            margin: 0;
-          }
-          /* Ipakita lang ang print-area */
-          .print-area, .print-area * { 
-            visibility: visible; 
-          }
-          .print-area { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            padding: 40px;
-            display: block !important;
-            color: black !important;
-          }
-          /* Tanggalin ang mga browser headers/footers */
-          @page { size: auto; margin: 0mm; }
-        }
-      `}} />
-
-      {receiptInfo && (
-        <div className="hidden print-area text-left font-serif">
-          <div className="text-center border-b-2 border-black pb-4 mb-6">
-            <h1 className="text-2xl font-black uppercase">Official Receipt</h1>
-            <p className="text-sm">Smart Management School System</p>
-            <p className="text-[10px] italic">Date Processed: {receiptInfo.date}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
-            <div>
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student Name</p>
-              <p className="font-black text-lg">{receiptInfo.name}</p>
-            </div>
-            <div className="text-right">
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student ID</p>
-              <p className="font-black text-lg">{receiptInfo.id}</p>
-            </div>
-          </div>
-
-          <div className="mb-8">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-black">
-                  <th className="text-left py-2 uppercase text-xs">Description</th>
-                  <th className="text-right py-2 uppercase text-xs">Amount Paid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receiptInfo.items.map((item, i) => (
-                  <tr key={i} className="border-b border-dotted border-slate-300">
-                    <td className="py-3 text-sm">{item.name}</td>
-                    <td className="text-right py-3 font-bold text-sm">₱{Number(item.paid).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td className="py-6 text-right font-bold uppercase text-xs">Total Amount Paid:</td>
-                  <td className="py-6 text-right text-2xl font-black border-t-2 border-black">
-                    ₱{Number(receiptInfo.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div className="mt-20 flex justify-between items-end">
-            <div className="text-center">
-              <div className="w-48 border-b border-black mb-1"></div>
-              <p className="text-[10px] uppercase font-bold text-slate-500 text-center">Cashier's Signature</p>
-            </div>
-            <div className="text-[10px] italic text-slate-400">
-              Thank you for your payment. This serves as your official record.
-            </div>
-          </div>
-        </div>
-      )}{/* HIDDEN PRINT RECEIPT SECTION */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @media print {
-          /* Itago lahat ng UI elements */
-          body * { 
-            visibility: hidden; 
-            margin: 0;
-          }
-          /* Ipakita lang ang print-area */
-          .print-area, .print-area * { 
-            visibility: visible; 
-          }
-          .print-area { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            padding: 40px;
-            display: block !important;
-            color: black !important;
-          }
-          /* Tanggalin ang mga browser headers/footers */
-          @page { size: auto; margin: 0mm; }
-        }
-      `}} />
-
-      {receiptInfo && (
-        <div className="hidden print-area text-left font-serif">
-          <div className="text-center border-b-2 border-black pb-4 mb-6">
-            <h1 className="text-2xl font-black uppercase">Official Receipt</h1>
-            <p className="text-sm">Smart Management School System</p>
-            <p className="text-[10px] italic">Date Processed: {receiptInfo.date}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
-            <div>
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student Name</p>
-              <p className="font-black text-lg">{receiptInfo.name}</p>
-            </div>
-            <div className="text-right">  
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student ID</p>
-              <p className="font-black text-lg">{receiptInfo.id}</p>
-            </div>
-          </div>
-
-          <div className="mb-8">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-black">
-                  <th className="text-left py-2 uppercase text-xs">Description</th>
-                  <th className="text-right py-2 uppercase text-xs">Amount Paid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receiptInfo.items.map((item, i) => (
-                  <tr key={i} className="border-b border-dotted border-slate-300">
-                    <td className="py-3 text-sm">{item.name}</td>
-                    <td className="text-right py-3 font-bold text-sm">₱{Number(item.paid).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td className="py-6 text-right font-bold uppercase text-xs">Total Amount Paid:</td>
-                  <td className="py-6 text-right text-2xl font-black border-t-2 border-black">
-                    ₱{Number(receiptInfo.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div className="mt-20 flex justify-between items-end">
-            <div className="text-center">
-              <div className="w-48 border-b border-black mb-1"></div>
-              <p className="text-[10px] uppercase font-bold text-slate-500 text-center">Cashier's Signature</p>
-            </div>
-            <div className="text-[10px] italic text-slate-400">
-              Thank you for your payment. This serves as your official record.
-            </div>
-          </div>
-        </div>
-      )}{/* HIDDEN PRINT RECEIPT SECTION */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @media print {
-          /* Itago lahat ng UI elements */
-          body * { 
-            visibility: hidden; 
-            margin: 0;
-          }
-          /* Ipakita lang ang print-area */
-          .print-area, .print-area * { 
-            visibility: visible; 
-          }
-          .print-area { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            padding: 40px;
-            display: block !important;
-            color: black !important;
-          }
-          /* Tanggalin ang mga browser headers/footers */
-          @page { size: auto; margin: 0mm; }
-        }
-      `}} />
-
-      {receiptInfo && (
-        <div className="hidden print-area text-left font-serif">
-          <div className="text-center border-b-2 border-black pb-4 mb-6">
-            <h1 className="text-2xl font-black uppercase">Official Receipt</h1>
-            <p className="text-sm">Smart Management School System</p>
-            <p className="text-[10px] italic">Date Processed: {receiptInfo.date}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
-            <div>
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student Name</p>
-              <p className="font-black text-lg">{receiptInfo.name}</p>
-            </div>
-            <div className="text-right">
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student ID</p>
-              <p className="font-black text-lg">{receiptInfo.id}</p>
-            </div>
-          </div>
-
-          <div className="mb-8">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-black">
-                  <th className="text-left py-2 uppercase text-xs">Description</th>
-                  <th className="text-right py-2 uppercase text-xs">Amount Paid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receiptInfo.items.map((item, i) => (
-                  <tr key={i} className="border-b border-dotted border-slate-300">
-                    <td className="py-3 text-sm">{item.name}</td>
-                    <td className="text-right py-3 font-bold text-sm">₱{Number(item.paid).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td className="py-6 text-right font-bold uppercase text-xs">Total Amount Paid:</td>
-                  <td className="py-6 text-right text-2xl font-black border-t-2 border-black">
-                    ₱{Number(receiptInfo.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div className="mt-20 flex justify-between items-end">
-            <div className="text-center">
-              <div className="w-48 border-b border-black mb-1"></div>
-              <p className="text-[10px] uppercase font-bold text-slate-500 text-center">Cashier's Signature</p>
-            </div>
-            <div className="text-[10px] italic text-slate-400">
-              Thank you for your payment. This serves as your official record.
-            </div>
-          </div>
-        </div>
-      )}{/* HIDDEN PRINT RECEIPT SECTION */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @media print {
-          /* Itago lahat ng UI elements */
-          body * { 
-            visibility: hidden; 
-            margin: 0;
-          }
-          /* Ipakita lang ang print-area */
-          .print-area, .print-area * { 
-            visibility: visible; 
-          }
-          .print-area { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            padding: 40px;
-            display: block !important;
-            color: black !important;
-          }
-          /* Tanggalin ang mga browser headers/footers */
-          @page { size: auto; margin: 0mm; }
-        }
-      `}} />
-
-      {receiptInfo && (
-        <div className="hidden print-area text-left font-serif">
-          <div className="text-center border-b-2 border-black pb-4 mb-6">
-            <h1 className="text-2xl font-black uppercase">Official Receipt</h1>
-            <p className="text-sm">Smart Management School System</p>
-            <p className="text-[10px] italic">Date Processed: {receiptInfo.date}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
-            <div>
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student Name</p>
-              <p className="font-black text-lg">{receiptInfo.name}</p>
-            </div>
-            <div className="text-right">
-              <p className="uppercase font-bold text-slate-500 text-[10px]">Student ID</p>
-              <p className="font-black text-lg">{receiptInfo.id}</p>
-            </div>
-          </div>
-
-          <div className="mb-8">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-black">
-                  <th className="text-left py-2 uppercase text-xs">Description</th>
-                  <th className="text-right py-2 uppercase text-xs">Amount Paid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receiptInfo.items.map((item, i) => (
-                  <tr key={i} className="border-b border-dotted border-slate-300">
-                    <td className="py-3 text-sm">{item.name}</td>
-                    <td className="text-right py-3 font-bold text-sm">₱{Number(item.paid).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td className="py-6 text-right font-bold uppercase text-xs">Total Amount Paid:</td>
-                  <td className="py-6 text-right text-2xl font-black border-t-2 border-black">
-                    ₱{Number(receiptInfo.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div className="mt-20 flex justify-between items-end">
-            <div className="text-center">
-              <div className="w-48 border-b border-black mb-1"></div>
-              <p className="text-[10px] uppercase font-bold text-slate-500 text-center">Cashier's Signature</p>
-            </div>
-            <div className="text-[10px] italic text-slate-400">
-              Thank you for your payment. This serves as your official record.
-            </div>
-          </div>
-        </div>
-      )}{/* HIDDEN PRINT RECEIPT SECTION */}
       <style dangerouslySetInnerHTML={{
         __html: `
         @media print {
