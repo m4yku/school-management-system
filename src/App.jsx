@@ -30,6 +30,7 @@ import StudentBilling from './pages/cashier/StudentBilling';
 import FeeCatalog from './pages/cashier/FeeCatalog';
 import Scholarships from './pages/cashier/Scholarships';
 import CollectionReports from './pages/cashier/CollectionReports';
+import ScholarshipCatalog from './pages/cashier/ScholarshipCatalog';
 
 // Layouts
 import AdminLayout from './layouts/AdminLayout';
@@ -102,6 +103,7 @@ function App() {
             <Route path="payments" element={<PaymentDashboard />} />
             <Route path="fees" element={<FeeCatalog />} />
             <Route path="scholarships" element={<Scholarships />} />  
+            <Route path="scholarship-catalog" element={<ScholarshipCatalog />} />
             <Route path="reports" element={<CollectionReports />} />  
           </Route>
 

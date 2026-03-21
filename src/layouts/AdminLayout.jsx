@@ -42,6 +42,7 @@ const AdminLayout = () => {
       { icon: <CreditCard size={20} />, label: 'Process Payment', path: '/cashier/payments' },
       { icon: <Layers size={20} />, label: 'Fee Catalog', path: '/cashier/fees' },
       { icon: <Receipt size={20} />, label: 'Scholarships', path: '/cashier/scholarships' },
+      { icon: <BookOpen size={20} />, label: 'Scholarship Catalog', path: '/cashier/scholarship-catalog' },
       { icon: <History size={20} />, label: 'Collection Reports', path: '/cashier/reports' },
     ]
   };
