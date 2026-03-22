@@ -30,54 +30,54 @@ const TeacherLayout = () => {
   const themeColor = branding?.theme_color || '#2563eb';
 
   return (
-    // Pinalitan ng bg-slate-100 para mas may contrast ang salamin
     <div className="flex h-screen bg-slate-100 relative font-sans overflow-hidden z-0">
       
       {/* ========================================== */}
-      {/* 2. OPTIMIZED LAG-FREE DYNAMIC BACKGROUND   */}
+      {/* OPTIMIZED LAG-FREE DYNAMIC BACKGROUND      */}
       {/* ========================================== */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-slate-100">
         
-        {/* CUSTOM ANIMATION - OPTIMIZED FOR GPU */}
+        {/* LIGHTWEIGHT OPACITY ANIMATION (Hardware Accelerated) */}
+        {/* Tinanggal ang mabigat na translate3d sa nagliliwanag na blobs */}
         <style>{`
-          @keyframes float {
-            0% { transform: translate3d(0px, 0px, 0px) scale(1); }
-            33% { transform: translate3d(30px, -50px, 0px) scale(1.1); }
-            66% { transform: translate3d(-20px, 20px, 0px) scale(0.9); }
-            100% { transform: translate3d(0px, 0px, 0px) scale(1); }
+          @keyframes pulseSlow {
+            0%, 100% { opacity: 0.15; }
+            50% { opacity: 0.35; }
           }
-          .animate-float { animation: float 15s infinite ease-in-out; }
-          .animate-float-delayed { animation: float 18s infinite ease-in-out reverse; }
-          .animate-float-slow { animation: float 25s infinite ease-in-out; }
+          @keyframes pulseSlower {
+            0%, 100% { opacity: 0.30; }
+            50% { opacity: 0.10; }
+          }
+          .animate-glow-1 { animation: pulseSlow 8s infinite ease-in-out; }
+          .animate-glow-2 { animation: pulseSlower 12s infinite ease-in-out; }
         `}</style>
 
-        {/* Mga Blobs na nakakonekta sa Admin Theme Color at naka-optimize.
-          Ginamit ang 'translate3d', 'will-change-transform', at purong 'opacity' 
-          upang maiwasan ang CPU rendering lag.
+        {/* Static Blobs na may magaan na Opacity Breathing.
+          Mas maliit na blur value (80px instead of 120px) para mabilis i-render ng browser. 
         */}
         <div 
-          className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[100px] animate-float opacity-30 will-change-transform backface-hidden"
+          className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] rounded-full blur-[80px] animate-glow-1 will-change-opacity"
           style={{ backgroundColor: themeColor }}
         ></div>
         
         <div 
-          className="absolute bottom-[-10%] right-[-5%] w-[60%] h-[60%] rounded-full blur-[120px] animate-float-delayed opacity-20 will-change-transform backface-hidden"
+          className="absolute bottom-[-10%] right-[-5%] w-[55%] h-[55%] rounded-full blur-[80px] animate-glow-2 will-change-opacity"
           style={{ backgroundColor: themeColor }}
         ></div>
         
         <div 
-          className="absolute top-[20%] left-[20%] w-[40%] h-[40%] rounded-full blur-[100px] animate-float-slow opacity-15 will-change-transform backface-hidden"
+          className="absolute top-[30%] left-[25%] w-[35%] h-[35%] rounded-full blur-[80px] animate-glow-2 will-change-opacity"
           style={{ backgroundColor: themeColor }}
         ></div>
         
         <div 
-          className="absolute bottom-[20%] left-[10%] w-[40%] h-[40%] rounded-full blur-[100px] animate-float opacity-25 will-change-transform backface-hidden"
+          className="absolute bottom-[10%] left-[10%] w-[35%] h-[35%] rounded-full blur-[80px] animate-glow-1 will-change-opacity"
           style={{ backgroundColor: themeColor }}
         ></div>
 
         {/* LIGHTWEIGHT FROSTED GLASS NOISE TEXTURE */}
         <div 
-          className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+          className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay" 
           style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")' }}
         ></div>
       </div>
@@ -123,7 +123,8 @@ const TeacherLayout = () => {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Main Menu</p>
           {currentMenu.map((item, index) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || (location.pathname.startsWith('/teacher/sections') && item.path === '/teacher/classes');
+            
             return (
               <Link 
                 key={index} 
@@ -177,10 +178,11 @@ const TeacherLayout = () => {
       </aside>
 
       {/* 3. MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto relative z-10">
+      <main className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto relative z-10 custom-scroll">
         
-        {/* HEADER - HIGH CONTRAST GLASSMORPHISM */}
-        <header className="h-16 bg-white/40 backdrop-blur-xl border-b border-white/80 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 shrink-0 shadow-[0_4px_30px_rgba(0,0,0,0.05)]">
+        {/* HEADER - GPU OPTIMIZED GLASSMORPHISM */}
+        {/* Binabaan ang blur sa 'md' para mas magaan pero maganda pa rin */}
+        <header className="h-16 bg-white/50 backdrop-blur-md border-b border-white/80 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 shrink-0 shadow-sm">
           {/* LEFT SIDE: Menu Button & Page Title */}
           <div className="flex items-center space-x-4">
             <button 
@@ -248,8 +250,9 @@ const TeacherLayout = () => {
         </header>
 
         {/* PAGE CONTENT */}
-        <div className="p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+        {/* Tinanggal ang p-4 lg:p-8 dito dahil nilalagyan na natin ng sariling padding yung mga pages mismo */}
+        <div className="flex-1 w-full h-full p-4 lg:p-8">
+          <div className="max-w-7xl mx-auto h-full">
             <Outlet />
           </div>
         </div>
