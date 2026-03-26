@@ -5,14 +5,11 @@ import OfflineBanner from '../../utils/offlinebanner';
 import { useAuth } from '../../context/AuthContext'; // <-- ARCHITECTURE FIX: Import auth
 
 const TeacherClasses = () => {
-  const { user, token } = useAuth(); // <-- ARCHITECTURE FIX: Get user ID and secure token
+  const { user, token, API_BASE_URL } = useAuth(); // <-- ARCHITECTURE FIX: Get user ID and secure token
   const [sections, setSections] = useState([]);
   const [isServerOffline, setIsServerOffline] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
-
-  // ARCHITECTURE FIX: Use Environment Variable
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost/sms-api";
 
   const fetchSections = useCallback(async () => {
     if (!user?.id) return; // Wag mag-fetch kung walang naka-login

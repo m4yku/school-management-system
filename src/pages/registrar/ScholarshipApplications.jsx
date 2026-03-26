@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 const ScholarshipApplications = () => {
-  const { branding } = useAuth();
+  const { branding, API_BASE_URL } = useAuth();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
   
@@ -25,8 +25,7 @@ const ScholarshipApplications = () => {
   const [actionToConfirm, setActionToConfirm] = useState(''); 
   const [evalLoading, setEvalLoading] = useState(false);
 
-  const API_BASE_URL = "http://localhost/sms-api/registrar";
-  const UPLOADS_URL = "http://localhost/sms-api/uploads/requirements"; 
+  const UPLOADS_URL = `${API_BASE_URL}/uploads/requirements`;
 
   useEffect(() => {
     fetchApplications();
@@ -35,7 +34,7 @@ const ScholarshipApplications = () => {
   const fetchApplications = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/get_scholarship_applications.php`);
+      const res = await axios.get(`${API_BASE_URL}/registrar/get_scholarship_applications.php`);
       if (Array.isArray(res.data)) setApplications(res.data);
     } catch (error) { console.error(error); } 
     finally { setLoading(false); }

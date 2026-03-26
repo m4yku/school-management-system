@@ -7,7 +7,7 @@ import OfflineBanner from '../../utils/offlinebanner';
 
 const GradeManagement = () => {
   const { classId } = useParams();
-  const { user, token } = useAuth(); // <-- ARCHITECTURE FIX: Kinuha ang token
+  const { user, token, API_BASE_URL } = useAuth(); // <-- ARCHITECTURE FIX: Kinuha ang token
   const navigate = useNavigate();
   
   const [students, setStudents] = useState([]);
@@ -16,9 +16,6 @@ const GradeManagement = () => {
   const [isServerOffline, setIsServerOffline] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [statusMsg, setStatusMsg] = useState(null);
-
-  // ARCHITECTURE FIX: Use Environment Variable
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost/sms-api";
 
   const getTeacherLevel = () => {
     const role = user?.role?.toLowerCase() || '';

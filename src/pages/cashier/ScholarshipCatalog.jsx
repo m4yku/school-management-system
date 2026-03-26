@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Plus, Award, Trash2, X, Tag, FileText, Percent, Banknote, Landmark, Pencil } from 'lucide-react';
-
+import { useAuth } from '../../context/AuthContext';
 const ScholarshipCatalog = () => {
+    const { branding, API_BASE_URL } = useAuth();
     const [scholarships, setScholarships] = useState([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -34,7 +35,7 @@ const ScholarshipCatalog = () => {
     const handleDelete = async (id, name) => {
         if (window.confirm(`Sigurado ka bang gusto mong i-delete ang "${name}"?`)) {
             try {
-                const res = await axios.post('http://localhost/sms-api/cashier/manage_scholarships.php', {
+                const res = await axios.post(`${API_BASE_URL}/cashier/manage_scholarships.php`, {
                     id: id,
                     action: 'delete'
                 });
@@ -47,7 +48,7 @@ const ScholarshipCatalog = () => {
 
     const fetchCatalog = async () => {
         try {
-            const res = await axios.get('http://localhost/sms-api/cashier/manage_scholarships.php');
+            const res = await axios.get(`${API_BASE_URL}/cashier/manage_scholarships.php`);
             setScholarships(Array.isArray(res.data) ? res.data : []);
         } catch (err) { console.error("Fetch error"); }
     };
@@ -56,7 +57,7 @@ const ScholarshipCatalog = () => {
         if (!formData.code || !formData.name) return alert("Fill up required fields!");
         setLoading(true);
         try {
-            const res = await axios.post('http://localhost/sms-api/cashier/manage_scholarships.php', {
+            const res = await axios.post(`${API_BASE_URL}/cashier/manage_scholarships.php`, {
                 ...formData,
                 id: currentId,
                 action: isEdit ? 'edit' : 'add' // Dito magdedecide

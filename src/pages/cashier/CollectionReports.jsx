@@ -3,9 +3,11 @@ import axios from 'axios';
 import { Download, Filter, Banknote, CreditCard, Wallet, ReceiptText, Search } from 'lucide-react';
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
+import { useAuth } from '../../context/AuthContext';
 
 const CollectionReports = () => {
   const [reports, setReports] = useState([]);
+  const { branding, API_BASE_URL } = useAuth();
   const [stats, setStats] = useState({ total: 0, cash: 0, gcash: 0, card: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -17,7 +19,7 @@ const CollectionReports = () => {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost/sms-api/cashier/get_collection_reports.php?start=${filters.start}&end=${filters.end}`);
+      const res = await axios.get(`${API_BASE_URL}/cashier/get_collection_reports.php?start=${filters.start}&end=${filters.end}`);
       if (res.data.status === 'success') {
         setReports(res.data.data);
         setStats(res.data.stats);

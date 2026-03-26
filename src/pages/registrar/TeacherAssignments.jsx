@@ -28,7 +28,7 @@ const DAYS_MAPPING = [
 ];
 
 const TeacherAssignments = () => {
-  const { branding, token } = useAuth();
+  const { branding, token, API_BASE_URL } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,8 +59,6 @@ const TeacherAssignments = () => {
     is_active: 1
   };
   const [formData, setFormData] = useState(initialForm);
-
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost/sms-api";
 
   // --- FETCH DATA ---
   const fetchAssignmentData = async () => {

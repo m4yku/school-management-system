@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 const StudentRequests = () => {
-  const { branding } = useAuth();
+  const { branding, API_BASE_URL } = useAuth();
   const [loading, setLoading] = useState(false);
   const [requests, setRequests] = useState([]);
   const [students, setStudents] = useState([]);
@@ -22,8 +22,6 @@ const StudentRequests = () => {
   // States para sa Cancel Modal
   const [cancelModal, setCancelModal] = useState(false);
   const [requestToCancel, setRequestToCancel] = useState(null);
-
-  const API_BASE_URL = "http://localhost/sms-api";
 
   useEffect(() => {
     fetchRequests();
@@ -49,7 +47,7 @@ const StudentRequests = () => {
 
   const fetchDocFees = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/get_fees_catalog.php`);
+      const res = await axios.get(`${API_BASE_URL}/registrar/get_fees_catalog.php`);
       if (Array.isArray(res.data)) {
         const docs = res.data.filter(f => f.category === 'Document' || f.category === 'Other');
         setDocFees(docs);

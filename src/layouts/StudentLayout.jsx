@@ -8,14 +8,12 @@ import axios from 'axios';
 import ProfileModal from '../components/student/ProfileModal';
 
 const StudentLayout = () => {
-  const { user, logout, branding } = useAuth();
+  const { user, logout, branding, API_BASE_URL } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [studentData, setStudentData] = useState(null);
   
   const location = useLocation();
-  const API_BASE_URL = "http://localhost/sms-api";
-
   const [editForm, setEditForm] = useState({ email: '', contact_no: '', address: '' });
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -122,7 +120,7 @@ const getPageTitle = () => {
             <X size={20}/>
           </button>
           <div className="w-16 h-16 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center overflow-hidden border-2 border-yellow-500 shadow-xl">
-            {branding.school_logo ? <img src={branding.school_logo} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-slate-800 font-black text-xl italic">CSPB</span>}
+            <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} alt="Logo" className="w-9 h-9 rounded-lg object-cover" />
           </div>
           <h2 className="text-[9px] font-black uppercase tracking-[0.2em] opacity-80 leading-tight">{branding.school_name}</h2>
         </div>

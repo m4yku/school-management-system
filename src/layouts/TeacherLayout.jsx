@@ -8,13 +8,11 @@ import { useAuth } from '../context/AuthContext';
 import UserProfileModal from '../components/admin/UserProfileModal'; 
 
 const TeacherLayout = () => {
-  const { logout, user, branding } = useAuth();
+  const { logout, user, branding, API_BASE_URL } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
   
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-
-  const API_BASE_URL = "http://localhost/sms-api";
 
   const menuConfig = {
     teacher: [
@@ -101,7 +99,7 @@ const TeacherLayout = () => {
         <div className="p-6 border-b border-slate-800 flex justify-between items-center shrink-0">
           <div className="flex items-center space-x-3">
             {branding?.school_logo ? (
-              <img src={branding.school_logo} alt="Logo" className="w-9 h-9 rounded-lg object-cover bg-white" />
+              <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} alt="Logo" className="w-9 h-9 rounded-lg object-cover" />
             ) : (
               <div 
                 className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold"

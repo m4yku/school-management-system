@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Wallet, Banknote, History, CreditCard, Activity, X } from 'lucide-react';
-
+import { useAuth } from '../../context/AuthContext';
 const CashierDashboard = () => {
+  const { API_BASE_URL } = useAuth();
   const [isAllTxModalOpen, setIsAllTxModalOpen] = useState(false);
   const [allTransactions, setAllTransactions] = useState([]);
   const [stats, setStats] = useState({
@@ -16,8 +17,8 @@ const CashierDashboard = () => {
   const fetchData = async () => {
     try {
       const [statsRes, paymentsRes] = await Promise.all([
-        axios.get('http://localhost/sms-api/cashier/get_dashboard_stats.php'),
-        axios.get('http://localhost/sms-api/cashier/get_payments.php')
+        axios.get(`${API_BASE_URL}/cashier/get_dashboard_stats.php`),
+        axios.get(`${API_BASE_URL}/cashier/get_payments.php`)
       ]);
       setStats({
         totalCollections: statsRes.data.totalCollections,
@@ -31,15 +32,19 @@ const CashierDashboard = () => {
     }
   };
 
-  const fetchAllTransactions = async () => {
-    try {
-      const response = await axios.get('http://localhost/sms-api/cashier/get_all_payments.php');
-      setAllTransactions(response.data);
-      setIsAllTxModalOpen(true);
-    } catch (error) {
-      console.error("Error fetching all transactions:", error);
-    }
-  };
+const fetchAllTransactions = async () => {
+  try {
+    // FIX: Ginawang dynamic ang URL para future-proof ang system mo
+    const response = await axios.get(`${API_BASE_URL}/cashier/get_all_payments.php`);
+    
+    // Siguraduhin nating array ang data bago i-set para hindi mag-error ang .map()
+    setAllTransactions(Array.isArray(response.data) ? response.data : []);
+    setIsAllTxModalOpen(true);
+  } catch (error) {
+    console.error("Error fetching all transactions:", error);
+    alert("Hindi makuha ang lahat ng records. Check PHP connection.");
+  }
+};
 
   useEffect(() => {
     fetchData();

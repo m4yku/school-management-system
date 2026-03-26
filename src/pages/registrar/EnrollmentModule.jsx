@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 const EnrollmentModule = () => {
-  const { branding } = useAuth();
+  const { branding, API_BASE_URL } = useAuth();
   const [activeTab, setActiveTab] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -25,7 +25,7 @@ const EnrollmentModule = () => {
     selected_fees: [] 
   });
 
-  const API_BASE_URL = "http://localhost/sms-api";
+
 
   useEffect(() => {
     fetchData();
@@ -34,25 +34,30 @@ const EnrollmentModule = () => {
   }, [activeTab]);
 
   const fetchData = async () => {
-    setLoading(true);
-    try {
-      let endpoint = '';
-      if (activeTab === 'pending') endpoint = 'get_pending_students.php';
-      else if (activeTab === 'assessed') endpoint = 'get_assessed_students.php'; 
-      else endpoint = 'get_enrolled_students.php';
+      setLoading(true);
+      try {
+        // ARCHITECT FIX: Sa isang file na lang tayo kukuha, pero papasa tayo ng 'status'
+        // Siguraduhing may /registrar/ sa path dahil doon nakatira ang mga scripts na ito.
+        const response = await axios.get(`${API_BASE_URL}/registrar/get_students_by_status.php`, {
+          params: { status: activeTab }
+        });
 
-      const response = await axios.get(`${API_BASE_URL}/${endpoint}`);
-      if (Array.isArray(response.data)) setStudents(response.data);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (Array.isArray(response.data)) {
+          setStudents(response.data);
+        } else {
+          setStudents([]); // Safety net kung empty o error ang bumalik
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setStudents([]); 
+      } finally {
+        setLoading(false);
+      }
+    };
 
   const fetchFeesCatalog = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/get_fees_catalog.php`);
+      const response = await axios.get(`${API_BASE_URL}/registrar/get_fees_catalog.php`);
       if (Array.isArray(response.data)) {
           setFeesCatalog(response.data);
       }
@@ -104,7 +109,7 @@ const EnrollmentModule = () => {
         selected_fees: enrollForm.selected_fees
       };
       
-      const response = await axios.post(`${API_BASE_URL}/process_enrollment.php`, payload);
+      const response = await axios.post(`${API_BASE_URL}/registrar/process_enrollment.php`, payload);
       
       if(response.data.success) {
          alert("Successfully Assessed! Forwarded to Cashier.");
@@ -168,31 +173,88 @@ const EnrollmentModule = () => {
               <tr><td colSpan="3" className="p-10 text-center text-slate-400 font-bold">No records found.</td></tr>
             ) : (
               filteredStudents.map((s, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-5">
-                    <p className="font-bold text-slate-800">{s.first_name} {s.last_name}</p>
-                    <p className="text-[10px] font-mono text-slate-400 uppercase">ID: {s.student_id}</p>
-                  </td>
-                  <td className="p-5 font-bold text-slate-600">{s.grade_level}</td>
-                  <td className="p-5 text-center">
-                    {activeTab === 'pending' && (
-                      <button onClick={() => handleOpenEnroll(s)} className="px-5 py-2 bg-blue-50 text-blue-600 rounded-xl font-bold text-xs hover:bg-blue-600 hover:text-white transition-all border border-blue-100">
-                        Assess Fees
-                      </button>
-                    )}
-                    {activeTab === 'assessed' && (
-                      <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-amber-50 text-amber-600 rounded-full font-bold text-[10px] border border-amber-100 uppercase tracking-widest">
-                        <AlertCircle size={12}/> Pending Payment
-                      </span>
-                    )}
-                    {activeTab === 'enrolled' && (
-                      <button onClick={() => { setSelectedStudent(s); setCorModal(true); }} className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-xs hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 flex items-center justify-center gap-2 mx-auto">
-                        <Printer size={14} /> Print COR
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
+  <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all group">
+    {/* 1. STUDENT INFO WITH AVATAR */}
+    <td className="p-4">
+      <div className="flex items-center gap-4 text-left">
+        <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center border-2 border-white shadow-sm group-hover:shadow-md transition-all">
+          {s.profile_image ? (
+            <img 
+              src={s.profile_image} 
+              alt="Profile" 
+              className="w-full h-full object-cover"
+              onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${s.first_name}+${s.last_name}&background=random`; }}
+            />
+          ) : (
+            <span className="font-black text-slate-400 text-lg uppercase">{s.first_name[0]}{s.last_name[0]}</span>
+          )}
+        </div>
+        <div>
+          <h3 className="font-black text-slate-800 text-sm leading-tight uppercase">
+            {s.first_name} {s.last_name}
+          </h3>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+              ID: {s.student_id}
+            </span>
+          </div>
+        </div>
+      </div>
+    </td>
+
+    {/* 2. PROGRAM & GRADE LEVEL WITH ICON */}
+    <td className="p-4 text-left">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
+          <BookOpen size={16} />
+        </div>
+        <div>
+          <p className="font-bold text-slate-700 text-sm leading-none">{s.grade_level}</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter mt-1">
+            {s.program_description || 'General Academics'}
+          </p>
+        </div>
+      </div>
+    </td>
+
+    {/* 3. DYNAMIC ACTION BUTTONS / STATUS BADGES */}
+    <td className="p-4">
+      <div className="flex items-center justify-center gap-3">
+        {activeTab === 'pending' && (
+          <button 
+            onClick={() => handleOpenEnroll(s)} 
+            className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-blue-100"
+          >
+            <CheckSquare size={14} /> Assess & Enroll
+          </button>
+        )}
+
+        {activeTab === 'assessed' && (
+          <div className="flex flex-col items-center">
+             <span className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-full font-black text-[10px] border border-amber-100 uppercase tracking-widest">
+                <Clock size={12} className="animate-pulse" /> Pending Payment
+             </span>
+             <p className="text-[9px] font-bold text-slate-400 mt-1 italic">Waiting for Cashier</p>
+          </div>
+        )}
+
+        {activeTab === 'enrolled' && (
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => { setSelectedStudent(s); setCorModal(true); }} 
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 shadow-sm"
+            >
+              <Printer size={14} /> COR
+            </button>
+            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-full">
+              <CheckCircle size={14} />
+            </div>
+          </div>
+        )}
+      </div>
+    </td>
+  </tr>
+))
             )}
           </tbody>
         </table>

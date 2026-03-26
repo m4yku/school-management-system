@@ -4,8 +4,10 @@ import {
   Search, Wallet, User, Printer, AlertCircle,
   CheckCircle2, ArrowRight, Banknote, X, Info
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const StudentBilling = () => {
+  const { API_BASE_URL } = useAuth();
   const [searchId, setSearchId] = useState('');
   const [billingData, setBillingData] = useState(null);
   const [allocations, setAllocations] = useState({});
@@ -18,26 +20,30 @@ const StudentBilling = () => {
   const [receiptInfo, setReceiptInfo] = useState(null);
 
   const handleSearch = async () => {
-    if (!searchId) return;
-    setLoading(true);
-    try {
-      const res = await axios.get(`http://localhost/sms-api/cashier/get_billing_details.php?id=${searchId}`);
+  if (!searchId) return;
+  setLoading(true);
+  try {
+    const res = await axios.get(`${API_BASE_URL}/cashier/get_billing_details.php?id=${searchId}`);
+    
+    // I-log natin para makita sa F12 console
+    console.log("API Response:", res.data);
 
-      if (res.data.status === "success") {
-        // Direkta na sa res.data dahil sa format ng PHP mo
-        setBillingData(res.data);
-        setAllocations({});
-      } else {
-        // Lalabas dito yung message galing sa PHP (mas accurate)
-        alert(res.data.message);
-        setBillingData(null);
-      }
-    } catch (err) {
-      alert("Connection error to API.");
-    } finally {
-      setLoading(false);
+    if (res.data.status === "success") {
+      setBillingData(res.data);
+      setAllocations({});
+    } else {
+      alert(res.data.message);
+      setBillingData(null);
     }
-  };
+  } catch (err) {
+    // ARCHITECT DEBUG TIP:
+    console.error("FULL ERROR OBJECT:", err);
+    const errorMsg = err.response?.data?.message || "Connection error to API.";
+    alert(errorMsg); // Dito na lalabas yung totoong error message mula sa PHP
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAllocationChange = (itemId, value, maxBalance) => {
     const val = parseFloat(value) || 0;
@@ -60,7 +66,7 @@ const StudentBilling = () => {
         enrollment_status: manualStatus
       };
 
-      const res = await axios.post(`http://localhost/sms-api/cashier/process_billing_payment.php`, payload);
+      const res = await axios.post(`${API_BASE_URL}/cashier/process_billing_payment.php`, payload);
 
       if (res.data.status === "success") {
         // I-set ang info para sa resibo bago i-clear

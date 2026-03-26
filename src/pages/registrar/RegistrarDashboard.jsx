@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 
 const RegistrarDashboard = () => {
-  const { user, branding } = useAuth();
+  const { user, branding, API_BASE_URL } = useAuth();
   const [loading, setLoading] = useState(true);
   
   // Dashboard Data States (Dinagdag ang pendingRequests)
@@ -29,7 +29,7 @@ const RegistrarDashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost/sms-api/registrar/get_registrar_dashboard.php');
+      const response = await axios.get(`${API_BASE_URL}/registrar/get_registrar_dashboard.php`);
       
       if (response.data.success) {
         const data = response.data;

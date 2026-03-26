@@ -7,15 +7,12 @@ import axios from 'axios'; // <-- ADDED: Gamitin natin axios for cleaner API cal
 
 const TeacherDashboard = () => {
   const { syStart, syEnd, semester } = getActiveSchoolYear();
-  const { user } = useAuth(); // <-- ADDED: Kunin ang logged in user data
+  const { user, API_BASE_URL } = useAuth(); // <-- ADDED: Kunin ang logged in user data
   const [stats, setStats] = useState({ classes: 0, students: 0, pendingGrading: 0 });
   const [schedules, setSchedules] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isServerOffline, setIsServerOffline] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
-
-  // Gamitin ang base URL ng SMS API
-  const API_BASE_URL = "http://localhost/sms-api";
 
   const fetchDashboardData = async () => {
     if (!user || !user.id) return; // Siguraduhing may user ID bago mag-fetch

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Palette, School, Save, RefreshCw, Upload, Image as ImageIcon } from 'lucide-react';
-
+import { useAuth } from '../../context/AuthContext';
 const BrandingSettings = () => {
+  // ARCHITECT UPDATE 1: Idinagdag ang API_BASE_URL mula sa Context
+  const { branding, API_BASE_URL } = useAuth(); 
+  
   const [settings, setSettings] = useState({
     school_name: '',
     theme_color: '#2563eb',
@@ -19,12 +22,14 @@ const BrandingSettings = () => {
 
   const fetchBranding = async () => {
     try {
-      const res = await axios.get('http://localhost/sms-api/branding.php');
+      // ARCHITECT UPDATE 2: Gamitin ang dynamic URL
+      const res = await axios.get(`${API_BASE_URL}/admin/branding.php`);
       if (res.data) {
         setSettings({
           school_name: res.data.school_name || '',
           theme_color: res.data.theme_color || '#2563eb',
-          school_logo: res.data.school_logo || ''
+          // Siguraduhin na ang logo ay may tamang path
+          school_logo: res.data.school_logo ? `${API_BASE_URL}/uploads/branding/${res.data.school_logo}` : ''
         });
       }
     } catch (err) {
@@ -32,11 +37,11 @@ const BrandingSettings = () => {
     }
   };
 
-  const handleFileChange = (e) => {
+const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setSelectedFile(file);
-      setPreview(URL.createObjectURL(file)); // Create local preview
+      setPreview(URL.createObjectURL(file)); 
     }
   };
 
@@ -44,7 +49,6 @@ const BrandingSettings = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Gagamit tayo ng FormData dahil may kasamang File/Image
     const formData = new FormData();
     formData.append('school_name', settings.school_name);
     formData.append('theme_color', settings.theme_color);
@@ -53,13 +57,13 @@ const BrandingSettings = () => {
     }
 
     try {
-      const res = await axios.post('http://localhost/sms-api/branding.php', formData, {
+      const res = await axios.post(`${API_BASE_URL}/admin/branding.php`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       if (res.data.success) {
         alert("System Branding Updated!");
-        window.location.reload(); // Refresh para mag-reflect sa Sidebar at AuthContext
+        window.location.reload(); 
       }
     } catch (err) {
       alert("Error updating branding. Check your PHP connection.");
@@ -67,6 +71,8 @@ const BrandingSettings = () => {
       setLoading(false);
     }
   };
+  
+  // ... rest of the code stays the same ...
 
   return (
     <div className="max-w-2xl space-y-6 animate-in fade-in duration-500">

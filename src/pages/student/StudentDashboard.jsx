@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const StudentDashboard = () => {
-  const { user, branding } = useAuth();
+  const { user, branding, API_BASE_URL } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
@@ -23,11 +23,9 @@ const StudentDashboard = () => {
   // --- ADDED STATE FOR ORIGINAL BILLING (PARA SA TUITION CALCULATION) ---
   const [allBillingItems, setAllBillingItems] = useState([]);
 
-  const API_BASE_URL = "http://localhost/sms-api"; 
-
   const fetchData = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/get_students.php`);
+      const res = await axios.get(`${API_BASE_URL}/student/get_students.php`);
       const studentsArray = res.data.students;
       const allItems = res.data.billing_items;
 

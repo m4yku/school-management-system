@@ -4,7 +4,7 @@ import { UserPlus, Pencil, Trash2, X, Shield, Mail, RefreshCw, Calendar, Phone, 
 import { useAuth } from '../../context/AuthContext';
 
 const UserManagement = () => {
-  const { user: currentUser, branding } = useAuth();
+  const { user: currentUser, branding, API_BASE_URL } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false); 
@@ -30,7 +30,8 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('http://localhost/sms-api/get_users.php');
+      // FIX: Ginawang dynamic at tinuro sa /admin/ folder
+      const response = await axios.get(`${API_BASE_URL}/admin/get_users.php`);
       if (Array.isArray(response.data)) {
         setUsers(response.data);
       }
@@ -41,14 +42,15 @@ const UserManagement = () => {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, [API_BASE_URL]);
 
   // REAL-TIME EMAIL VALIDATION
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (formData.email && !isEditMode && showModal) { 
         try {
-          const res = await axios.get(`http://localhost/sms-api/check_email.php?email=${formData.email}`);
+          // FIX: Tinuro sa /auth/ folder kung nasaan na ang check_email.php
+          const res = await axios.get(`${API_BASE_URL}/auth/check_email.php?email=${formData.email}`);
           if (res.data.exists) {
             setEmailError('This email is already registered to another account.');
           } else {
@@ -59,7 +61,7 @@ const UserManagement = () => {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [formData.email, isEditMode, showModal]);
+  }, [formData.email, isEditMode, showModal, API_BASE_URL]);
 
   const handleAddUser = async (e) => {
     if (e) e.preventDefault();
@@ -68,7 +70,9 @@ const UserManagement = () => {
     setSaveLoading(true); 
     try {
       const payload = isEditMode ? { ...formData, id: selectedUserId } : formData;
-      const response = await axios.post(`http://localhost/sms-api/${isEditMode ? 'update_user.php' : 'add_user.php'}`, payload);
+      // FIX: Tinuro sa /admin/ folder at dynamic URL
+      const endpoint = isEditMode ? 'update_user.php' : 'add_user.php';
+      const response = await axios.post(`${API_BASE_URL}/admin/${endpoint}`, payload);
 
       if (response.data && response.data.success) {
         setShowModal(false);
@@ -94,7 +98,8 @@ const UserManagement = () => {
 
   const executeDelete = async () => {
     try {
-      const response = await axios.post('http://localhost/sms-api/delete_user.php', { id: deleteModal.id });
+      // FIX: Tinuro sa /admin/ folder at dynamic URL
+      const response = await axios.post(`${API_BASE_URL}/admin/delete_user.php`, { id: deleteModal.id });
       if (response.data.success) {
         setDeleteModal({ show: false, id: null, name: '' });
         fetchUsers();

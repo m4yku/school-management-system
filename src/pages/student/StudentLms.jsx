@@ -10,13 +10,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const StudentLms = () => {
-  const { user, branding } = useAuth();
+  const { user, branding, API_BASE_URL } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); 
-
-  const API_BASE_URL = "http://localhost/sms-api"; 
 
   // --- UPDATED LOGIC FOR COLLEGE, SHS, AND PROGRAMS ---
   const getStudentDetails = (data) => {
@@ -56,7 +54,7 @@ const StudentLms = () => {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/get_students.php`);
+      const response = await axios.get(`${API_BASE_URL}/student/get_students.php`);
       const studentList = response.data.students || [];
       const billingItems = response.data.billing_items || []; // Kunin ang breakdown ng items
       const myData = studentList.find(s => s.email === user.email);

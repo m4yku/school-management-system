@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 import { Settings, X, Camera, UserCircle, Save, Lock } from 'lucide-react';
 
 const UserProfileModal = ({ isOpen, onClose, user, branding, logout }) => {
+  const { API_BASE_URL } = useAuth();
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileData, setProfileData] = useState({
     full_name: user?.full_name || ''
   });
   const [profileImage, setProfileImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-
-  const API_BASE_URL = "http://localhost/sms-api";
 
   // Kung hindi open ang modal, wag i-render sa screen
   if (!isOpen) return null;
@@ -28,8 +28,9 @@ const UserProfileModal = ({ isOpen, onClose, user, branding, logout }) => {
     setProfileLoading(true);
 
     const formData = new FormData();
-    formData.append('id', user?.id || user?.user_id || 1); 
+    formData.append('id', user?.id || user?.student_id); 
     formData.append('full_name', profileData.full_name);
+    formData.append('role', user?.role); // <--- HUWAG KALIMUTAN ITO
     // TINANGGAL NA NATIN YUNG PASSWORD APPEND DITO
     if (profileImage) formData.append('profile_image', profileImage);
 

@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 const StudentManagement = () => {
-  const { branding } = useAuth();
+  const { branding, API_BASE_URL } = useAuth();
   const [students, setStudents] = useState([]);
   const [programs, setPrograms] = useState([]); // BAGONG STATE PARA SA COURSES/STRANDS
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,6 @@ const StudentManagement = () => {
   const [viewModal, setViewModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
-  const API_BASE_URL = "http://localhost/sms-api";
 
   const gradeLevels = [
     'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 
@@ -90,7 +89,7 @@ const fetchData = async () => {
     e.preventDefault();
     setSaveLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/add_student.php`, formData);
+      const response = await axios.post(`${API_BASE_URL}/registrar/add_student.php`, formData);
       if (response.data.success) {
         setShowModal(false);
         setFormData(initialFormState);

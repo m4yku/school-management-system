@@ -10,7 +10,7 @@ import OfflineBanner from '../../utils/offlinebanner';
 
 const TeacherProfile = () => {
   // Assuming useAuth provides a token for secure API calls
-  const { user, token } = useAuth(); 
+  const { user, token, API_BASE_URL } = useAuth(); 
   const [teacher, setTeacher] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isServerOffline, setIsServerOffline] = useState(false);
@@ -18,8 +18,6 @@ const TeacherProfile = () => {
   const navigate = useNavigate();
 
   // ARCHITECTURE FIX: Use Environment Variables for API URLs
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost/sms-api"; 
-
   const fetchTeacherData = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
     setIsRetrying(true);

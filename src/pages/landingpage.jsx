@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const { branding } = useAuth();
+  const { branding, API_BASE_URL } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -14,8 +14,17 @@ const LandingPage = () => {
       <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-[100] shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            {branding.school_logo && <img src={branding.school_logo} className="h-9 w-9 object-contain" alt="Logo" />}
-            <span className="font-black text-xl text-slate-800 tracking-tighter uppercase">{branding.school_name}</span>
+            {/* ARCHITECT FIX: Idinugtong ang Full Path */}
+            {branding.school_logo && (
+              <img 
+                src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} 
+                className="h-9 w-9 object-contain" 
+                alt="Logo" 
+              />
+            )}
+            <span className="font-black text-xl text-slate-800 tracking-tighter uppercase">
+              {branding.school_name}
+            </span>
           </div>
 
           {/* DESKTOP MENU (Lilitaw lang sa md pataas) */}

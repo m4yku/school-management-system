@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Search, FileText, CheckCircle, Printer, X, Banknote, User } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const PaymentDashboard = () => {
+  const { branding, API_BASE_URL } = useAuth();
   const [searchId, setSearchId] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -13,7 +15,7 @@ const PaymentDashboard = () => {
     if (!searchId) return;
     setLoading(true);
     try {
-      const res = await axios.get(`http://localhost/sms-api/cashier/get_service_requests.php?id=${searchId}`);
+      const res = await axios.get(`${API_BASE_URL}/cashier/get_service_requests.php?id=${searchId}`);
       if (res.data.status === "success") {
         setData(res.data);
         setSelectedIds([]); // Clear selection sa bagong search
@@ -38,9 +40,9 @@ const PaymentDashboard = () => {
     setProcessing(true);
     try {
       // Mag-send ng array ng IDs na babayaran
-      const res = await axios.post(`http://localhost/sms-api/cashier/process_service_payment.php`, {
-        request_ids: selectedIds
-      });
+      const res = await axios.post(`${API_BASE_URL}/cashier/process_service_payment.php`, {
+  request_ids: selectedIds
+});
 
       if (res.data.status === "success") {
         alert("Payment Successful! Status updated to 'Paid'.");

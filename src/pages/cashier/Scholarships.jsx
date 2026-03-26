@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, ClipboardList, CheckCircle, Award } from 'lucide-react';
-
+import { useAuth } from '../../context/AuthContext';
 const Scholarships = () => {
   // Siguraduhin na laging array ang default
+  const { API_BASE_URL } = useAuth(); // Import useAuth muna sa taas
   const [pendingGrants, setPendingGrants] = useState([]); 
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -14,7 +15,7 @@ const Scholarships = () => {
 
   const fetchPending = async () => {
     try {
-      const res = await axios.get('http://localhost/sms-api/cashier/get_pending_scholarships.php');
+      const res = await axios.get(`${API_BASE_URL}/cashier/get_pending_scholarships.php`);
       
       // SAFETY CHECK: Siguraduhin na array ang iseset natin
       if (Array.isArray(res.data)) {
@@ -36,7 +37,7 @@ const Scholarships = () => {
     if (!window.confirm(`Apply ${grant.scholarship_name} to ${grant.first_name}'s billing?`)) return;
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost/sms-api/cashier/process_scholarship_apply.php', {
+      const res = await axios.post(`${API_BASE_URL}/cashier/process_scholarship_apply.php`, {
         student_scholarship_id: grant.id,
         student_id: grant.student_id,
         value: grant.value,

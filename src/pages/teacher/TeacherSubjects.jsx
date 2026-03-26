@@ -5,12 +5,10 @@ import OfflineBanner from '../../utils/offlinebanner';
 import { useAuth } from '../../context/AuthContext'; // <-- ADDED: Para makuha yung logged-in teacher
 
 const TeacherSubjects = () => {
-  const { user } = useAuth(); // <-- ADDED
+  const { user, API_BASE_URL } = useAuth(); // <-- ADDED
   const [subjects, setSubjects] = useState([]);
   const [isServerOffline, setIsServerOffline] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false); 
-
-  const API_BASE_URL = "http://localhost/sms-api";
 
   // Array of colors para maging dynamic yung gilid ng card kahit galing database
   const cardColors = ['bg-orange-500', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-rose-500', 'bg-cyan-500'];

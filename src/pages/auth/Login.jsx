@@ -6,7 +6,9 @@ import { useAuth } from '../../context/AuthContext';
 
 const Login = ({ portal }) => {
   const navigate = useNavigate();
-  const { setUser, branding } = useAuth();
+  
+  // ARCHITECT UPDATE 1: Kinuha na natin ang API_BASE_URL mula sa .env config natin
+  const { setUser, branding, API_BASE_URL } = useAuth();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -46,22 +48,28 @@ const Login = ({ portal }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost/sms-api/login.php', {
+      // ARCHITECT UPDATE 2: Hindi na hardcoded ang localhost! Nakaturo na rin sa /auth folder
+      const response = await axios.post(`${API_BASE_URL}/auth/login.php`, {
         username: identifier,
         password: password,
         portal: portal
       });
 
       if (response.data.success) {
+        // ARCHITECT UPDATE 3: I-save natin ang SECURE TOKEN sa browser!
+        localStorage.setItem('sms_token', response.data.token);
+        
         localStorage.setItem('user', JSON.stringify(response.data.user));
         setUser(response.data.user); 
         
         const role = response.data.user.role;
-        navigate(`/${role}/dashboard`);
+        // Gawing lowercase ang role para saktong mag-match sa routes mo (e.g. /admin/dashboard)
+        navigate(`/${role.toLowerCase()}/dashboard`);
       } else {
         setError(response.data.message); 
       }
     } catch (err) {
+      console.error(err);
       setError("Connection failed. Server might be down.");
     } finally {
       setLoading(false);
@@ -145,7 +153,7 @@ const Login = ({ portal }) => {
             {error && (
               <div className="bg-red-50 border border-red-100 p-4 rounded-2xl animate-in fade-in zoom-in duration-300">
                 <p className="text-xs text-red-600 font-bold flex items-center justify-center italic text-center leading-relaxed">
-                   ⚠️ {error}
+                    ⚠️ {error}
                 </p>
               </div>
             )}
@@ -169,7 +177,6 @@ const Login = ({ portal }) => {
             </button>
           </form>
 
-          {/* FORGOT PASSWORD BUTTON - Inilabas na sa form */}
           <div className="mt-6 text-center animate-in fade-in duration-500">
             <button 
               type="button" 

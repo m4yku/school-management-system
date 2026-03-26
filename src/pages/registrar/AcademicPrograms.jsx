@@ -4,7 +4,7 @@ import { Library, Plus, RefreshCw, X, Check, Trash2, AlertCircle } from 'lucide-
 import { useAuth } from '../../context/AuthContext';
 
 const AcademicPrograms = () => {
-  const { branding } = useAuth();
+  const { branding, API_BASE_URL } = useAuth();
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -22,8 +22,6 @@ const AcademicPrograms = () => {
     status: 'Active'
   });
 
-  const API_BASE_URL = "http://localhost/sms-api/registrar";
-
   useEffect(() => {
     fetchPrograms();
   }, []);
@@ -31,7 +29,7 @@ const AcademicPrograms = () => {
   const fetchPrograms = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/get_academic_programs.php`);
+      const res = await axios.get(`${API_BASE_URL}/registrar/get_academic_programs.php`);
       if (Array.isArray(res.data)) {
         setPrograms(res.data);
       }
@@ -46,7 +44,7 @@ const AcademicPrograms = () => {
     e.preventDefault();
     setSaveLoading(true);
     try {
-      const res = await axios.post(`${API_BASE_URL}/add_academic_program.php`, formData);
+      const res = await axios.post(`${API_BASE_URL}/registrar/add_academic_program.php`, formData);
       if (res.data.success) {
         alert("Program added successfully!");
         setShowModal(false);
@@ -74,7 +72,7 @@ const AcademicPrograms = () => {
     if (!programToDelete) return;
     
     try {
-      const res = await axios.post(`${API_BASE_URL}/delete_academic_program.php`, { id: programToDelete.id });
+      const res = await axios.post(`${API_BASE_URL}/registrar/delete_academic_program.php`, { id: programToDelete.id });
       if (res.data.success) {
         fetchPrograms(); // I-refresh ang table after ma-delete
         setDeleteModal(false);

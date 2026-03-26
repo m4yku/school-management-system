@@ -8,18 +8,16 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const StudentAccounting = () => {
-  const { user, branding } = useAuth();
+  const { user, branding, API_BASE_URL } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
   const [billingItems, setBillingItems] = useState([]); 
   const [viewModal, setViewModal] = useState({ open: false, type: '' });
 
-  const API_BASE_URL = "http://localhost/sms-api"; 
-
   const fetchData = async () => {
   try {
-    const res = await axios.get(`${API_BASE_URL}/get_students.php`);
+    const res = await axios.get(`${API_BASE_URL}/student/get_students.php`);
     const allStudents = res.data.students; 
     const allItems = res.data.billing_items;
     const myData = allStudents.find(s => s.email === user.email);

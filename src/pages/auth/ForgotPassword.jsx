@@ -12,7 +12,7 @@ const ForgotPassword = () => {
   const [isSent, setIsSent] = useState(false);
   
   const navigate = useNavigate();
-  const { branding } = useAuth();
+  const { branding, API_BASE_URL } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,7 +21,7 @@ const ForgotPassword = () => {
     setMessage('');
 
     try {
-      const response = await axios.post('http://localhost/sms-api/forgot_password.php', { email });
+      const response = await axios.post(`${API_BASE_URL}/auth/forgot_password.php`, { email });
       
       if (response.data.success) {
         setIsSent(true);

@@ -4,14 +4,11 @@ import OfflineBanner from '../../utils/offlinebanner';
 import { useAuth } from '../../context/AuthContext'; // <-- ARCHITECTURE FIX: Import auth
 
 const TeacherNotify = () => {
-  const { token } = useAuth(); // <-- ARCHITECTURE FIX: Get secure token
+  const { token, API_BASE_URL } = useAuth(); // <-- ARCHITECTURE FIX: Get secure token
   const [announcements, setAnnouncements] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isServerOffline, setIsServerOffline] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
-
-  // ARCHITECTURE FIX: Use Environment Variable & Standardized Path
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost/sms-api";
 
   const fetchAnnouncements = useCallback(async () => {
     setIsRetrying(true);

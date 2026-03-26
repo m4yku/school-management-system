@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Plus, Edit2, Trash2, Tag, X, Info, Layers, DollarSign, Search, Filter } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const FeeCatalog = () => {
   const [fees, setFees] = useState([]);
+  const { API_BASE_URL } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
@@ -17,7 +19,7 @@ const FeeCatalog = () => {
 
   const fetchFees = async () => {
     try {
-      const res = await axios.get('http://localhost/sms-api/cashier/manage_fees.php');
+      const res = await axios.get(`${API_BASE_URL}/cashier/manage_fees.php`);
       setFees(res.data);
     } catch (err) {
       console.error("Error fetching fees:", err);
@@ -37,7 +39,7 @@ const FeeCatalog = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await axios.post('http://localhost/sms-api/cashier/manage_fees.php', formData);
+    await axios.post(`${API_BASE_URL}/cashier/manage_fees.php`, formData);
     setIsModalOpen(false);
     resetForm();
     fetchFees();
@@ -45,7 +47,7 @@ const FeeCatalog = () => {
 
   const handleDelete = async (id) => {
     if (window.confirm("Remove this item?")) {
-      await axios.delete(`http://localhost/sms-api/cashier/manage_fees.php?id=${id}`);
+      await axios.delete(`${API_BASE_URL}/cashier/manage_fees.php?id=${id}`);
       fetchFees();
     }
   };

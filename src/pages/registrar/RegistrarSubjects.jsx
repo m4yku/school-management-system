@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 const RegistrarSubjects = () => {
-  const { branding, token } = useAuth();
+  const { branding, token, API_BASE_URL} = useAuth();
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,8 +28,6 @@ const RegistrarSubjects = () => {
     course_applicable: 'All'
   };
   const [formData, setFormData] = useState(initialForm);
-
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost/sms-api";
 
   useEffect(() => {
     fetchData();
@@ -79,9 +77,38 @@ const RegistrarSubjects = () => {
     }
   };
 
-  const filteredSubjects = subjects.filter(s => 
-    `${s.subject_code} ${s.subject_description} ${s.grade_level_applicable}`.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setFormData(initialForm);
+  };
+
+  // 2. Function para sa pag-delete ng subject
+  const handleDelete = async (id, code) => {
+    if (!window.confirm(`Sigurado ka bang buburahin ang subject na ${code}?`)) return;
+    
+    try {
+      const res = await axios.post(`${API_BASE_URL}/registrar/delete_subject.php`, { id }, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (res.data.success) {
+        fetchData(); // I-refresh ang table
+      } else {
+        alert("Error: " + res.data.message);
+      }
+    } catch (error) {
+      alert("Server Error while deleting.");
+      console.error(error);
+    }
+  };
+
+ // Dagdagan ng empty array fallback
+const filteredSubjects = (subjects || []).filter(s => 
+  `${s.subject_code} ${s.subject_description} ${s.grade_level_applicable}`.toLowerCase().includes(searchQuery.toLowerCase())
+);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -159,9 +186,12 @@ const RegistrarSubjects = () => {
                   </p>
                 </td>
                 <td className="p-5 text-center">
-                   <button className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-lg transition-all shadow-sm">
+                   <button 
+  onClick={() => handleDelete(item.id, item.subject_code)}
+  className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-lg transition-all shadow-sm">
                       <Trash2 size={16}/>
                    </button>
+
                 </td>
               </tr>
             ))
@@ -180,7 +210,7 @@ const RegistrarSubjects = () => {
                 <h3 className="text-xl font-black text-slate-800">Add New Subject</h3>
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Curriculum Registry</p>
               </div>
-              <button type="button" onClick={() => setShowModal(false)} className="p-2 bg-white border border-slate-200 text-slate-400 rounded-xl hover:text-red-500"><X size={20}/></button>
+              <button type="button" onClick={handleCloseModal} className="p-2 bg-white border border-slate-200 text-slate-400 rounded-xl hover:text-red-500"><X size={20}/></button>
             </div>
 
             <div className="p-8 overflow-y-auto space-y-6">
@@ -245,7 +275,7 @@ const RegistrarSubjects = () => {
             </div>
 
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-[2.5rem]">
-              <button type="button" onClick={() => setShowModal(false)} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200">Cancel</button>
+              <button type="button" onClick={handleCloseModal} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200">Cancel</button>
               <button type="submit" disabled={saveLoading} className="px-8 py-3 rounded-xl font-black text-white shadow-lg active:scale-95 transition-all flex items-center gap-2" style={{backgroundColor: branding?.theme_color || '#4f46e5'}}>
                 {saveLoading ? <RefreshCw className="animate-spin" size={18}/> : <><CheckCircle size={18}/> Save Subject</>}
               </button>

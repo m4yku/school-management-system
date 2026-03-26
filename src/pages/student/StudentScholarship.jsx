@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 
 const StudentScholarship = () => {
-  const { user, branding } = useAuth();
+  const { user, branding, API_BASE_URL } = useAuth();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [scholarshipTypes, setScholarshipTypes] = useState([]);
@@ -19,7 +19,6 @@ const StudentScholarship = () => {
   const [files, setFiles] = useState([]); 
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  const API_BASE_URL = "http://localhost/sms-api";
   const safeThemeColor = branding?.theme_color || '#3b82f6';
 
   useEffect(() => {
@@ -29,7 +28,7 @@ const StudentScholarship = () => {
 
   const fetchScholarships = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/fetch_scholarships.php`);
+      const res = await axios.get(`${API_BASE_URL}/student/fetch_scholarships.php`);
       if (Array.isArray(res.data)) {
         setScholarshipTypes(res.data);
       } else {
@@ -45,7 +44,7 @@ const StudentScholarship = () => {
   // DAGDAG: Function para makuha ang application status ng student
   const fetchMyApplications = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/get_student_applications.php?email=${user.email}`);
+      const res = await axios.get(`${API_BASE_URL}/student/get_student_applications.php?email=${user.email}`);
       if (res.data.status === 'success') {
         setMyApplications(res.data.data);
       }
@@ -75,12 +74,12 @@ const StudentScholarship = () => {
     formData.append('email', user.email);
     formData.append('scholarship_id', selectedType);
     
-    files.forEach((file, index) => {
-      formData.append(`requirements[${index}]`, file);
+    selectedFiles.forEach(file => {
+      formData.append('requirements[]', file); 
     });
 
     try {
-      const res = await axios.post(`${API_BASE_URL}/submit_application.php`, formData, {
+      const res = await axios.post(`${API_BASE_URL}/student/submit_application.php`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       if (res.data.status === 'success') {

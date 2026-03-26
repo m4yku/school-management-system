@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { branding } = useAuth();
+  const { branding, API_BASE_URL } = useAuth();
   
   // Kunin ang token at email mula sa URL
   const token = searchParams.get('token');
@@ -53,8 +53,7 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost/sms-api/reset_password.php', {
-        email: email,
+      const response = await axios.post(`${API_BASE_URL}/auth/reset_password.php`, {
         token: token,
         password: password
       });

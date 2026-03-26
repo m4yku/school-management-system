@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 const SetupPassword = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { branding } = useAuth();
+  const { branding, API_BASE_URL } = useAuth();
   
   const token = searchParams.get('token');
   const email = searchParams.get('email');
@@ -57,7 +57,7 @@ const SetupPassword = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost/sms-api/setup_password.php', {
+      const response = await axios.post(`${API_BASE_URL}/auth/setup_password.php`, {
         email: email,
         token: token,
         password: password
