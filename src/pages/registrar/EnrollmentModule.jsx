@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { 
   ClipboardList, CheckCircle, Clock, Printer, X, Search, 
-  CreditCard, BookOpen, CheckSquare, Square, AlertCircle
+  CreditCard, BookOpen, CheckSquare, Square, AlertCircle, Layers
 } from 'lucide-react'; 
 import { useAuth } from '../../context/AuthContext';
 
@@ -13,75 +13,84 @@ const EnrollmentModule = () => {
   
   const [students, setStudents] = useState([]);
   const [feesCatalog, setFeesCatalog] = useState([]);
+  const [sections, setSections] = useState([]); // ARCHITECT FIX: Bagong state para sa Sections
   const [loading, setLoading] = useState(false);
 
   const [enrollModal, setEnrollModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [corModal, setCorModal] = useState(false);
 
+  // ARCHITECT FIX: Idinagdag ang student_status at section_id
   const [enrollForm, setEnrollForm] = useState({
     school_year: '2026-2027',
     grade_level: '',
+    student_status: 'Regular', 
+    section_id: '',
     selected_fees: [] 
   });
 
-
-
   useEffect(() => {
     fetchData();
-    // I-fetch ang catalog kahit anong tab para ready na
     fetchFeesCatalog();
   }, [activeTab]);
 
   const fetchData = async () => {
       setLoading(true);
       try {
-        // ARCHITECT FIX: Sa isang file na lang tayo kukuha, pero papasa tayo ng 'status'
-        // Siguraduhing may /registrar/ sa path dahil doon nakatira ang mga scripts na ito.
         const response = await axios.get(`${API_BASE_URL}/registrar/get_students_by_status.php`, {
           params: { status: activeTab }
         });
-
-        if (Array.isArray(response.data)) {
-          setStudents(response.data);
-        } else {
-          setStudents([]); // Safety net kung empty o error ang bumalik
-        }
+        setStudents(Array.isArray(response.data) ? response.data : []);
       } catch (error) {
         console.error("Error fetching data:", error);
         setStudents([]); 
-      } finally {
-        setLoading(false);
-      }
-    };
+      } finally { setLoading(false); }
+  };
 
   const fetchFeesCatalog = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/registrar/get_fees_catalog.php`);
-      if (Array.isArray(response.data)) {
-          setFeesCatalog(response.data);
-      }
-    } catch (error) {
-      console.error("Error fetching catalog", error);
-    }
+      if (Array.isArray(response.data)) setFeesCatalog(response.data);
+    } catch (error) { console.error("Error fetching catalog", error); }
   };
 
-  // --- SMART ENROLLMENT LOGIC ---
+  // ARCHITECT FIX: Kukunin ang mga sections na pwede sa grade level ng bata
+  const fetchSections = async (gradeLevel, programId) => {
+      try {
+          const res = await axios.get(`${API_BASE_URL}/registrar/get_sections_for_enrollment.php`, {
+              params: { grade_level: gradeLevel, program_id: programId }
+          });
+          if (res.data.success) {
+              setSections(res.data.sections);
+          }
+      } catch (error) { console.error("Error fetching sections", error); }
+  };
+
+  // Helper para malaman kung College
+  const isCollegeLevel = (grade) => {
+      if (!grade) return false;
+      const lower = grade.toLowerCase();
+      return lower.includes('college') || lower.includes('year');
+  };
+
   const handleOpenEnroll = (student) => {
     setSelectedStudent(student);
     
-    // Matalinong Filter: 
-    // 1. Kunin ang lahat ng 'Mandatory' items (e.g. ID, Library)
-    // 2. Kunin ang 'Tuition' na tumutugma sa Grade Level ng estudyante
+    // Kunin ang mga sections na available para sa student na ito
+    fetchSections(student.grade_level, student.program_id);
+
     const matchedFees = feesCatalog.filter(f => {
         const isMandatory = f.category === 'Mandatory';
         const isCorrectTuition = f.category === 'Tuition' && f.item_name.toLowerCase().includes(student.grade_level.toLowerCase());
         return isMandatory || isCorrectTuition;
     }).map(f => f.id);
 
+    // Default form setup
     setEnrollForm({ 
         school_year: '2026-2027',
-        grade_level: student.grade_level, 
+        grade_level: student.grade_level,
+        student_status: 'Regular', // Default sa Regular
+        section_id: '',
         selected_fees: matchedFees 
     });
     setEnrollModal(true);
@@ -97,8 +106,14 @@ const EnrollmentModule = () => {
   };
 
   const submitEnrollment = async () => {
+    // 🛑 ARCHITECT FIX: Validation para sa Section
+    if (enrollForm.student_status === 'Regular' && !enrollForm.section_id) {
+        alert("Please select a block section for this regular student.");
+        return;
+    }
+
     if (enrollForm.selected_fees.length === 0) {
-        alert("Pumili ng kahit isang fee para magpatuloy.");
+        alert("Please select at least one fee for assessment.");
         return;
     }
 
@@ -106,13 +121,15 @@ const EnrollmentModule = () => {
       const payload = {
         student_id: selectedStudent.student_id,
         school_year: enrollForm.school_year,
+        student_status: enrollForm.student_status,
+        section_id: enrollForm.section_id,
         selected_fees: enrollForm.selected_fees
       };
       
       const response = await axios.post(`${API_BASE_URL}/registrar/process_enrollment.php`, payload);
       
       if(response.data.success) {
-         alert("Successfully Assessed! Forwarded to Cashier.");
+         alert("Successfully Assessed & Sectioned! Forwarded to Cashier.");
          setEnrollModal(false);
          setActiveTab('assessed'); 
       } else {
@@ -120,7 +137,6 @@ const EnrollmentModule = () => {
       }
     } catch (error) {
       alert("Error processing enrollment. Check console for details.");
-      console.error(error);
     }
   };
 
@@ -260,37 +276,85 @@ const EnrollmentModule = () => {
         </table>
       </div>
 
+{/* ENROLLMENT / ASSESSMENT MODAL */}
       {enrollModal && selectedStudent && (
         <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in duration-200">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div>
-                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Fee Assessment</h3>
-                <p className="text-xs text-slate-500 font-bold uppercase mt-1">Select items for {selectedStudent.first_name}</p>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Assessment & Sectioning</h3>
+                <p className="text-xs text-slate-500 font-bold uppercase mt-1">{selectedStudent.first_name} {selectedStudent.last_name} | {selectedStudent.grade_level}</p>
               </div>
               <button onClick={() => setEnrollModal(false)} className="p-2 bg-white text-slate-400 rounded-xl hover:text-red-500 shadow-sm"><X size={20}/></button>
             </div>
 
-            <div className="p-8 overflow-y-auto space-y-6">
-              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Student Classification</p>
-                <p className="font-bold text-blue-900">{selectedStudent.grade_level}</p>
+            <div className="p-8 overflow-y-auto space-y-8">
+              
+              {/* 🛑 ARCHITECT FIX: ACADEMIC PLACEMENT BLOCK 🛑 */}
+              <div>
+                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Layers size={14}/> Academic Placement
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    {/* Lalabas lang ito kung College */}
+                    {isCollegeLevel(selectedStudent.grade_level) && (
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Student Classification</label>
+                            <select 
+                                value={enrollForm.student_status} 
+                                onChange={(e) => setEnrollForm({...enrollForm, student_status: e.target.value, section_id: ''})}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm focus:border-blue-500"
+                            >
+                                <option value="Regular">Regular (Block Section)</option>
+                                <option value="Irregular">Irregular (Custom Subjects)</option>
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Lalabas ito kapag K-12, OR kapag College tapos "Regular" ang pinili */}
+                    {enrollForm.student_status === 'Regular' ? (
+                        <div className="space-y-2 md:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Assign Block Section</label>
+                            <select 
+                                required
+                                value={enrollForm.section_id} 
+                                onChange={(e) => setEnrollForm({...enrollForm, section_id: e.target.value})}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-sm focus:border-blue-500"
+                            >
+                                <option value="">-- Select Available Section --</option>
+                                {sections.map(sec => (
+                                    <option key={sec.id} value={sec.id}>{sec.section_name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : (
+                        <div className="space-y-2 md:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">Custom Subjects</label>
+                            <button type="button" className="w-full p-4 border-2 border-dashed border-blue-200 text-blue-600 rounded-xl font-bold text-sm hover:bg-blue-50 transition-all">
+                                + Select Individual Subjects
+                            </button>
+                            <p className="text-[10px] text-amber-500 font-bold italic mt-1">* Subject picker will open here (Coming Soon)</p>
+                        </div>
+                    )}
+                </div>
               </div>
 
-              <div>
-                <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2"><CreditCard size={14}/> Assessment of Fees</h4>
+              {/* EXISTING ASSESSMENT OF FEES BLOCK */}
+              <div className="border-t border-slate-100 pt-6">
+                <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-4 flex items-center gap-2"><CreditCard size={14}/> Assessment of Fees</h4>
                 
                 {feesCatalog.length === 0 ? (
                     <div className="p-10 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-                        <p className="text-slate-400 font-bold">Walang laman ang Fees Catalog. Magdagdag sa Database.</p>
+                        <p className="text-slate-400 font-bold">Walang laman ang Fees Catalog.</p>
                     </div>
                 ) : (
                     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-inner">
                       {feesCatalog.map(fee => {
                         const isSelected = enrollForm.selected_fees.includes(fee.id);
                         return (
-                          <div key={fee.id} onClick={() => toggleFee(fee.id)}
-                            className={`p-4 border-b border-slate-100 flex justify-between items-center cursor-pointer transition-all ${isSelected ? 'bg-blue-50/40' : 'hover:bg-slate-50'}`}>
+                          <div key={fee.id} onClick={() => toggleFee(fee.id)} className={`p-4 border-b border-slate-100 flex justify-between items-center cursor-pointer transition-all ${isSelected ? 'bg-blue-50/40' : 'hover:bg-slate-50'}`}>
+                            {/* ... Fee List Display ... */}
                             <div className="flex items-center gap-3">
                               <div className={`${isSelected ? 'text-blue-600' : 'text-slate-300'}`}>
                                 {isSelected ? <CheckSquare size={22} /> : <Square size={22} />}

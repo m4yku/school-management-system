@@ -5,6 +5,7 @@ import {
   MapPin, Users, Edit, Trash2, X, CheckCircle, RefreshCw, AlertTriangle, Presentation, ListChecks
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import CustomAlert from '../../components/shared/CustomAlert'; // Siguraduhin na tama ang path
 
 const DAYS_MAPPING = [
   { label: 'M', full: 'Monday' }, { label: 'T', full: 'Tuesday' },
@@ -112,18 +113,33 @@ const handleCloseModal = () => {
     setEndTime("09:00");
   };
 
+
+  // CUSTOM ALERT STATE
+  const [alertConfig, setAlertConfig] = useState({
+    isOpen: false,
+    type: 'info', // 'success', 'error', 'warning', 'info'
+    title: '',
+    message: ''
+  });
+
+  // Helper function para madaling tawagin
+  const showAlert = (type, title, message) => {
+    setAlertConfig({ isOpen: true, type, title, message });
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.days || !formData.start_time || !formData.end_time) {
-        alert("Please configure the schedule days and time."); return;
+        showAlert('error', 'Missing Information', 'Please configure the schedule days and time.');
+        return;
     }
 
     if (formData.start_time >= formData.end_time) {
-        alert("Invalid Schedule: The End Time must be AFTER the Start Time.");
+        showAlert('error', 'Invalid Schedule', 'The End Time must be AFTER the Start Time.');
         return;
     }
     if (formData.start_time < "06:00" || formData.end_time > "22:00") {
-        alert("Out of Bounds: Classes must be scheduled between 6:00 AM and 10:00 PM only.");
+        showAlert('error', 'Out of Bounds', 'Classes must be scheduled between 6:00 AM and 10:00 PM only.');
         return;
     }
 
@@ -133,8 +149,8 @@ const handleCloseModal = () => {
       const res = await axios.post(`${API_BASE_URL}/registrar/${endpoint}`, { ...formData, id: editId }, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
         setShowModal(false); setFormData(initialForm); setSelectedDays([]); fetchAssignmentData();
-      } else { alert(res.data.message); }
-    } catch (error) { alert("Server Error."); } finally { setSaveLoading(false); }
+      } else { showAlert('error', 'Error', res.data.message); }
+    } catch (error) { showAlert('error', 'Server Error', 'An error occurred while saving the assignment.'); } finally { setSaveLoading(false); }
   };
 
   // --- BULK ASSIGN LOGIC (THE DRAFTING BOARD) ---
@@ -201,20 +217,21 @@ const handleBulkSave = async (e) => {
       );
 
       if (hasEmptyFields) {
-          alert("Please complete all fields (Teacher, Room, Days, Time) for every subject before saving.");
+          showAlert('error', 'Missing Information', 'Please complete all fields (Teacher, Room, Days, Time) for every subject before saving.');
           return;
       }
+      
 
 // 🛑 ARCHITECT FIX: Bulk Time Validation
       const hasInvalidTime = bulkDrafts.some(draft => draft.start_time >= draft.end_time);
       if (hasInvalidTime) {
-          alert("Invalid Time Detected: One or more subjects have an End Time that is before or equal to the Start Time.");
+          showAlert('error', 'Invalid Schedule', 'The End Time must be AFTER the Start Time.');
           return;
       }
 
       const hasOutlierTime = bulkDrafts.some(draft => draft.start_time < "06:00" || draft.end_time > "22:00");
       if (hasOutlierTime) {
-          alert("Out of Bounds: Classes must be scheduled between 6:00 AM and 10:00 PM only.");
+          showAlert('error', 'Out of Bounds', 'Classes must be scheduled between 6:00 AM and 10:00 PM only.');
           return;
       }
 
@@ -232,17 +249,17 @@ const handleBulkSave = async (e) => {
           });
 
           if (res.data.success) {
-              alert("🎉 Success: " + res.data.message);
+              showAlert('success', 'Success', res.data.message);
               setShowBulkModal(false);
               setBulkDrafts([]);
               setBulkSectionId('');
               fetchAssignmentData(); // I-refresh ang main table para lumabas lahat ng dinagdag
           } else {
               // Ipapalabas dito yung exact Conflict (e.g., "CONFLICT in SCIENCE 6: Room is occupied")
-              alert("⚠️ " + res.data.message);
+              showAlert('error', 'Error', res.data.message);
           }
       } catch (error) {
-          alert("Server error during bulk save. Please check your network.");
+          showAlert('error', 'Server Error', 'An error occurred while saving the assignment.');
       } finally {
           setSaveLoading(false);
       }
@@ -540,6 +557,15 @@ return (
           </form>
         </div>
       )}
+
+      {/* 🛑 ARCHITECT FIX: DITO NATIN ILALAGAY ANG CUSTOM ALERT COMPONENT 🛑 */}
+      <CustomAlert 
+        isOpen={alertConfig.isOpen}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+      />
 
     </div>
   );

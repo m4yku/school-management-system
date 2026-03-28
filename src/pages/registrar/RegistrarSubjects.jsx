@@ -37,7 +37,7 @@ const RegistrarSubjects = () => {
     level_category: 'K-10', // NEW: Important for filtering
     subject_code: '',
     subject_description: '',
-    units: 3,
+    units: 0,
     grade_level_applicable: 'Grade 1',
     program_id: '', 
     semester: 'N/A'
@@ -61,15 +61,20 @@ const RegistrarSubjects = () => {
     finally { setLoading(false); }
   };
 
-  const handleLevelCategoryChange = (cat) => {
+const handleLevelCategoryChange = (cat) => {
+    // 🛑 ARCHITECT FIX: Smart Units Logic
+    // Kapag College, default sa 3. Kapag K-10 o SHS, force sa 0.
+    const newUnits = (cat === 'College') ? 3 : 0;
+
     setFormData({
       ...formData,
       level_category: cat,
       grade_level_applicable: LEVEL_CONFIG[cat].levels[0], // Auto-select first level
       program_id: '',
-      semester: cat === 'K-10' ? 'N/A' : '1st'
+      semester: cat === 'K-10' ? 'N/A' : '1st',
+      units: newUnits // Idinagdag natin ito para sumabay sa pagpalit ng category!
     });
-  };
+  }
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -177,7 +182,18 @@ const RegistrarSubjects = () => {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Units (Credit)</label>
-                  <input type="number" value={formData.units} onChange={e=>setFormData({...formData, units: e.target.value})} className="w-full p-4 bg-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold" />
+                  <input 
+                          type="number" 
+                          min="0"
+                          value={formData.units} 
+                          onChange={e => setFormData({...formData, units: e.target.value})} 
+                          disabled={formData.level_category !== 'College'} 
+                          className={`w-full p-4 rounded-2xl outline-none font-bold transition-all ${
+                            formData.level_category !== 'College'
+                              ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-70' // Kapag naka-lock (K-10/SHS)
+                              : 'bg-slate-100 text-slate-800 focus:ring-2 focus:ring-blue-500' // Kapag editable (College)
+                          }`} 
+                        />
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Full Description *</label>
