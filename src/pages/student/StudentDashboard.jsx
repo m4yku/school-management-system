@@ -88,19 +88,14 @@ const StudentDashboard = () => {
   const isPartial = paidAmount > 0 && paidAmount < totalAmount;
 
   // --- STRICT ITEM-SPECIFIC LMS LOGIC (NEW UPDATE) ---
-  // Hahanapin natin ang Tuition Item at ang specific na paid_amount nito mula sa database
   const tuitionItem = allBillingItems.find(item => 
     item.item_name.toLowerCase().includes('tuition')
   );
 
-  // Kunin ang actual na bayad na pumasok sa Tuition item lang
   const actualTuitionPaid = tuitionItem ? parseFloat(tuitionItem.paid_amount || 0) : 0;
   const tuitionAmount = tuitionItem ? parseFloat(tuitionItem.amount || 0) : 0;
   const tuitionThreshold = tuitionAmount * 0.5;
 
-  // LMS is active ONLY if:
-  // 1. Fully paid na ang lahat (isPaid)
-  // 2. OR ang ACTUAL payment sa TUITION item ay umabot na sa 50%
   const isLmsActive = isPaid || (tuitionAmount > 0 && actualTuitionPaid >= tuitionThreshold);
 
   // --- DYNAMIC STYLES FOR LMS CARD AND NOTICES ---
@@ -158,7 +153,7 @@ const StudentDashboard = () => {
                 {studentData?.grade_level || 'N/A'}
               </span>
               <span className="bg-yellow-500 text-[#001f3f] px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">
-                {studentData?.enrollment_type || 'Continuing'}
+                {studentData?.enrollment_status || 'Continuing'}
               </span>
               <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md 
                 ${isUnpaid ? 'bg-red-500 text-white' : isPaid ? 'bg-emerald-500 text-white' : 'bg-yellow-500 text-[#001f3f]'}`}>
@@ -233,7 +228,7 @@ const StudentDashboard = () => {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10">
                  <InfoItem label="Grade Level" value={studentData?.grade_level} />
-                 <InfoItem label="Classification" value={studentData?.enrollment_type} />
+                 <InfoItem label="Classification" value={studentData?.enrollment_status} />
                  <InfoItem label="School Year" value={studentData?.school_year} />
                  <InfoItem label="Payment Status" value={isPaid ? 'Fully Paid' : isUnpaid ? 'Unpaid' : 'Partial'} />
                  <InfoItem label="Payment Plan" value={studentData?.payment_plan} />
@@ -243,7 +238,6 @@ const StudentDashboard = () => {
           </div>
 
           <div className="space-y-8">
-              {/* LMS ACCESS STATUS CARD - DYNAMICALLY UPDATED */}
               <div className={`p-8 rounded-[2.5rem] border-4 transition-all duration-500 ${lmsBgColor}`}>
                 <div className="flex items-center gap-4">
                    <div className={`text-white p-4 rounded-2xl shadow-lg transition-colors duration-500 ${lmsStatusColor}`}>
@@ -320,14 +314,19 @@ const StudentDashboard = () => {
                     )}
                   </div>
                   <div>
-                    <h1 className="text-xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
+                    <h1 className="text-xl font-black text-slate-900 uppercase leading-tight">{branding?.school_name}</h1>
                     <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-2">Office of the Finance & Accounting</p>
                     <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-none mb-2">{studentData.first_name} {studentData.last_name}</h2>
                     <p className="font-mono text-sm font-bold text-slate-500">ID: {studentData.student_id} • ₱ {remainingBalance.toLocaleString()} Balance</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <img src={branding.school_logo} className="w-16 h-16 object-cover ml-auto mb-1" alt="Logo" />
+                  <img 
+                    src={`${API_BASE_URL}/uploads/branding/${branding?.school_logo}`} 
+                    className="w-16 h-16 object-cover ml-auto mb-1" 
+                    alt="Logo" 
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
                   <p className="text-[8px] font-bold text-slate-400 italic">SOA Date: {new Date().toLocaleDateString()}</p>
                 </div>
               </div>
@@ -388,7 +387,7 @@ const StudentDashboard = () => {
                     )}
                   </div>
                   <div>
-                    <h1 className="text-xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
+                    <h1 className="text-xl font-black text-slate-900 uppercase leading-tight">{branding?.school_name}</h1>
                     <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-4">Official Enrollment Profile</p>
                     <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">{studentData.first_name} {studentData.last_name}</h2>
                     <div className="flex items-center gap-3">
@@ -397,11 +396,16 @@ const StudentDashboard = () => {
                     </div>
                   </div>
                 </div>
-                <img src={branding.school_logo} className="w-24 h-24 object-cover" alt="Logo" />
+                <img 
+                  src={`${API_BASE_URL}/uploads/branding/${branding?.school_logo}`} 
+                  className="w-24 h-24 object-cover" 
+                  alt="Logo" 
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-12">
-                 <InfoItem label="Enrollment Type" value={studentData.enrollment_type} />
+                 <InfoItem label="Enrollment Type" value={studentData.enrollment_status} />
                  <InfoItem label="Grade Level" value={studentData.grade_level} />
                  <InfoItem label="LRN Number" value={studentData.lrn} />
                  <InfoItem label="Contact Email" value={studentData.email} />
