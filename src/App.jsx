@@ -55,6 +55,7 @@ import LandingPage from './pages/landingpage';
 import Login from './pages/auth/Login';
 import UserManagement from './pages/admin/UserManagement';
 import BrandingSettings from './pages/admin/BrandingSettings';
+import RoomManagement from './pages/admin/RoomManagement';
 
 
 // Placeholder Components
@@ -104,6 +105,7 @@ function App() {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="branding" element={<BrandingSettings />} />
+            <Route path="rooms" element={<RoomManagement />} />
           </Route>
 
           {/* 4. CASHIER ROUTES */}

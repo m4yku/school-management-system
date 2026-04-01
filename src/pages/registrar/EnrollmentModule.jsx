@@ -446,7 +446,7 @@ const handleOpenSubjectPicker = () => {
         
         {/* OFFICIAL LETTERHEAD (ONLY ON PRINT) */}
         <div className="hidden print:flex items-center justify-center gap-4 mb-8 border-b-4 border-double border-slate-800 pb-6">
-          <img src={branding.school_logo} className="w-20 h-20 object-cover" alt="Logo" />
+          <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} className="w-20 h-20 object-cover" alt="Logo" />
           <div className="text-center">
             <h1 className="text-2xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
             <p className="text-xs font-bold text-slate-500 tracking-widest uppercase">Office of the School Registrar</p>

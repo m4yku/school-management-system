@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Settings, LogOut, Menu, X, 
   BookOpen, CreditCard, UserCircle, Search, Receipt, 
   History, ClipboardList, GraduationCap, Layers, FileText,
-  Library, Award, ChevronLeft, ChevronRight 
+  Library, Award, ChevronLeft, ChevronRight, MapPin
 } from 'lucide-react'; 
 import { useAuth } from '../context/AuthContext';
 import UserProfileModal from '../components/admin/UserProfileModal'; 
@@ -21,6 +21,7 @@ const AdminLayout = () => {
       { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/admin/dashboard' },
       { icon: <Users size={20} />, label: 'User Management', path: '/admin/users' },
       { icon: <Settings size={20} />, label: 'Branding Engine', path: '/admin/branding' },
+      { icon: <MapPin size={20} />, label: 'Room Management', path: '/admin/rooms' },
     ],
     registrar: [
       { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/registrar/dashboard' },
@@ -68,7 +69,6 @@ const AdminLayout = () => {
         fixed z-50 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 ease-in-out shadow-2xl
         inset-y-0 left-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
         lg:translate-x-0 lg:static lg:h-[calc(100vh-2rem)] lg:my-4 lg:ml-4 lg:rounded-[2rem]
-        /* 🛑 FIX: Sa mobile (w-64) automatic malaki. Sa Desktop (lg) lang gagana yung pagliit! */
         w-64 ${isCollapsed ? 'lg:w-[5.5rem]' : 'lg:w-64'} 
       `}>
         
@@ -86,8 +86,8 @@ const AdminLayout = () => {
               </div>
             )}
             
-            {/* 🛑 FIX: Automatic lalabas yung text sa mobile kahit naka-collapse ang desktop */}
-            <span className={`text-lg font-black text-white tracking-tight truncate transition-all duration-300 w-32 opacity-100 ${isCollapsed ? 'lg:w-0 lg:opacity-0 lg:hidden' : ''}`}>
+            {/* 🛑 ARCHITECT FIX: Pinalitan ang truncate ng line-clamp-2 at nilakihan ang width (w-36) para mag-wrap pababa */}
+            <span className={`text-[15px] leading-tight font-black text-white tracking-tight transition-all duration-300 line-clamp-2 opacity-100 w-36 ${isCollapsed ? 'lg:w-0 lg:opacity-0 lg:hidden' : ''}`}>
               {branding.school_name}
             </span>
           </div>
@@ -103,10 +103,8 @@ const AdminLayout = () => {
             if (item.type === 'header') {
               return (
                 <div key={`header-${index}`} className={`pt-6 pb-2 transition-all duration-300 px-3 ${isCollapsed ? 'lg:text-center lg:px-0' : ''}`}>
-                   {/* Dot para sa Desktop Collapsed */}
                    <div className={`h-1.5 w-1.5 bg-slate-700 rounded-full mx-auto hidden ${isCollapsed ? 'lg:block' : ''}`} /> 
                    
-                   {/* Text para sa Mobile o Desktop Expanded */}
                    <div className={`block ${isCollapsed ? 'lg:hidden' : ''}`}>
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{item.label}</p>
                       <div className="h-[1px] bg-slate-800 mt-2 w-full" />
@@ -132,7 +130,6 @@ const AdminLayout = () => {
                   {item.icon}
                 </span>
                 
-                {/* 🛑 FIX: Automatic lalabas yung text sa mobile kahit naka-collapse ang desktop */}
                 <span className={`font-bold text-sm transition-all duration-300 whitespace-nowrap overflow-hidden w-auto opacity-100 ${isCollapsed ? 'lg:w-0 lg:opacity-0 lg:hidden' : ''}`}>
                   {item.label}
                 </span>
@@ -168,8 +165,9 @@ const AdminLayout = () => {
              )}
              
              <div className={`overflow-hidden transition-all duration-300 flex-1 w-auto opacity-100 ${isCollapsed ? 'lg:w-0 lg:opacity-0 lg:hidden' : ''}`}>
-                <p className="text-sm font-black text-white truncate">{user?.full_name}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                {/* 🛑 ARCHITECT FIX: Pinalitan ang truncate ng text-xs at line-clamp-2 para mag-next line kapag mahaba ang pangalan */}
+                <p className="text-[13px] leading-tight font-black text-white line-clamp-2 mb-0.5">{user?.full_name}</p>
+                <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">
                   {user?.role}
                 </p>
              </div>

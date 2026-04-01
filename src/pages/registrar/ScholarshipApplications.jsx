@@ -109,7 +109,7 @@ const ScholarshipApplications = () => {
       const validKeywords = [
         'republic of the philippines', 'certif', 'completion', 'indigency', 
         'report card', 'form 138', 'gwa', 'grade', 'esc', 'voucher', 
-        'academic', 'scholarship', 'barangay', 'average', 'mike', 'certificate', 'enrollment', 'status', 'good moral', 'residence', 'income'
+        'academic', 'scholarship', 'barangay', 'average', 'certificate', 'enrollment', 'status', 'good moral', 'residence', 'income'
       ];
 
       const isMatch = validKeywords.some(kw => combinedText.includes(kw));

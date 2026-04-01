@@ -427,7 +427,7 @@ const fetchData = async () => {
         
         {/* COMPACT LETTERHEAD (ONLY ON PRINT) */}
         <div className="hidden print:flex items-center justify-center gap-4 mb-6 border-b-2 border-slate-800 pb-4">
-          <img src={branding.school_logo} className="w-16 h-16 object-cover" alt="School Logo" />
+          <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} className="w-16 h-16 object-cover" alt="School Logo" />
           <div className="text-left">
             <h1 className="text-xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
             <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">Office of the School Registrar</p>
@@ -489,7 +489,7 @@ const fetchData = async () => {
            </div>
            
            <div className="text-right print:hidden">
-              <img src={branding.school_logo} className="w-12 h-12 rounded-lg object-cover mb-1 ml-auto" alt="Logo" />
+              <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} className="w-12 h-12 rounded-lg object-cover mb-1 ml-auto" alt="Logo" />
               <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{branding.school_name}</p>
            </div>
         </div>
