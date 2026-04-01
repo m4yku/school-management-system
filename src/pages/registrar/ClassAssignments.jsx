@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { 
   Layers, Plus, Search, BookOpen, Clock, 
-  MapPin, Users, Edit, Trash2, X, CheckCircle, RefreshCw, AlertTriangle, Presentation, ListChecks
+  MapPin, Users, Edit, Trash2, X, CheckCircle, RefreshCw, AlertTriangle, Presentation, ListChecks, Filter
 } from 'lucide-react';
+import EditClassAssignModal from '../../components/registrar/EditClassAssignModal'; // 🛑 NEW IMPORT
 import { useAuth } from '../../context/AuthContext';
 import CustomAlert from '../../components/shared/CustomAlert'; // Siguraduhin na tama ang path
 
@@ -18,10 +19,16 @@ const ClassAssignments = () => {
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // 🛑 ARCHITECT ADDITION: Filter State
+  const [categoryFilter, setCategoryFilter] = useState('All');
   
   // Modals
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false); // ARCHITECT: New Bulk Modal State
+  // Ilagay ito sa ilalim ng existing states mo (e.g., sa ilalim ng showBulkModal)
+  const [editModalConfig, setEditModalConfig] = useState({ show: false, data: null });
+  const [deleteModalConfig, setDeleteModalConfig] = useState({ show: false, data: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Data States
   const [assignments, setAssignments] = useState([]);
@@ -269,9 +276,42 @@ const handleBulkSave = async (e) => {
   };
 
   // --- FILTER DISPLAY ---
-  const filteredAssignments = assignments.filter(a => 
-    `${a.teacher_name} ${a.subject_name} ${a.section_name} ${a.room}`.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+// --- SMART FILTER DISPLAY ---
+  const filteredAssignments = assignments.filter(a => {
+      // 1. Text Search
+      const searchString = `${a.teacher_name} ${a.subject_code} ${a.subject_name} ${a.section_name} ${a.room}`;
+      const matchesSearch = searchString.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // 2. Department Category Mapping (Inaalam niya kung K-10, SHS, o College base sa Grade Level)
+      let department = 'K-10';
+      const gl = String(a.grade_level).toLowerCase();
+      if (gl.includes('year') || gl.includes('college')) {
+          department = 'College';
+      } else if (gl.includes('11') || gl.includes('12')) {
+          department = 'SHS';
+      }
+
+      // 3. Category Check
+      const matchesCategory = categoryFilter === 'All' || department === categoryFilter;
+
+      return matchesSearch && matchesCategory;
+  });
+
+  const confirmDelete = async () => {
+      setIsDeleting(true);
+      try {
+          const res = await axios.post(`${API_BASE_URL}/registrar/delete_class_assign.php`, 
+              { id: deleteModalConfig.data.id },
+              { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if(res.data.success) {
+              showAlert('success', 'Deleted', res.data.message);
+              setDeleteModalConfig({ show: false, data: null });
+              fetchAssignmentData();
+          } else { showAlert('error', 'Error', res.data.message); }
+      } catch (error) { showAlert('error', 'Server Error', 'Failed to delete class.'); }
+      finally { setIsDeleting(false); }
+  };
 
 return (
     <div className="space-y-6 text-left max-w-7xl mx-auto">
@@ -294,9 +334,33 @@ return (
       </div>
 
       {/* SEARCH */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-        <input type="text" placeholder="Search by teacher, subject, section, or room..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-slate-700 shadow-sm" />
+{/* 🛑 ARCHITECT FIX: SEARCH & FILTER BAR */}
+      <div className="flex flex-col md:flex-row gap-4 mb-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+             type="text" 
+             placeholder="Search by teacher, subject code, section, or room..." 
+             value={searchQuery} 
+             onChange={(e) => setSearchQuery(e.target.value)} 
+             className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-slate-700 shadow-sm transition-all" 
+          />
+        </div>
+        
+        {/* NEW FILTER DROPDOWN */}
+        <div className="relative w-full md:w-72">
+           <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+           <select 
+              value={categoryFilter} 
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-slate-700 shadow-sm transition-all appearance-none cursor-pointer"
+           >
+              <option value="All">All Departments</option>
+              <option value="College">College</option>
+              <option value="SHS">Senior High (SHS)</option>
+              <option value="K-10">K-10 (Kinder - Gr.10)</option>
+           </select>
+        </div>
       </div>
 
       {/* TABLE */}
@@ -350,9 +414,14 @@ return (
                   </div>
                 </td>
                 <td className="p-6 text-center">
-                   <button className="p-3 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
-                      <Edit size={18}/>
-                   </button>
+                    <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => setEditModalConfig({ show: true, data: item })} className="p-3 text-slate-300 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all">
+                            <Edit size={18}/>
+                        </button>
+                        <button onClick={() => setDeleteModalConfig({ show: true, data: item })} className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                            <Trash2 size={18}/>
+                        </button>
+                    </div>
                 </td>
               </tr>
             ))}
@@ -570,6 +639,46 @@ return (
         message={alertConfig.message}
         onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
       />
+
+      {/* 🛑 EDIT MODAL 🛑 */}
+      <EditClassAssignModal 
+          isOpen={editModalConfig.show}
+          onClose={() => setEditModalConfig({ show: false, data: null })}
+          assignmentData={editModalConfig.data}
+          teachers={teachers}
+          subjects={subjects}
+          sections={sections}
+          rooms={rooms}
+          onSuccess={fetchAssignmentData}
+          showAlert={showAlert}
+      />
+
+      {/* 🛑 DELETE WARNING MODAL 🛑 */}
+      {deleteModalConfig.show && deleteModalConfig.data && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[110] flex items-center justify-center p-4 backdrop-blur-md">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-8 animate-in zoom-in-95 duration-200">
+                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <AlertTriangle size={32} />
+                </div>
+                <h3 className="text-2xl font-black text-center text-slate-800 uppercase tracking-tighter mb-2">Delete Schedule?</h3>
+                <p className="text-center font-bold text-slate-500 text-sm mb-6">
+                    Remove schedule for <span className="text-red-500 font-black">{deleteModalConfig.data.subject_code}</span>? 
+                </p>
+                <div className="bg-red-50 p-4 rounded-2xl border border-red-100 mb-8">
+                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest leading-relaxed text-center">
+                        Warning: This will also unenroll all students currently assigned to this specific class schedule!
+                    </p>
+                </div>
+                
+                <div className="flex gap-3">
+                    <button onClick={() => setDeleteModalConfig({show: false, data: null})} disabled={isDeleting} className="flex-1 py-4 rounded-2xl font-black text-slate-500 uppercase text-xs tracking-widest hover:bg-slate-100 transition-all">Cancel</button>
+                    <button onClick={confirmDelete} disabled={isDeleting} className="flex-1 bg-red-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg hover:bg-red-600 transition-all flex justify-center items-center gap-2">
+                        {isDeleting ? <RefreshCw className="animate-spin" size={16} /> : <Trash2 size={16} />} Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
 
     </div>
   );

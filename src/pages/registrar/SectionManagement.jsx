@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { LayoutGrid, Plus, Search, Layers, Users, BookOpen, GraduationCap, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import SectionDetailsModal from '../../components/registrar/SectionDetailsModal';
 
 const SectionManagement = () => {
   const { API_BASE_URL } = useAuth();
@@ -10,6 +11,15 @@ const SectionManagement = () => {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 🛑 States para sa Details Modal
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedSection, setSelectedSection] = useState(null);
+
+  const handleCardClick = (section) => {
+      setSelectedSection(section);
+      setShowDetailsModal(true);
+  };
 
   // Dropdown Options
   const gradeLevels = [
@@ -32,7 +42,6 @@ const SectionManagement = () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE_URL}/registrar/manage_sections.php`);
-      // Inaasahan natin na ang PHP ay magbabalik ng { sections: [], programs: [] }
       setSections(res.data.sections || []);
       setAllPrograms(res.data.programs || []);
     } catch (err) { console.error("Fetch Error:", err); }
@@ -41,12 +50,9 @@ const SectionManagement = () => {
 
   const handleLevelChange = (level) => {
     let dept = 'K-10';
-    // Kung Grade 11 or 12 = SHS
     if (['Grade 11', 'Grade 12'].includes(level)) dept = 'SHS';
-    // Kung 1st to 4th Year = College
     if (['1st Year', '2nd Year', '3rd Year', '4th Year'].includes(level)) dept = 'College';
     
-    // I-reset ang program_id tuwing nagpapalit ng level para walang ligaw na data
     setFormData({ ...formData, grade_level: level, department: dept, program_id: '' });
   };
 
@@ -96,7 +102,11 @@ const SectionManagement = () => {
       {/* GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sections.filter(s => s.section_name.toLowerCase().includes(searchTerm.toLowerCase())).map((s) => (
-          <div key={s.id} className="bg-white rounded-[2.5rem] p-8 shadow-sm border-2 border-slate-50 hover:border-blue-200 transition-all group relative">
+          <div 
+            key={s.id} 
+            className="bg-white rounded-[2.5rem] p-8 shadow-sm border-2 border-slate-50 hover:border-blue-200 transition-all group relative cursor-pointer"
+            onClick={() => handleCardClick(s)}
+          >
             <div className="flex justify-between items-start mb-4">
               <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
                 s.department === 'College' ? 'bg-purple-100 text-purple-600' : 
@@ -133,7 +143,14 @@ const SectionManagement = () => {
         ))}
       </div>
 
-      {/* MODAL */}
+      {/* 🛑 ARCHITECT FIX: Dito natin tatawagin ang Dashboard Modal 🛑 */}
+      <SectionDetailsModal 
+          isOpen={showDetailsModal} 
+          onClose={() => setShowDetailsModal(false)} 
+          section={selectedSection} 
+      />
+
+      {/* MODAL PARA SA ADD SECTION */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-[3rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
