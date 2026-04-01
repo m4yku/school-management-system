@@ -21,13 +21,13 @@ const StudentLayout = () => {
   // FETCH DATA WITH CORRECT MAPPING
   const fetchData = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/get_students.php`);
+      // Path based on directory: /sms-api/student/
+      const res = await axios.get(`${API_BASE_URL}/student/get_students.php`);
       const studentsList = res.data.students || [];
       const myData = studentsList.find(s => s.email === user.email);
 
       if (myData) {
         setStudentData(myData);
-        // Itutugma natin ang mobile_no at address_house sa form fields
         setEditForm({ 
           email: myData.email || '', 
           contact_no: myData.mobile_no || '',  
@@ -46,58 +46,65 @@ const StudentLayout = () => {
   }, [user?.email, fetchData]);
 
   const studentMenu = [
-  { icon: <User size={18}/>, label: "Dashboard", path: "/student/dashboard" },
-  { icon: <BookOpen size={18}/>, label: "LMS Classroom", path: "/student/lms" },
-  { icon: <CreditCard size={18}/>, label: "Accounting", path: "/student/accounting" },
-  { icon: <GraduationCap size={18}/>, label: "Scholarship", path: "/student/scholarship" }, // Bago ito
-];
+    { icon: <User size={18}/>, label: "Dashboard", path: "/student/dashboard" },
+    { icon: <BookOpen size={18}/>, label: "LMS Classroom", path: "/student/lms" },
+    { icon: <CreditCard size={18}/>, label: "Accounting", path: "/student/accounting" },
+    { icon: <GraduationCap size={18}/>, label: "Scholarship", path: "/student/scholarship" },
+  ];
 
-// 2. I-update ang getPageTitle logic
-const getPageTitle = () => {
-  if (location.pathname.includes('dashboard')) return 'Student Dashboard';
-  if (location.pathname.includes('accounting')) return 'Accounting Portal';
-  if (location.pathname.includes('lms')) return 'LMS Classroom';
-  if (location.pathname.includes('scholarship')) return 'Scholarship Application'; // Bago ito
-  return 'Student Portal';
-};
+  const getPageTitle = () => {
+    if (location.pathname.includes('dashboard')) return 'Student Dashboard';
+    if (location.pathname.includes('accounting')) return 'Accounting Portal';
+    if (location.pathname.includes('lms')) return 'LMS Classroom';
+    if (location.pathname.includes('scholarship')) return 'Scholarship Application';
+    return 'Student Portal';
+  };
 
   const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append('student_id', studentData.student_id);
-    formData.append('email', editForm.email);
+    if (e) e.preventDefault();
     
-    // IPADALA ANG DATA GAMIT ANG TAMANG DB COLUMN NAMES
-    formData.append('mobile_no', editForm.contact_no); 
-    formData.append('address_house', editForm.address);
-    
-    if (selectedFile) {
-      formData.append('profile_image', selectedFile);
+    // Validation para sa Student ID
+    if (!studentData?.student_id) {
+      alert("Error: Student ID not found.");
+      return;
     }
 
+    const formData = new FormData();
+formData.append('student_id', studentData.student_id);
+formData.append('email', editForm.email);
+formData.append('mobile_no', editForm.contact_no); // 'mobile_no' ang key sa PHP
+formData.append('address_house', editForm.address); // 'address_house' ang key sa PHP
+
+if (selectedFile) {
+  formData.append('profile_image', selectedFile);
+}
+
     try {
-      const res = await axios.post(`${API_BASE_URL}/update_student.php`, formData, {
+      // API call gamit ang API_BASE_URL mula sa AuthContext
+      const res = await axios.post(`${API_BASE_URL}/student/update_student.php`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      if (res.data.success) {
-        alert("Profile updated successfully!");
-        await fetchData(); // Refresh data para mag-update ang display
-        setIsEditModalOpen(false);
+      // Check if response exist and is successful
+      if (res.data && res.data.success) {
+        alert("Success: " + res.data.message);
+        await fetchData(); // Refresh student info sa sidebar
+        setIsEditModalOpen(false); // Close the modal
         setSelectedFile(null);
         setPreviewUrl(null);
       } else {
-        alert("Error: " + res.data.message);
+        // Ipakita ang error message na galing mismo sa PHP
+        alert("Server Error: " + (res.data?.message || "Something went wrong in the server."));
       }
     } catch (err) {
       console.error("Update failed:", err);
-      alert("Failed to update profile.");
+      // Ipakita ang actual connection error (hal. 404 or 500)
+      alert("System Error: " + (err.response?.data?.message || err.message));
     }
   };
 
   const handleOpenModal = () => {
     if (studentData) {
-      // Sinisiguro na pagbukas ng modal, latest data ang nasa fields
       setEditForm({
         email: studentData.email || '',
         contact_no: studentData.mobile_no || '',
@@ -167,38 +174,32 @@ const getPageTitle = () => {
                 {studentData?.first_name} {studentData?.last_name}
               </p>
               
-      {/* STATUS INDICATOR LOGIC */}
-{(() => {
-  // Siguraduhin na Numbers ang hawak natin para sa accurate na computation
-  const total = Number(studentData?.total_amount || 0);
-  const paid = Number(studentData?.paid_amount || 0);
-  const balance = Number(studentData?.balance || 0);
+              {/* STATUS INDICATOR LOGIC */}
+              {(() => {
+                const total = Number(studentData?.total_amount || 0);
+                const paid = Number(studentData?.paid_amount || 0);
+                const balance = Number(studentData?.balance || 0);
 
-  let statusLabel = "";
-  let statusColor = "";
+                let statusLabel = "";
+                let statusColor = "";
 
-  // 1. UNPAID: Zero ang bayad at ang total amount ay hindi pa nababawasan [cite: 82]
-  if (paid <= 0) {
-    statusLabel = "Unpaid";
-    statusColor = "text-red-500";
-  } 
-  // 2. FULLY PAID: Kapag ang balance ay 0 na (Total - Paid = 0) 
-  else if (balance <= 0 || paid >= total) {
-    statusLabel = "Fully Paid";
-    statusColor = "text-green-600";
-  } 
-  // 3. PARTIAL: May bayad na (paid > 0) pero may kulang pa; May access na sa LMS 
-  else {
-    statusLabel = "Partial";
-    statusColor = "text-yellow-500";
-  }
+                if (paid <= 0) {
+                  statusLabel = "Unpaid";
+                  statusColor = "text-red-500";
+                } else if (balance <= 0 || paid >= total) {
+                  statusLabel = "Fully Paid";
+                  statusColor = "text-green-600";
+                } else {
+                  statusLabel = "Partial";
+                  statusColor = "text-yellow-500";
+                }
 
-  return (
-    <p className={`text-[9px] font-bold uppercase tracking-widest ${statusColor}`}>
-      {statusLabel}
-    </p>
-  );
-})()}
+                return (
+                  <p className={`text-[9px] font-bold uppercase tracking-widest ${statusColor}`}>
+                    {statusLabel}
+                  </p>
+                );
+              })()}
             </div>
 
             <button

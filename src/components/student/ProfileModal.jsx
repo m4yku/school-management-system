@@ -15,8 +15,8 @@ const ProfileModal = ({
 }) => {
   if (!isOpen) return null;
 
-  // LOGIC PARA SA STATUS INDICATOR
-  const isVerified = studentData?.payment_status !== 'Unpaid';
+  // LMS Access Logic: Verified if any payment is made
+  const isVerified = Number(studentData?.paid_amount || 0) > 0;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
@@ -51,11 +51,10 @@ const ProfileModal = ({
                 )}
               </div>
               
-              {/* STATUS INDICATOR */}
               <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full border-2 ${isVerified ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
                 {isVerified ? <CheckCircle2 size={12}/> : <AlertCircle size={12}/>}
                 <span className="text-[9px] font-black uppercase tracking-widest">
-                  {isVerified ? 'System Verified' : 'Pending Access'}
+                  {isVerified ? 'LMS Access Verified' : 'Payment Required'}
                 </span>
               </div>
 
@@ -67,8 +66,6 @@ const ProfileModal = ({
             
             {/* Input Fields */}
             <div className="flex-1 space-y-5">
-              
-              {/* READ-ONLY FIELDS */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
@@ -88,7 +85,6 @@ const ProfileModal = ({
                 </div>
               </div>
 
-              {/* EDITABLE FIELDS */}
               <div className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">

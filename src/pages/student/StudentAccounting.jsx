@@ -277,7 +277,12 @@ const StudentAccounting = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  {branding.school_logo && <img src={branding.school_logo} className="w-16 h-16 object-cover ml-auto mb-1" alt="Logo" />}
+                  {branding.school_logo &&  <img 
+                    src={`${API_BASE_URL}/uploads/branding/${branding?.school_logo}`} 
+                    className="w-16 h-16 object-cover ml-auto mb-1" 
+                    alt="Logo" 
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />}
                   <p className="text-[8px] font-bold text-slate-400 italic">SOA Date: {new Date().toLocaleDateString()}</p>
                 </div>
               </div>

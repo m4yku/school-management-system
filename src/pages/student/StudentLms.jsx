@@ -53,64 +53,72 @@ const StudentLms = () => {
   };
 
   const fetchData = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/student/get_students.php`);
-      const studentList = response.data.students || [];
-      const billingItems = response.data.billing_items || []; // Kunin ang breakdown ng items
-      const myData = studentList.find(s => s.email === user.email);
+  try {
+    const response = await axios.get(`${API_BASE_URL}/student/get_students.php`);
+    
+    // Siguraduhin na may data na bumalik
+    const studentList = response.data.students || [];
+    const billingItems = response.data.billing_items || []; 
+    const myData = studentList.find(s => s.email === user.email);
+    
+    if (myData) {
+      // 1. HANAPIN ANG TUITION ITEM SA BREAKDOWN
+      // Ginagamit natin ang toLowerCase() para maiwasan ang error sa case sensitivity (e.g., "Tuition" vs "tuition")
+      const tuitionItem = billingItems.find(item => 
+          item.billing_id === myData.billing_id && 
+          item.item_name.toLowerCase().includes("tuition")
+      );
+
+      // 2. KUNIN ANG TOTOONG VALUE MULA SA DATABASE
+      // totalTuition: Ang full price (e.g., 20,000)
+      // actualTuitionPaid: Ang naibayad na specifically para sa tuition (e.g., 5,000)
+      const totalTuitionPrice = tuitionItem ? parseFloat(tuitionItem.amount) : 0;
+      const actualTuitionPaid = tuitionItem ? parseFloat(tuitionItem.paid_amount) : 0;
       
-      if (myData) {
-        // 1. Kunin ang Total Tuition Amount at ang mismong NAIBAYAD sa Tuition lang
-        const tuitionOnly = parseFloat(myData.tuition_only_amount || 0);
-        
-        // HANAPIN NATIN SA BILLING ITEMS KUNG MAGKANO ANG BAYAD SA TUITION LANG TALAGA
-        // Hahanapin nito ang item na may pangalang "Tuition" sa billing_items table
-        const tuitionItem = billingItems.find(item => 
-            item.billing_id === myData.billing_id && 
-            item.item_name.includes("Tuition")
-        );
+      // 3. CALCULATE THE 50% THRESHOLD
+      const tuitionThreshold = totalTuitionPrice * 0.5; 
+      const isEnrolled = (myData.enrollment_status || "").trim() === 'Enrolled';
 
-        // Ito ang actual na bayad sa Tuition lamang (hindi kasama Uniform/GCash)
-        const actualTuitionPaid = tuitionItem ? parseFloat(tuitionItem.paid_amount) : 0;
-        
-        const totalAmount = parseFloat(myData.total_amount || 0);
-        const totalPaidOverall = parseFloat(myData.paid_amount || 0); // Total overall payment
-        
-        const tuitionThreshold = tuitionOnly * 0.5; // 50% Requirement
-        const isEnrolled = (myData.enrollment_status || "").trim() === 'Enrolled';
-        
-        const isPaidFull = totalPaidOverall >= totalAmount && totalAmount > 0;
-        const isPartial = totalPaidOverall > 0 && totalPaidOverall < totalAmount;
-        
-        myData.computedPaymentStatus = isPaidFull ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid';
-        myData.displayTuition = tuitionOnly; 
-
-        // --- THE STRICT GATEKEEPER LOGIC ---
-        // Dito natin gagamitin ang actualTuitionPaid sa halip na paidAmount (total)
-        if (isEnrolled && actualTuitionPaid >= tuitionThreshold) {
-          myData.isLmsLocked = false;
-        } else {
-          myData.isLmsLocked = true;
-          // Ipakita kung magkano pa ang kulang sa TUITION para ma-unlock
-          myData.neededForUnlock = Math.max(0, tuitionThreshold - actualTuitionPaid);
-        }
-
-        // Apply College/SHS Program Logic
-        const details = getStudentDetails(myData);
-        myData.dynamicDept = details.dept;
-        myData.formattedMain = details.displayMain; 
-        myData.major = details.major;
-        myData.isCollege = details.isCollege;
-        myData.programDesc = details.programDesc;
-        
-        setStudentData(myData);
+      // 4. THE STRICT GATEKEEPER LOGIC
+      // Ang LMS ay magbubukas LAMANG kung:
+      // a. Status ay 'Enrolled'
+      // b. Ang bayad sa Tuition ay umabot o lumampas sa 50% ng total tuition price
+      // c. May laman ang total tuition price (para hindi ma-bypass kung 0 ang data)
+      if (isEnrolled && actualTuitionPaid >= tuitionThreshold && totalTuitionPrice > 0) {
+        myData.isLmsLocked = false;
+      } else {
+        myData.isLmsLocked = true;
+        // Kalkulahin kung magkano pa ang kulang para maabot ang 50%
+        myData.neededForUnlock = Math.max(0, tuitionThreshold - actualTuitionPaid);
       }
-    } catch (err) {
-      console.error("Error fetching LMS data:", err);
-    } finally {
-      setLoading(false);
+
+      // I-update ang UI data
+      myData.displayTuition = totalTuitionPrice; 
+      myData.actualTuitionPaid = actualTuitionPaid;
+
+      // Status Labels para sa Dashboard
+      const totalAmount = parseFloat(myData.total_amount || 0);
+      const totalPaidOverall = parseFloat(myData.paid_amount || 0);
+      const isPaidFull = totalPaidOverall >= totalAmount && totalAmount > 0;
+      const isPartial = totalPaidOverall > 0 && totalPaidOverall < totalAmount;
+      myData.computedPaymentStatus = isPaidFull ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid';
+
+      // Apply College/SHS Program Logic
+      const details = getStudentDetails(myData);
+      myData.dynamicDept = details.dept;
+      myData.formattedMain = details.displayMain; 
+      myData.major = details.major;
+      myData.isCollege = details.isCollege;
+      myData.programDesc = details.programDesc;
+      
+      setStudentData(myData);
     }
-  };
+  } catch (err) {
+    console.error("Critical Error fetching LMS data:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     if (user?.email) fetchData();

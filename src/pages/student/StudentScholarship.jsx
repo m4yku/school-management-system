@@ -74,7 +74,8 @@ const StudentScholarship = () => {
     formData.append('email', user.email);
     formData.append('scholarship_id', selectedType);
     
-    selectedFiles.forEach(file => {
+    // TAMA: Gamitin ang 'files' (ito ang state name mo sa line 19)
+    files.forEach(file => {
       formData.append('requirements[]', file); 
     });
 
@@ -82,6 +83,7 @@ const StudentScholarship = () => {
       const res = await axios.post(`${API_BASE_URL}/student/submit_application.php`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      // ... rest of your code
       if (res.data.status === 'success') {
         setMessage({ text: 'Application submitted successfully!', type: 'success' });
         setFiles([]);
