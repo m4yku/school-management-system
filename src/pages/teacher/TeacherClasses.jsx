@@ -4,17 +4,51 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import OfflineBanner from '../../utils/offlinebanner';
 import { useAuth } from '../../context/AuthContext';
-import { LoadingSpinner, PageHeader, EmptyState } from '../../components/shared/TeacherComponents';
+import { PageHeader } from '../../components/shared/TeacherComponents';
 import { SHARED_STYLES, ANIMATION_DELAYS } from '../../utils/teacherConstants';
 
+const SkeletonCard = ({ themeColor }) => (
+  <div className="h-full bg-white/70 backdrop-blur-xl border border-white rounded-[1.5rem] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col relative overflow-hidden">
+    <style>{`
+      @keyframes skeletonPulse {
+        0% { background-color: ${themeColor}12; }
+        50% { background-color: ${themeColor}28; }
+        100% { background-color: ${themeColor}12; }
+      }
+      .sk-pulse { animation: skeletonPulse 1.6s ease-in-out infinite; border-radius: 6px; }
+    `}</style>
+
+    {/* Top row */}
+    <div className="flex justify-between items-start mb-4">
+      <div className="sk-pulse" style={{ width: '70px', height: '22px', borderRadius: '8px' }} />
+      <div className="sk-pulse" style={{ width: '44px', height: '22px', borderRadius: '8px' }} />
+    </div>
+
+    {/* Title */}
+    <div className="mb-5 flex-1 space-y-2">
+      <div className="sk-pulse" style={{ width: '85%', height: '24px', borderRadius: '6px' }} />
+      <div className="sk-pulse" style={{ width: '60%', height: '14px', borderRadius: '4px', marginTop: '10px' }} />
+    </div>
+
+    {/* Room row */}
+    <div className="mb-5">
+      <div className="sk-pulse" style={{ width: '100%', height: '40px', borderRadius: '12px' }} />
+    </div>
+
+    {/* Button */}
+    <div className="mt-auto pt-4 border-t border-slate-200/60">
+      <div className="sk-pulse" style={{ width: '100%', height: '44px', borderRadius: '12px' }} />
+    </div>
+  </div>
+);
+
 const TeacherClasses = () => {
-  const { user, API_BASE_URL, branding } = useAuth(); // Kinuha ang branding dito
+  const { user, API_BASE_URL, branding } = useAuth();
   const [sections, setSections] = useState([]);
   const [isServerOffline, setIsServerOffline] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  // Fallback color kung walang naset na theme_color
   const themeColor = branding?.theme_color || '#6366f1';
 
   const fetchSections = useCallback(async () => {
@@ -45,10 +79,6 @@ const TeacherClasses = () => {
     if (user?.id) fetchSections();
   }, [user?.id, fetchSections]);
 
-  if (isLoading && !sections.length) {
-    return <LoadingSpinner message="Loading classes..." />;
-  }
-
   return (
     <div className="w-full flex flex-col bg-transparent pb-8 lg:pb-4 h-full">
       <style>{SHARED_STYLES}</style>
@@ -60,14 +90,16 @@ const TeacherClasses = () => {
         />
         <OfflineBanner isServerOffline={isServerOffline} isRetrying={isRetrying} onRetry={fetchSections} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 lg:gap-6">
-          {sections.length > 0 && !isLoading ? (
+          {isLoading ? (
+            [1, 2, 3, 4].map(n => <SkeletonCard key={n} themeColor={themeColor} />)
+          ) : sections.length > 0 ? (
             sections.map((section, index) => (
               <SectionCard
                 key={section.id}
                 section={section}
                 index={index}
                 isOffline={isServerOffline}
-                themeColor={themeColor} // Ipinasa ang themeColor
+                themeColor={themeColor}
               />
             ))
           ) : null}
@@ -89,15 +121,12 @@ const SectionCard = ({ section, index, isOffline, themeColor }) => {
       }`}
       style={{ animationDelay: `${ANIMATION_DELAYS.firstCard + index * ANIMATION_DELAYS.increment}ms` }}
     >
-      {/* HIGHLIGHT LEFT BORDER - Dynamic Color */}
-      <div 
-        className="absolute left-0 top-0 bottom-0 w-1.5 transition-opacity duration-300 rounded-l-full" 
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1.5 transition-opacity duration-300 rounded-l-full"
         style={{ backgroundColor: themeColor, opacity: isHovered ? 1 : 0 }}
       />
-
-      {/* Background accent - Dynamic Color with low opacity */}
-      <div 
-        className="absolute -right-8 -top-8 w-28 h-28 rounded-full blur-2xl pointer-events-none transition-all duration-500" 
+      <div
+        className="absolute -right-8 -top-8 w-28 h-28 rounded-full blur-2xl pointer-events-none transition-all duration-500"
         style={{ backgroundColor: themeColor, opacity: isHovered ? 0.15 : 0.05 }}
       />
 
@@ -105,8 +134,8 @@ const SectionCard = ({ section, index, isOffline, themeColor }) => {
         <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100/80 text-slate-600 px-3 py-1.5 rounded-lg shadow-sm">
           {section.level || 'Unassigned'}
         </span>
-        <div 
-          className="flex items-center gap-1.5 border px-2.5 py-1.5 rounded-lg shadow-sm" 
+        <div
+          className="flex items-center gap-1.5 border px-2.5 py-1.5 rounded-lg shadow-sm"
           style={{ backgroundColor: `${themeColor}15`, borderColor: `${themeColor}30`, color: themeColor }}
         >
           <Users size={12} strokeWidth={2.5} />
@@ -137,10 +166,10 @@ const SectionCard = ({ section, index, isOffline, themeColor }) => {
         <Link
           to={`/teacher/sections/${section.id}`}
           className="w-full flex items-center justify-between px-4 py-3 border rounded-xl font-bold text-[13px] transition-all shadow-sm group/btn"
-          style={{ 
-            backgroundColor: isHovered ? themeColor : '#f8fafc', 
+          style={{
+            backgroundColor: isHovered ? themeColor : '#f8fafc',
             borderColor: isHovered ? themeColor : '#f1f5f9',
-            color: isHovered ? '#ffffff' : '#475569' 
+            color: isHovered ? '#ffffff' : '#475569'
           }}
         >
           <span>{isOffline ? 'Unavailable' : 'Manage Class Grades'}</span>

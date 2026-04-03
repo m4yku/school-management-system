@@ -24,7 +24,6 @@ export const SHARED_STYLES = `
   }
 `;
 
-// Loading spinner component configuration
 export const LOADING_SPINNER = {
   containerClass: 'flex items-center justify-center min-h-[60vh] bg-transparent',
   spinnerWrapperClass: 'flex flex-col items-center space-y-3',

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
-  LayoutDashboard, CaseUpper, LogOut, Menu, X, School,
+  LayoutDashboard, CaseUpper, LogOut, Menu, X, School, BookOpen,
   BellDot, ChevronLeft, ChevronRight, RefreshCw
 } from 'lucide-react'; 
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +19,7 @@ const TeacherLayout = () => {
       { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/teacher/dashboard' },
       { icon: <School size={20} />, label: 'My Classes', path: '/teacher/classes' },
       { icon: <CaseUpper size={20} />, label: 'Subjects', path: '/teacher/subjects' },
+      { icon: <BookOpen size={20} />, label: 'Activities', path: '/teacher/activities' }
     ],
   };
 

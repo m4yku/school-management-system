@@ -10,21 +10,22 @@ export const getTeacherLevel = (classInfo) => {
   // Primary Check: Basahin mismo ang 'department' galing sa sections table
   if (classInfo.department) {
     if (classInfo.department === 'College') return 'College';
-    if (classInfo.department === 'SHS') return 'K-12';
-    if (classInfo.department === 'K-10') return 'JHS'; // I-map ang K-10 ng DB sa K-12 ng UI mo
+    if (classInfo.department === 'SHS') return 'SHS';
+    if (classInfo.department === 'K-10') return 'K-12';
   }
 
   // Fallback 1: level_category galing sa subjects table
   const category = (classInfo.level_category || '').toLowerCase();
   if (category === 'college') return 'College';
-  if (category === 'shs') return 'K-12';
+  if (category === 'shs') return 'SHS';
 
   // Fallback 2: grade_level string
   const gl = (classInfo.grade_level || '').toLowerCase();
   if (gl.includes('year') || gl.includes('college')) return 'College';
-  if (gl.includes('11') || gl.includes('12')) return 'K-12';
+  if (gl.includes('11') || gl.includes('12')) return 'SHS';
 
-  return 'K-12';
+  // Default fallback
+  return 'JHS';
 };
 
 /**
@@ -99,13 +100,13 @@ export const normaliseStudent = (raw) => ({
 });
 
 /**
- * Builds the save_grades.php payload for a single student.
+ * Builds the payload for saving a single student.
  */
 export const buildStudentPayload = (student, level) => {
   const final   = calculateFinalGrade(student, level);
   const remarks = getGradeStatus(final, level);
   return {
-    student_id:  student.student_number || student.student_id, // Ensures VARCHAR is used
+    student_id:  student.student_number || student.student_id, 
     written:     student.written,
     performance: student.performance,
     exam:        student.exam,

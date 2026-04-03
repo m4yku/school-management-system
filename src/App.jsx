@@ -44,6 +44,8 @@ import TeacherProfile from './pages/teacher/TeacherProfile';
 import TeacherClasses from './pages/teacher/TeacherClasses';
 import GradeManagement from './pages/teacher/GradeManagement';
 import TeacherSubjects from './pages/teacher/TeacherSubjects';
+import TeacherActivities from './pages/teacher/TeacherActivities';
+import TeacherActivityGrading from './pages/teacher/TeacherActivityGrading';
 
 // Layouts
 import AdminLayout from './layouts/AdminLayout';
@@ -137,7 +139,8 @@ function App() {
             <Route path="subjects" element={<TeacherSubjects />} />
             <Route path="profile" element={<TeacherProfile />} />
             <Route path="/teacher/sections/:classId" element={<GradeManagement />} />
-          
+            <Route path="activities" element={<TeacherActivities />} />
+          <Route path="activities/:activityId/grading" element={<TeacherActivityGrading />} />
           </Route>
 
           {/* 6. LMS / STUDENTS ROUTES */}
