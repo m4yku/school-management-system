@@ -32,27 +32,6 @@ export const LOADING_SPINNER = {
   textClass: 'text-sm font-bold text-indigo-600',
 };
 
-// Grade calculation settings
-export const GRADING_CONFIG = {
-  K12: {
-    categories: [
-      { key: 'written', label: 'Written', weight: 0.30, percentage: '30%' },
-      { key: 'performance', label: 'Perf', weight: 0.50, percentage: '50%' },
-      { key: 'exam', label: 'Exam', weight: 0.20, percentage: '20%' },
-    ],
-    passingGrade: 75,
-  },
-  COLLEGE: {
-    categories: [
-      { key: 'prelim', label: 'Prelim', weight: 1 / 3 },
-      { key: 'midterm', label: 'Midterm', weight: 1 / 3 },
-      { key: 'finals', label: 'Finals', weight: 1 / 3 },
-    ],
-    passingGrade: 3.0,
-    isGPA: true, // College uses inverted GPA scale
-  },
-};
-
 // Status badge styles for grades/remarks
 export const BADGE_STYLES = {
   passed: 'bg-emerald-100/60 text-emerald-700 border-white',

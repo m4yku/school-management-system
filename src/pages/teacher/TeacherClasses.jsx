@@ -143,7 +143,7 @@ const SectionCard = ({ section, index, isOffline, themeColor }) => {
             color: isHovered ? '#ffffff' : '#475569' 
           }}
         >
-          <span>{isOffline ? 'Unavailable' : 'Manage Class'}</span>
+          <span>{isOffline ? 'Unavailable' : 'Manage Class Grades'}</span>
           <ChevronRight
             size={16}
             className={`transition-all ${isHovered ? 'text-white translate-x-1' : 'text-slate-400'}`}

@@ -1,133 +1,126 @@
-import { GRADING_CONFIG } from './teacherConstants';
+// ─────────────────────────────────────────────────────────────────────────────
+// gradingUtils.js
+// Pure grading logic aligned with sms_db `student_grades` columns.
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Determine teacher's grading level based on their role
- * 
- * @param {string} userRole - User's role from auth context
- * @returns {string} - 'K12' or 'COLLEGE'
- */
-export const getTeacherLevel = (userRole) => {
-  const role = userRole?.toLowerCase() || '';
-  if (role.includes('elementary') || role.includes('highschool')) return 'K12';
-  if (role.includes('college')) return 'COLLEGE';
-  return 'K12'; // Default to K12
-};
+export const getTeacherLevel = (classInfo) => {
+  // Default kapag naglo-load pa ang data
+  if (!classInfo) return 'K-12'; 
 
-/**
- * Calculate final grade based on teacher level and component scores
- * Handles both K12 (weighted percentage) and COLLEGE (GPA) systems
- * 
- * @param {Object} student - Student object with grade components
- * @param {string} teacherLevel - 'K12' or 'COLLEGE'
- * @returns {number|string} - Calculated final grade
- */
-export const calculateFinalGrade = (student, teacherLevel) => {
-  const config = GRADING_CONFIG[teacherLevel];
-  
-  if (teacherLevel === 'K12') {
-    const total = 
-      (parseFloat(student.written) || 0) * 0.30 +
-      (parseFloat(student.performance) || 0) * 0.50 +
-      (parseFloat(student.exam) || 0) * 0.20;
-    return Math.round(total);
-  } else if (teacherLevel === 'COLLEGE') {
-    const avg = 
-      (parseFloat(student.prelim) || 0 + 
-       parseFloat(student.midterm) || 0 + 
-       parseFloat(student.finals) || 0) / 3;
-    return parseFloat(avg.toFixed(2));
+  // Primary Check: Basahin mismo ang 'department' galing sa sections table
+  if (classInfo.department) {
+    if (classInfo.department === 'College') return 'College';
+    if (classInfo.department === 'SHS') return 'K-12';
+    if (classInfo.department === 'K-10') return 'JHS'; // I-map ang K-10 ng DB sa K-12 ng UI mo
   }
-  
-  return 0;
+
+  // Fallback 1: level_category galing sa subjects table
+  const category = (classInfo.level_category || '').toLowerCase();
+  if (category === 'college') return 'College';
+  if (category === 'shs') return 'K-12';
+
+  // Fallback 2: grade_level string
+  const gl = (classInfo.grade_level || '').toLowerCase();
+  if (gl.includes('year') || gl.includes('college')) return 'College';
+  if (gl.includes('11') || gl.includes('12')) return 'K-12';
+
+  return 'K-12';
 };
 
 /**
- * Determine pass/fail status based on final grade and teacher level
- * K12: 75+ = Pass
- * COLLEGE: 3.0 or below (inverted GPA) = Pass
- * 
- * @param {number} grade - Final grade
- * @param {string} teacherLevel - 'K12' or 'COLLEGE'
- * @returns {string} - 'Passed' or 'Failed'
+ * Returns grading categories matching sms_db `student_grades` columns.
+ * K-10 / SHS  → written (30%), performance (50%), exam (20%)  [DepEd]
+ * College      → prelim (30%), midterm (30%), finals (40%)
  */
-export const getGradeStatus = (grade, teacherLevel) => {
-  if (teacherLevel === 'K12') {
-    return grade >= 75 ? 'Passed' : 'Failed';
-  } else {
-    // COLLEGE: Lower GPA is better (inverted scale)
-    return grade <= 3.0 && grade > 0 ? 'Passed' : 'Failed';
+export const getGradingCategories = (level) => {
+  if (level === 'College') {
+    return [
+      { key: 'prelim',      label: 'Prelim',        percentage: '30%', weight: 0.30 },
+      { key: 'midterm',     label: 'Midterm',       percentage: '30%', weight: 0.30 },
+      { key: 'finals',      label: 'Finals',        percentage: '40%', weight: 0.40 },
+    ];
   }
+  return [
+    { key: 'written',     label: 'Written Work',   percentage: '30%', weight: 0.30 },
+    { key: 'performance', label: 'Performance',    percentage: '50%', weight: 0.50 },
+    { key: 'exam',        label: 'Quarterly Exam', percentage: '20%', weight: 0.20 },
+  ];
 };
 
 /**
- * Get grading categories for the current system
- * Useful for rendering grade input fields dynamically
- * 
- * @param {string} teacherLevel - 'K12' or 'COLLEGE'
- * @returns {Array<Object>} - Array of category objects with key, label, weight
+ * Computes the final grade string.
+ * College → 1.0–5.0 scale | K-10/SHS → raw weighted percentage (2 dp).
  */
-export const getGradingCategories = (teacherLevel) => {
-  return GRADING_CONFIG[teacherLevel]?.categories || [];
-};
+export const calculateFinalGrade = (student, level) => {
+  const cats = getGradingCategories(level);
+  const weighted = cats.reduce(
+    (sum, cat) => sum + (parseFloat(student[cat.key]) || 0) * cat.weight,
+    0
+  );
 
-/**
- * Validate a grade value for a specific teacher level
- * K12: 0-100 (percentage)
- * COLLEGE: 0-4.0 (GPA)
- * 
- * @param {number} grade - Grade value to validate
- * @param {string} teacherLevel - 'K12' or 'COLLEGE'
- * @returns {boolean} - Whether the grade is valid
- */
-export const isValidGrade = (grade, teacherLevel) => {
-  const numGrade = parseFloat(grade);
-  if (isNaN(numGrade)) return false;
-  
-  if (teacherLevel === 'K12') {
-    return numGrade >= 0 && numGrade <= 100;
-  } else if (teacherLevel === 'COLLEGE') {
-    return numGrade >= 0 && numGrade <= 4.0;
+  if (level === 'College') {
+    if (weighted >= 97) return '1.00';
+    if (weighted >= 94) return '1.25';
+    if (weighted >= 91) return '1.50';
+    if (weighted >= 88) return '1.75';
+    if (weighted >= 85) return '2.00';
+    if (weighted >= 82) return '2.25';
+    if (weighted >= 79) return '2.50';
+    if (weighted >= 76) return '2.75';
+    if (weighted >= 75) return '3.00';
+    return '5.00';
   }
-  return false;
+
+  return weighted.toFixed(2);
 };
 
 /**
- * Prepare grades payload for API submission
- * Standardizes the data format sent to backend
- * 
- * @param {Array} students - Array of student objects with updated grades
- * @param {string} classId - Class ID
- * @param {string} teacherLevel - 'K12' or 'COLLEGE'
- * @returns {Object} - Formatted payload for API
+ * Returns 'Passed' | 'Failed'.
  */
-export const prepareGradesPayload = (students, classId, teacherLevel) => {
+export const getGradeStatus = (finalGrade, level) => {
+  if (level === 'College') return parseFloat(finalGrade) <= 3.00 ? 'Passed' : 'Failed';
+  return parseFloat(finalGrade) >= 75 ? 'Passed' : 'Failed';
+};
+
+/**
+ * Normalises a raw API student record so all grade keys are numbers
+ * and `name` / `student_number` are always present.
+ */
+export const normaliseStudent = (raw) => ({
+  ...raw,
+  name:           raw.name || `${raw.first_name || ''} ${raw.last_name || ''}`.trim(),
+  student_number: raw.student_number || raw.student_id || '',
+  written:        parseFloat(raw.written)     || 0,
+  performance:    parseFloat(raw.performance) || 0,
+  exam:           parseFloat(raw.exam)        || 0,
+  prelim:         parseFloat(raw.prelim)      || 0,
+  midterm:        parseFloat(raw.midterm)     || 0,
+  finals:         parseFloat(raw.finals)      || 0,
+});
+
+/**
+ * Builds the save_grades.php payload for a single student.
+ */
+export const buildStudentPayload = (student, level) => {
+  const final   = calculateFinalGrade(student, level);
+  const remarks = getGradeStatus(final, level);
   return {
-    class_id: classId,
-    teacher_level: teacherLevel,
-    students: students.map(s => ({
-      ...s,
-      final_grade: calculateFinalGrade(s, teacherLevel),
-      remarks: getGradeStatus(calculateFinalGrade(s, teacherLevel), teacherLevel),
-    })),
+    student_id:  student.student_number || student.student_id, // Ensures VARCHAR is used
+    written:     student.written,
+    performance: student.performance,
+    exam:        student.exam,
+    prelim:      student.prelim,
+    midterm:     student.midterm,
+    finals:      student.finals,
+    final_grade: parseFloat(final),
+    remarks,
   };
 };
 
 /**
- * Get placeholder dummy data when API is offline
- * Allows UI to remain functional even without network
- * 
- * @param {string} teacherLevel - 'K12' or 'COLLEGE'
- * @returns {Array} - Array of dummy student records
+ * Clamps a raw input value to [0, 100].
  */
-export const getDummyStudentData = (teacherLevel) => {
-  if (teacherLevel === 'K12') {
-    return [
-      { id: 101, student_id: 'S-2024-001', name: 'Juan Dela Cruz', written: 0, performance: 0, exam: 0 },
-      { id: 102, student_id: 'S-2024-002', name: 'Maria Clara', written: 0, performance: 0, exam: 0 },
-    ];
-  } else {
-    return [
-      { id: 201, student_id: 'C-2024-001', name: 'Jose Rizal', prelim: 0, midterm: 0, finals: 0 },
-    ];
-  }
+export const clampGrade = (value) => {
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? 0 : Math.min(100, Math.max(0, parsed));
 };
