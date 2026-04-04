@@ -3,43 +3,26 @@ import {
   Save, ArrowLeft, CheckCircle, AlertCircle,
   GraduationCap, ClipboardCheck, BookOpen,
   Users, Award, TrendingUp,
-  Search, Filter, RefreshCw, Lock,
+  Search, Filter, RefreshCw, Lock, Calendar
 } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import {
-  getTeacherLevel,
   getGradingCategories,
   calculateFinalGrade,
   getGradeStatus,
   normaliseStudent,
   buildStudentPayload,
   clampGrade,
-  computeWrittenFromActivities,  // NEW
 } from '../../utils/gradingUtils';
 import { gradeStyles } from '../../components/shared/GradeManagementStyles';
 
 // ─── Skeleton Loading ─────────────────────────────────────────────────────────
 const GradeManagementSkeleton = ({ themeColor }) => (
   <div style={{ fontFamily: 'inherit', padding: '1.5rem', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-    <style>{`
-      @keyframes gmSkPulse {
-        0% { background-color: ${themeColor}12; }
-        50% { background-color: ${themeColor}2e; }
-        100% { background-color: ${themeColor}12; }
-      }
-      .gm-sk { animation: gmSkPulse 1.6s ease-in-out infinite; border-radius: 6px; }
-    `}</style>
-
-    {/* Header skeleton */}
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '1rem 1.25rem', borderRadius: '1.25rem',
-      background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(16px)',
-      border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-      gap: '1rem', flexWrap: 'wrap'
-    }}>
+    <style>{`@keyframes gmSkPulse { 0% { background-color: ${themeColor}12; } 50% { background-color: ${themeColor}2e; } 100% { background-color: ${themeColor}12; } } .gm-sk { animation: gmSkPulse 1.6s ease-in-out infinite; border-radius: 6px; }`}</style>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderRadius: '1.25rem', background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', gap: '1rem', flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <div className="gm-sk" style={{ width: '38px', height: '38px', borderRadius: '0.75rem', flexShrink: 0 }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -51,69 +34,14 @@ const GradeManagementSkeleton = ({ themeColor }) => (
           </div>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: '0.75rem' }}>
-        <div className="gm-sk" style={{ width: '160px', height: '40px', borderRadius: '0.75rem' }} />
-        <div className="gm-sk" style={{ width: '120px', height: '40px', borderRadius: '0.75rem' }} />
-      </div>
     </div>
-
-    {/* Stats skeleton */}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
       {[1, 2, 3, 4].map(n => (
-        <div key={n} style={{
-          background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(12px)',
-          borderRadius: '1rem', padding: '1.25rem',
-          border: '1px solid rgba(255,255,255,0.5)', display: 'flex', gap: '0.75rem', alignItems: 'center'
-        }}>
+        <div key={n} style={{ background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(12px)', borderRadius: '1rem', padding: '1.25rem', border: '1px solid rgba(255,255,255,0.5)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <div className="gm-sk" style={{ width: '42px', height: '42px', borderRadius: '0.75rem', flexShrink: 0 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 }}>
             <div className="gm-sk" style={{ width: '70%', height: '11px' }} />
             <div className="gm-sk" style={{ width: '50%', height: '22px' }} />
-          </div>
-        </div>
-      ))}
-    </div>
-
-    {/* Table card skeleton */}
-    <div style={{
-      background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(20px)',
-      borderRadius: '1.25rem', padding: '1.5rem',
-      border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 8px 32px rgba(0,0,0,0.05)'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <div className="gm-sk" style={{ width: '260px', height: '40px', borderRadius: '0.75rem' }} />
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <div className="gm-sk" style={{ width: '50px', height: '40px', borderRadius: '0.75rem' }} />
-          <div className="gm-sk" style={{ width: '60px', height: '40px', borderRadius: '0.75rem' }} />
-          <div className="gm-sk" style={{ width: '65px', height: '40px', borderRadius: '0.75rem' }} />
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr) 1fr 1fr', gap: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1.5px solid rgba(0,0,0,0.05)', marginBottom: '0.5rem' }}>
-        {[1, 2, 3, 4, 5, 6, 7].map(n => (
-          <div key={n} className="gm-sk" style={{ height: '14px', width: n === 1 ? '60%' : '50%', margin: n !== 1 ? '0 auto' : '0' }} />
-        ))}
-      </div>
-
-      {[1, 2, 3, 4, 5, 6, 7].map(n => (
-        <div key={n} style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr) 1fr 1fr', gap: '0.75rem', padding: '0.85rem 0', borderBottom: '1px solid rgba(0,0,0,0.04)', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div className="gm-sk" style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <div className="gm-sk" style={{ width: '120px', height: '13px' }} />
-              <div className="gm-sk" style={{ width: '70px', height: '11px' }} />
-            </div>
-          </div>
-          {[1, 2, 3, 4].map(k => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'center' }}>
-              <div className="gm-sk" style={{ width: '60px', height: '34px', borderRadius: '0.5rem' }} />
-            </div>
-          ))}
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div className="gm-sk" style={{ width: '52px', height: '28px', borderRadius: '0.5rem' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div className="gm-sk" style={{ width: '65px', height: '24px', borderRadius: '2rem' }} />
           </div>
         </div>
       ))}
@@ -123,154 +51,153 @@ const GradeManagementSkeleton = ({ themeColor }) => (
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 const GradeManagement = () => {
-  const { classId }                      = useParams();
+  const { classId } = useParams();
   const { user, API_BASE_URL, branding } = useAuth();
-  const navigate                         = useNavigate();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const themeColor = branding?.theme_color || '#6366f1';
 
-  const [students,         setStudents]        = useState([]);
-  const [classInfo,        setClassInfo]       = useState(null);
-  const [isLoading,        setIsLoading]       = useState(true);
-  const [isSaving,         setIsSaving]        = useState(false);
-  const [isServerOffline,  setIsServerOffline] = useState(false);
-  const [isRetrying,       setIsRetrying]      = useState(false);
-  const [statusMsg,        setStatusMsg]       = useState(null);
-  const [searchQuery,      setSearchQuery]     = useState('');
-  const [filterStatus,     setFilterStatus]    = useState('All');
+  const { subject: stateSubject, section: stateSection, grade_level: stateGradeLevel } = location.state || {};
 
-  // ── NEW: written-activity state ──────────────────────────────────────────────
-  // writtenActivities: array of { id, title, max_score } with category='written'
-  const [writtenActivities, setWrittenActivities] = useState([]);
-  // scoresMap: { [activity_id]: { [student_id]: score } }
-  const [scoresMap,         setScoresMap]         = useState({});
+  const initialQuarter = parseInt(searchParams.get('quarter')) || location.state?.quarter || 1;
+  const [selectedQuarter, setSelectedQuarter] = useState(initialQuarter);
 
-  const teacherLevel = getTeacherLevel(classInfo);
-  const categories   = getGradingCategories(teacherLevel);
+  const [students, setStudents] = useState([]);
+  const [classInfo, setClassInfo] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isServerOffline, setIsServerOffline] = useState(false);
+  const [statusMsg, setStatusMsg] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
 
-  // ── Fetch grades + class meta ────────────────────────────────────────────────
+  const [allActivities, setAllActivities] = useState([]);
+
+  const currentLevel = useMemo(() => {
+    const dept = (classInfo?.department || '').toUpperCase();
+    const gl = (classInfo?.grade_level || stateGradeLevel || '').toUpperCase();
+    
+    if (dept === 'COLLEGE' || gl.includes('YEAR') || gl.includes('COLLEGE')) return 'College';
+    if (dept === 'SHS' || gl.includes('11') || gl.includes('12')) return 'SHS';
+    return 'K-10'; 
+  }, [classInfo, stateGradeLevel]);
+
+  const isK12 = currentLevel !== 'College';
+  const categories = getGradingCategories(currentLevel);
+
+  const systemLabel = currentLevel === 'College' ? 'College System' : (currentLevel === 'SHS' ? 'SHS System' : 'JHS System');
+
+  const displaySubject = classInfo?.subject_description || classInfo?.subject_name || stateSubject || 'Grade Management';
+  const displaySection = classInfo?.section || classInfo?.section_name || stateSection || 'TBA';
+  const displayGradeLevel = classInfo?.grade_level || stateGradeLevel || 'Grade Level';
+
   const fetchData = useCallback(async (isInitialLoad = false) => {
     if (isInitialLoad) setIsLoading(true);
-    setIsRetrying(true);
     try {
-      const token   = localStorage.getItem('sms_token') || '';
-      const headers = { Authorization: `Bearer ${token}` };
-      const [gradesRes, metaRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/teacher/get_class_grades.php`, { params: { class_id: classId }, headers }),
-        axios.get(`${API_BASE_URL}/teacher/get_my_schedule.php`, { params: { teacher_id: user.id }, headers }),
-      ]);
-      if (gradesRes.data.status === 'success') {
-        setStudents((gradesRes.data.data || []).map(normaliseStudent));
+      const token = localStorage.getItem('sms_token');
+      const params = { class_id: classId };
+      if (selectedQuarter && isK12) params.quarter = selectedQuarter;
+
+      const res = await axios.get(`${API_BASE_URL}/teacher/get_class_grades.php`, {
+        params,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.data.status === 'success') {
+        // 🟢 FIX: Huwag i-overwrite ng null ang classInfo kung nagpalit ng quarter at walang laman.
+        setClassInfo(prev => res.data.class_info || prev);
+        setStudents(res.data.data.map(normaliseStudent) || []);
         setIsServerOffline(false);
       }
-      if (metaRes.data.status === 'success') {
-        const found = (metaRes.data.data || []).find(c => String(c.id) === String(classId));
-        if (found) setClassInfo(found);
-      }
-    } catch {
+    } catch (err) {
+      console.error("Fetch grades error:", err);
       setIsServerOffline(true);
     } finally {
       setIsLoading(false);
-      setTimeout(() => setIsRetrying(false), 800);
     }
-  }, [classId, API_BASE_URL, user?.id]);
+  }, [classId, selectedQuarter, isK12, API_BASE_URL]);
 
-  // ── NEW: Fetch written activities + their scores for this class ──────────────
-  const fetchWrittenActivityScores = useCallback(async () => {
-    try {
-      const token   = localStorage.getItem('sms_token') || '';
-      const headers = { Authorization: `Bearer ${token}` };
-
-      // 1. Get all 'written' activities for this class
-      const activitiesRes = await axios.get(
-        `${API_BASE_URL}/teacher/get_activities_by_class.php`,
-        { params: { class_id: classId, category: 'written' }, headers }
-      );
-
-      if (activitiesRes.data.status !== 'success') return;
-
-      const activities = activitiesRes.data.data || [];
-      setWrittenActivities(activities);
-
-      if (activities.length === 0) return;
-
-      // 2. Fetch scores for each written activity in parallel
-      const scoreRequests = activities.map(activity =>
-        axios.get(`${API_BASE_URL}/teacher/get_activity_scores.php`, {
-          params: { activity_id: activity.id },
-          headers,
-        })
-      );
-
-      const scoreResponses = await Promise.all(scoreRequests);
-
-      // 3. Build scoresMap: { [activity_id]: { [student_id]: score } }
-      const newScoresMap = {};
-      scoreResponses.forEach((res, idx) => {
-        const activityId = activities[idx].id;
-        newScoresMap[activityId] = {};
-        if (res.data.status === 'success') {
-          (res.data.scores || []).forEach(s => {
-            newScoresMap[activityId][s.student_id] = parseFloat(s.score) || 0;
-          });
-        }
-      });
-
-      setScoresMap(newScoresMap);
-    } catch (err) {
-      console.error('Failed to fetch written activity scores:', err);
-    }
-  }, [classId, API_BASE_URL]);
-
-  useEffect(() => {
-    if (user?.id) fetchData(true);
-  }, [user?.id, fetchData]);
-
-  // Fetch written activities once classId is available
-  useEffect(() => {
-    if (classId) fetchWrittenActivityScores();
-  }, [classId, fetchWrittenActivityScores]);
-
-  // ── NEW: Re-apply computed written grades whenever scoresMap or students change
-  // This merges the auto-computed written value into each student row.
-  useEffect(() => {
-    if (writtenActivities.length === 0) return;
-
-    setStudents(prev => prev.map(s => ({
-      ...s,
-      written: computeWrittenFromActivities(
-        s.student_number || s.student_id,
-        writtenActivities,
-        scoresMap,
-      ),
-    })));
-  }, [scoresMap, writtenActivities]);
-
-  const syncFromActivities = async () => {
-    const isConfirmed = window.confirm(
-      "This will automatically calculate the totals based on all recorded activities. Manual overrides will be updated. Continue?"
-    );
-    if (!isConfirmed) return;
-    setIsSaving(true);
+  const fetchActivities = useCallback(async () => {
+    setAllActivities([]); 
     try {
       const token = localStorage.getItem('sms_token') || '';
-      const res = await axios.post(
-        `${API_BASE_URL}/teacher/sync_grades.php`,
-        { class_id: parseInt(classId) },
-        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-      );
+      const params = { class_id: classId };
+      if (isK12) params.quarter = selectedQuarter;
+
+      const res = await axios.get(`${API_BASE_URL}/teacher/get_activities.php`, {
+        params,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       if (res.data.status === 'success') {
-        setStatusMsg({ type: 'success', text: 'Grades synced from activities successfully!' });
-        fetchData(false);
-        fetchWrittenActivityScores(); // Also refresh written scores
+        setAllActivities(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch activities:', err);
+      setAllActivities([]);
+    }
+  }, [classId, selectedQuarter, isK12, API_BASE_URL]);
+
+  useEffect(() => {
+    if (user?.id && classId) {
+      fetchData(true);
+      fetchActivities();
+    }
+  }, [user?.id, classId, selectedQuarter, fetchData, fetchActivities]);
+
+  const actCount = useMemo(() => {
+    const k12Map = { written: 'written', quiz: 'written', assignment: 'written', task: 'written', performance: 'performance', exam: 'exam', quarterly_exam: 'exam' };
+    const collegeMap = { prelim: 'prelim', midterm: 'midterm', finals: 'finals' };
+
+    return categories.reduce((acc, cat) => {
+      acc[cat.key] = allActivities.filter(a => {
+        const rawCat = a.category ? a.category.toLowerCase() : '';
+        let mappedCat = rawCat;
+        
+        if (isK12) {
+           mappedCat = k12Map[rawCat] || 'written'; 
+        } else {
+           mappedCat = collegeMap[rawCat] || rawCat;
+        }
+        
+        return mappedCat === cat.key;
+      }).length;
+      return acc;
+    }, {});
+  }, [allActivities, categories, isK12]);
+
+  const syncFromActivities = async () => {
+    const quarterText = isK12 ? `Quarter ${selectedQuarter}` : 'this class';
+    const isConfirmed = window.confirm(`This will auto-calculate all scores based on recorded activities for ${quarterText}. Continue?`);
+    if (!isConfirmed) return;
+
+    setIsSaving(true);
+    setStatusMsg(null);
+
+    try {
+      const token = localStorage.getItem('sms_token');
+      const payload = { class_id: parseInt(classId) };
+      if (isK12 && selectedQuarter) payload.quarter = selectedQuarter;
+
+      const res = await axios.post(`${API_BASE_URL}/teacher/sync_grades.php`, payload, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+
+      if (res.data.status === 'success') {
+        setStatusMsg({ type: 'success', text: `Grades synced successfully for ${quarterText}!` });
+        await fetchData(false);
+        await fetchActivities();
       } else {
         throw new Error(res.data.message || 'Sync failed');
       }
     } catch (err) {
-      setStatusMsg({ type: 'error', text: err.message || 'Sync failed. Check connection.' });
+      const errorMsg = err.response?.data?.message || err.message || 'Unknown server error';
+      setStatusMsg({ type: 'error', text: errorMsg });
     } finally {
       setIsSaving(false);
-      setTimeout(() => setStatusMsg(null), 4000);
+      setTimeout(() => setStatusMsg(null), 5000);
     }
   };
 
@@ -294,18 +221,21 @@ const GradeManagement = () => {
   };
 
   const saveAllGrades = async () => {
-    const isConfirmed = window.confirm(
-      "Are you sure you want to save/update the grades for this class? This will overwrite any existing grades."
-    );
+    const isConfirmed = window.confirm("Are you sure you want to save/update the manual grades for this class?");
     if (!isConfirmed) return;
     setIsSaving(true);
     try {
-      const token = localStorage.getItem('sms_token') || '';
-      const res = await axios.post(
-        `${API_BASE_URL}/teacher/save_grades.php`,
-        { class_id: parseInt(classId), students: students.map(s => buildStudentPayload(s, teacherLevel)) },
-        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-      );
+      const token = localStorage.getItem('sms_token');
+      const payload = {
+        class_id: parseInt(classId),
+        students: students.map(s => buildStudentPayload(s, currentLevel))
+      };
+      if (isK12 && selectedQuarter) payload.quarter = selectedQuarter;
+
+      const res = await axios.post(`${API_BASE_URL}/teacher/save_grades.php`, payload, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+
       if (res.data.status === 'success') {
         setStatusMsg({ type: 'success', text: 'Grades successfully saved/updated!' });
       } else {
@@ -321,12 +251,12 @@ const GradeManagement = () => {
 
   const stats = useMemo(() => students.reduce(
     (acc, s) => {
-      const f = calculateFinalGrade(s, teacherLevel);
-      getGradeStatus(f, teacherLevel) === 'Passed' ? acc.passed++ : acc.failed++;
+      const f = calculateFinalGrade(s, currentLevel);
+      getGradeStatus(f, currentLevel) === 'Passed' ? acc.passed++ : acc.failed++;
       return acc;
     },
     { passed: 0, failed: 0 }
-  ), [students, teacherLevel]);
+  ), [students, currentLevel]);
 
   const passRate = students.length ? Math.round((stats.passed / students.length) * 100) : 0;
 
@@ -336,10 +266,10 @@ const GradeManagement = () => {
       const matchSearch = !q || (s.name || '').toLowerCase().includes(q) || (s.student_number || '').toLowerCase().includes(q);
       if (!matchSearch) return false;
       if (filterStatus === 'All') return true;
-      const final = calculateFinalGrade(s, teacherLevel);
-      return getGradeStatus(final, teacherLevel) === filterStatus;
+      const final = calculateFinalGrade(s, currentLevel);
+      return getGradeStatus(final, currentLevel) === filterStatus;
     });
-  }, [students, searchQuery, filterStatus, teacherLevel]);
+  }, [students, searchQuery, filterStatus, currentLevel]);
 
   if (isLoading) {
     return (
@@ -350,27 +280,45 @@ const GradeManagement = () => {
     );
   }
 
-  // ── Whether written column is auto-computed (lock it when K-12/SHS) ──────────
-  const writtenIsLocked = teacherLevel !== 'College' && writtenActivities.length > 0;
-
   return (
     <div className="gm-root">
       <style>{gradeStyles(themeColor)}</style>
 
-      {/* HEADER */}
       <div className="gm-header">
         <div className="gm-header-left">
-          <button className="gm-back-btn" onClick={() => navigate(-1)}>
+          <button className="gm-back-btn" onClick={() => navigate('/teacher/classes')}>
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="gm-title">
-              {classInfo?.subject_description || 'Grade Management'}
-            </h1>
-            <div className="gm-meta">
-              <span className="gm-chip"><GraduationCap size={11} />{classInfo?.grade_level || 'Grade Level'}</span>
-              <span className="gm-chip"><ClipboardCheck size={11} />Section: {classInfo?.section || classInfo?.section_name || 'TBA'}</span>
-              <span className="gm-chip gm-chip--level"><BookOpen size={11} />{teacherLevel} System</span>
+            <h1 className="gm-title">{displaySubject}</h1>
+            <div className="gm-meta" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <span className="gm-chip"><GraduationCap size={11} />{displayGradeLevel}</span>
+              <span className="gm-chip"><ClipboardCheck size={11} />Section: {displaySection}</span>
+              <span className="gm-chip gm-chip--level"><BookOpen size={11} />{systemLabel}</span>
+              
+              {isK12 && (
+                <div style={{ display: 'flex', gap: '0.3rem', marginLeft: '0.5rem' }}>
+                  {[1, 2, 3, 4].map(q => (
+                    <button
+                      key={q}
+                      onClick={() => {
+                        setSelectedQuarter(q);
+                        // 🟢 FIX: Ipasa ang location.state para hindi makalimutan ng React Router
+                        setSearchParams({ quarter: q }, { replace: true, state: location.state });
+                      }}
+                      style={{
+                        padding: '0.2rem 0.6rem', borderRadius: '0.5rem', fontSize: '0.75rem', fontWeight: 800,
+                        border: selectedQuarter === q ? `1px solid ${themeColor}` : '1px solid #cbd5e1',
+                        background: selectedQuarter === q ? themeColor : '#f8fafc',
+                        color: selectedQuarter === q ? 'white' : '#64748b',
+                        cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.25rem'
+                      }}
+                    >
+                      {selectedQuarter === q && <Calendar size={10} />} Q{q}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -386,25 +334,15 @@ const GradeManagement = () => {
             Sync from Activities
           </button>
 
-          {isServerOffline && (
-            <button className="gm-retry-btn" onClick={() => fetchData(false)} disabled={isRetrying}>
-              <RefreshCw size={14} className={isRetrying ? 'spin' : ''} />
-              {isRetrying ? 'Retrying…' : 'Retry'}
-            </button>
-          )}
-
           <button className="gm-save-btn" onClick={saveAllGrades} disabled={isSaving || isServerOffline}>
-            {isSaving
-              ? <><div className="gm-btn-spinner" /> Saving…</>
-              : <><Save size={15} /> Save Grades</>}
+            {isSaving ? <><div className="gm-btn-spinner" /> Saving…</> : <><Save size={15} /> Save Grades</>}
           </button>
         </div>
       </div>
 
       {isServerOffline && (
         <div className="gm-offline-banner">
-          <AlertCircle size={15} />
-          Server is offline. Showing cached data. Changes will not be saved.
+          <AlertCircle size={15} /> Server is offline. Showing cached data.
         </div>
       )}
 
@@ -415,7 +353,6 @@ const GradeManagement = () => {
         </div>
       )}
 
-      {/* STATS */}
       <div className="gm-stats">
         <div className="gm-stat-card">
           <div className="gm-stat-icon gm-stat-icon--blue"><Users size={18} /></div>
@@ -436,16 +373,11 @@ const GradeManagement = () => {
         </div>
       </div>
 
-      {/* GRADEBOOK */}
       <div className="gm-card">
         <div className="gm-toolbar">
           <div className="gm-search-wrap">
             <Search size={14} className="gm-search-icon" />
-            <input
-              type="text" placeholder="Search student name or ID…"
-              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              className="gm-search"
-            />
+            <input type="text" placeholder="Search student name or ID…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="gm-search" />
           </div>
           <div className="gm-filter-wrap">
             <Filter size={13} />
@@ -462,20 +394,25 @@ const GradeManagement = () => {
                 <th className="gm-th gm-th--name">
                   <div className="gm-th-inner"><Users size={12} style={{ color: themeColor }} /> Student</div>
                 </th>
-                {categories.map(cat => (
-                  <th key={cat.key} className="gm-th gm-th--center">
-                    <div className="gm-cat-header">
-                      <span className="gm-cat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', justifyContent: 'center' }}>
-                        {/* Show lock icon on Written Work column header when auto-computed */}
-                        {cat.key === 'written' && writtenIsLocked && (
-                          <Lock size={10} color="#94a3b8" title="Auto-computed from Written Work activities" />
-                        )}
-                        {cat.label}
-                      </span>
-                      <span className="gm-cat-pct">{cat.percentage}</span>
-                    </div>
-                  </th>
-                ))}
+                {categories.map(cat => {
+                  const isLocked = actCount[cat.key] > 0 || (isK12 && (cat.key === 'written' || cat.key === 'exam'));
+                  
+                  const tooltipText = (cat.key === 'exam' || cat.key === 'prelim' || cat.key === 'midterm' || cat.key === 'finals')
+                    ? `Auto-computed from ${actCount[cat.key] || 0} exam`
+                    : `Auto-computed from ${actCount[cat.key] || 0} activity/ies`;
+
+                  return (
+                    <th key={cat.key} className="gm-th gm-th--center">
+                      <div className="gm-cat-header">
+                        <span className="gm-cat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', justifyContent: 'center' }}>
+                          {isLocked && <Lock size={10} color="#d46565" title={tooltipText} />}
+                          {cat.label}
+                        </span>
+                        <span className="gm-cat-pct">{cat.percentage}</span>
+                      </div>
+                    </th>
+                  );
+                })}
                 <th className="gm-th gm-th--center">Final Grade</th>
                 <th className="gm-th gm-th--center">Remarks</th>
               </tr>
@@ -488,8 +425,8 @@ const GradeManagement = () => {
                   </td>
                 </tr>
               ) : filteredStudents.map((student, idx) => {
-                const final  = calculateFinalGrade(student, teacherLevel);
-                const status = getGradeStatus(final, teacherLevel);
+                const final = calculateFinalGrade(student, currentLevel);
+                const status = getGradeStatus(final, currentLevel);
                 const passed = status === 'Passed';
                 return (
                   <tr key={student.id ?? idx} className="gm-row">
@@ -506,46 +443,21 @@ const GradeManagement = () => {
                     </td>
 
                     {categories.map(cat => {
-                      // Lock the written column when it's auto-computed from activities
-                      const isWrittenLocked = cat.key === 'written' && writtenIsLocked;
+                      const isLocked = actCount[cat.key] > 0 || (isK12 && (cat.key === 'written' || cat.key === 'exam'));
+                      
+                      const tooltipText = (cat.key === 'exam' || cat.key === 'prelim' || cat.key === 'midterm' || cat.key === 'finals')
+                        ? `Auto-computed from ${actCount[cat.key] || 0} exam`
+                        : `Auto-computed from ${actCount[cat.key] || 0} activity/ies`;
 
                       return (
                         <td key={cat.key} className="gm-td gm-td--center">
-                          {isWrittenLocked ? (
-                            // ── Read-only display for auto-computed written grade ──
-                            <div
-                              title={`Auto-computed from ${writtenActivities.length} written activit${writtenActivities.length === 1 ? 'y' : 'ies'}`}
-                              style={{
-                                display:        'inline-flex',
-                                alignItems:     'center',
-                                gap:            '0.3rem',
-                                padding:        '0.3rem 0.65rem',
-                                borderRadius:   '0.5rem',
-                                background:     'rgba(148,163,184,0.1)',
-                                border:         '1px dashed #cbd5e1',
-                                fontSize:       '0.82rem',
-                                fontWeight:     700,
-                                color:          '#475569',
-                                cursor:         'default',
-                                userSelect:     'none',
-                                minWidth:       '54px',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Lock size={10} color="#94a3b8" />
+                          {isLocked ? (
+                            <div title={tooltipText} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.65rem', borderRadius: '0.5rem', background: 'rgba(148,163,184,0.1)', border: '1px solid #cbd5e1', fontSize: '0.82rem', fontWeight: 700, color: '#475569', cursor: 'default', userSelect: 'none', minWidth: '54px', justifyContent: 'center' }}>
+                              <Lock size={10} color="#d46565" />
                               {student[cat.key] ?? 0}
                             </div>
                           ) : (
-                            // ── Editable input for all other categories ──
-                            <input
-                              type="text" inputMode="numeric" placeholder="0"
-                              value={student[cat.key] === 0 ? '' : (student[cat.key] ?? '')}
-                              onChange={e => handleInputChange(student.id, cat.key, e.target.value)}
-                              onBlur={e => handleInputBlur(student.id, cat.key, e.target.value)}
-                              onFocus={e => e.target.select()}
-                              className="gm-input"
-                              style={{ '--focus-color': themeColor }}
-                            />
+                            <input type="text" inputMode="numeric" placeholder="0" value={student[cat.key] === 0 ? '' : (student[cat.key] ?? '')} onChange={e => handleInputChange(student.id, cat.key, e.target.value)} onBlur={e => handleInputBlur(student.id, cat.key, e.target.value)} onFocus={e => e.target.select()} className="gm-input" style={{ '--focus-color': themeColor }} />
                           )}
                         </td>
                       );
@@ -567,11 +479,6 @@ const GradeManagement = () => {
         <div className="gm-table-footer">
           Showing {filteredStudents.length} of {students.length} student{students.length !== 1 ? 's' : ''}
           {classInfo?.school_year ? ` · School Year ${classInfo.school_year}` : ''}
-          {writtenIsLocked && (
-            <span style={{ marginLeft: '0.75rem', fontSize: '0.7rem', color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-              <Lock size={10} /> Written Work auto-computed from {writtenActivities.length} activit{writtenActivities.length === 1 ? 'y' : 'ies'}
-            </span>
-          )}
         </div>
       </div>
     </div>

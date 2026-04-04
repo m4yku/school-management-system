@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom'; // 🟢 IN-IMPORT ANG useNavigate
 import {
   BookOpen, Clock, Layers, FileText,
   Bookmark, GraduationCap
@@ -59,6 +60,7 @@ const SubjectSkeletonCard = ({ themeColor }) => (
 
 const TeacherSubjects = () => {
   const { user, API_BASE_URL, branding } = useAuth();
+  const navigate = useNavigate(); // 🟢 NAG-INITIALIZE NG useNavigate
   const [subjects, setSubjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isServerOffline, setIsServerOffline] = useState(false);
@@ -124,7 +126,14 @@ const TeacherSubjects = () => {
             [1, 2, 3, 4].map(n => <SubjectSkeletonCard key={n} themeColor={themeColor} />)
           ) : subjects.length > 0 ? (
             subjects.map((subject, index) => (
-              <SubjectCard key={subject.id || index} subject={subject} index={index} isOffline={isServerOffline} themeColor={themeColor} />
+              <SubjectCard 
+                key={subject.id || index} 
+                subject={subject} 
+                index={index} 
+                isOffline={isServerOffline} 
+                themeColor={themeColor} 
+                navigate={navigate} // 🟢 IPINASA ANG navigate FUNCTION SA CARD
+              />
             ))
           ) : !isServerOffline ? (
             <div className="col-span-full py-20 flex flex-col items-center justify-center bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white shadow-sm">
@@ -137,7 +146,7 @@ const TeacherSubjects = () => {
   );
 };
 
-const SubjectCard = ({ subject, index, isOffline, themeColor }) => {
+  const SubjectCard = ({ subject, index, isOffline, themeColor, navigate }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -147,7 +156,10 @@ const SubjectCard = ({ subject, index, isOffline, themeColor }) => {
       className={`animate-stagger group relative flex flex-col bg-white/70 backdrop-blur-xl border border-white rounded-[2rem] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 transform-gpu ${
         isOffline ? 'opacity-70 grayscale-[0.5] pointer-events-none' : 'hover:shadow-2xl hover:-translate-y-2 hover:bg-white'
       }`}
-      style={{ animationDelay: `${ANIMATION_DELAYS.firstCard + index * ANIMATION_DELAYS.increment}ms` }}
+      style={{ 
+        animationDelay: `${ANIMATION_DELAYS.firstCard + index * ANIMATION_DELAYS.increment}ms`,
+        cursor: 'default' // Default cursor para sa card body
+      }}
     >
       <div className="absolute left-0 top-8 bottom-8 w-1.5 transition-all duration-300 rounded-r-full" style={{ backgroundColor: themeColor, opacity: isHovered ? 1 : 0.2 }} />
 
@@ -180,10 +192,23 @@ const SubjectCard = ({ subject, index, isOffline, themeColor }) => {
       </div>
 
       <div className="flex flex-col gap-2 mt-auto relative z-10">
-        <button className="w-full py-3 rounded-xl text-[12px] font-black transition-all flex items-center justify-center gap-2 shadow-sm border" style={{ backgroundColor: isHovered ? themeColor : '#ffffff', color: isHovered ? '#ffffff' : '#475569', borderColor: isHovered ? themeColor : '#e2e8f0' }}>
-          <Layers size={16} /> View Modules
+        <button 
+          onClick={() => navigate(`/teacher/activities/${subject.id}`)}
+          className="w-full py-3 rounded-xl text-[12px] font-black transition-all flex items-center justify-center gap-2 shadow-sm border" 
+          style={{ 
+            backgroundColor: isHovered ? themeColor : '#ffffff', 
+            color: isHovered ? '#ffffff' : '#475569', 
+            borderColor: isHovered ? themeColor : '#e2e8f0',
+            cursor: 'pointer' // 🟢 Ginawang click cursor
+          }}
+        >
+          <Layers size={16} /> View Subject Tasks
         </button>
-        <button className="w-full py-2.5 bg-slate-50 border border-slate-100 text-slate-500 rounded-xl text-[11px] font-bold hover:bg-white hover:text-slate-700 hover:border-slate-300 transition-all flex items-center justify-center gap-2">
+        
+        <button 
+          className="w-full py-2.5 bg-slate-50 border border-slate-100 text-slate-500 rounded-xl text-[11px] font-bold hover:bg-white hover:text-slate-700 hover:border-slate-300 transition-all flex items-center justify-center gap-2"
+          style={{ cursor: 'pointer' }} // 🟢 Ginawang click cursor
+        >
           <FileText size={14} /> Lesson Plan
         </button>
       </div>

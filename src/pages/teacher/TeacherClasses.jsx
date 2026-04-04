@@ -163,8 +163,14 @@ const SectionCard = ({ section, index, isOffline, themeColor }) => {
       </div>
 
       <div className="mt-auto pt-4 border-t border-slate-200/60 relative z-10">
+        {/* DITO NAIDAGDAG ANG state PROPERTY PARA MAIPASA ANG DETAILS */}
         <Link
           to={`/teacher/sections/${section.id}`}
+          state={{
+            subject: section.subject,
+            section: section.section_name,
+            grade_level: section.level
+          }}
           className="w-full flex items-center justify-between px-4 py-3 border rounded-xl font-bold text-[13px] transition-all shadow-sm group/btn"
           style={{
             backgroundColor: isHovered ? themeColor : '#f8fafc',

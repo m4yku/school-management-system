@@ -46,6 +46,7 @@ import GradeManagement from './pages/teacher/GradeManagement';
 import TeacherSubjects from './pages/teacher/TeacherSubjects';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import TeacherActivityGrading from './pages/teacher/TeacherActivityGrading';
+import CreateExam from './pages/teacher/CreateExam';
 
 // Layouts
 import AdminLayout from './layouts/AdminLayout';
@@ -141,6 +142,8 @@ function App() {
             <Route path="/teacher/sections/:classId" element={<GradeManagement />} />
             <Route path="/teacher/grades/:classId" element={<GradeManagement />} />
             <Route path="activities" element={<TeacherActivities />} />
+            <Route path="activities/:classId" element={<TeacherActivities />} />
+            <Route path="/teacher/activities/create-exam" element={<CreateExam />} />
           <Route path="activities/:activityId/grading" element={<TeacherActivityGrading />} />
           </Route>
 
