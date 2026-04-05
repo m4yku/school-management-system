@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Search, Wallet, User, Printer, AlertCircle,
-  CheckCircle2, ArrowRight, Banknote, X, Info, History, Receipt
+  CheckCircle2, ArrowRight, Banknote, X, Info, History, Receipt, Award
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -13,10 +13,11 @@ const StudentBilling = () => {
   const [allocations, setAllocations] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Modals logic
+  const [availableScholarships, setAvailableScholarships] = useState([]);
+  const [selectedSch, setSelectedSch] = useState(null);
+
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [manualStatus, setManualStatus] = useState('Enrolled');
   const [receiptInfo, setReceiptInfo] = useState(null);
 
   const handleSearch = async () => {
@@ -26,263 +27,314 @@ const StudentBilling = () => {
       const res = await axios.get(`${API_BASE_URL}/cashier/get_billing_details.php?id=${searchId}`);
       if (res.data.status === "success") {
         setBillingData(res.data);
+        const schRes = await axios.get(`${API_BASE_URL}/cashier/get_student_scholarships.php?id=${searchId}`);
+        setAvailableScholarships(schRes.data.status === "success" ? schRes.data.data : []);
         setAllocations({});
       } else {
         alert(res.data.message);
         setBillingData(null);
       }
-    } catch (err) {
-      alert("Connection error to API.");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert("Search failed."); }
+    finally { setLoading(false); }
   };
 
-  const handleAllocationChange = (itemId, value, maxBalance) => {
-    const val = parseFloat(value) || 0;
-    setAllocations({ ...allocations, [itemId]: val > maxBalance ? maxBalance : value });
+  const handleAllocationChange = (itemId, value, max) => {
+    const amount = Math.min(parseFloat(value) || 0, max);
+    setAllocations(prev => ({ ...prev, [itemId]: amount }));
   };
 
-  const payFullItem = (itemId, balance) => {
-    setAllocations({ ...allocations, [itemId]: balance });
+  const handlePayFull = (itemId, max) => {
+    setAllocations(prev => ({ ...prev, [itemId]: max }));
   };
 
-  // Filter out items with 0 balance
-  const pendingItems = billingData?.items?.filter(item => (parseFloat(item.amount) - parseFloat(item.paid_amount)) > 0) || [];
-  
-  // Calculate Overall Balance
-  const overallBalance = billingData?.items?.reduce((acc, item) => acc + (parseFloat(item.amount) - parseFloat(item.paid_amount)), 0) || 0;
-  
-  const totalToPay = Object.values(allocations).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+  const totalToPost = Object.values(allocations).reduce((sum, val) => sum + val, 0);
 
+  // FIX: Regular Payment Logic with Success Modal
   const processFinalPayment = async () => {
+    setLoading(true);
     try {
-      const payload = {
+      const res = await axios.post(`${API_BASE_URL}/cashier/process_billing_payment.php`, {
         student_id: billingData.summary.student_id,
-        pay_amount: totalToPay,
-        allocations: allocations,
-        enrollment_status: manualStatus
-      };
-
-      const res = await axios.post(`${API_BASE_URL}/cashier/process_billing_payment.php`, payload);
+        pay_amount: totalToPost,
+        allocations: allocations
+      });
 
       if (res.data.status === "success") {
         setReceiptInfo({
-          name: `${billingData.summary.first_name} ${billingData.summary.last_name}`,
-          id: billingData.summary.student_id,
+          type: 'Payment',
+          student_id: billingData.summary.student_id,
+          total: totalToPost,
           date: new Date().toLocaleString(),
-          total: totalToPay,
-          items: billingData.items.filter(item => allocations[item.id] > 0).map(item => ({
-            name: item.item_name,
-            paid: allocations[item.id]
+          details: Object.entries(allocations).map(([id, amt]) => ({
+            name: billingData.items.find(i => i.id == id)?.item_name,
+            amount: amt
           }))
         });
-
         setShowConfirm(false);
         setShowSuccess(true);
-        setAllocations({});
-      } else {
-        alert(res.data.message);
-      }
-    } catch (err) {
-      alert("Payment transaction failed.");
-    }
+      } else { alert(res.data.message); }
+    } catch (err) { alert("Error posting payment."); }
+    finally { setLoading(false); }
   };
 
-  const handlePrint = () => {
-    setTimeout(() => { window.print(); }, 100);
+  // FIX: Scholarship Logic with Success Modal and Applied Items
+  const handleApplyScholarship = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/cashier/apply_scholarship_to_billing.php`, {
+        application_id: selectedSch.id,
+        student_id: billingData.summary.student_id,
+        discount_value: selectedSch.value,
+        discount_type: selectedSch.discount_type,
+        scholarship_name: selectedSch.scholarship_name
+      });
+
+      if (res.data.status === "success") {
+        setReceiptInfo({
+          type: 'Scholarship',
+          name: selectedSch.scholarship_name,
+          total_deduction: res.data.total_deduction || res.data.deduction,
+          date: new Date().toLocaleString(),
+          applied_items: res.data.applied_items || []
+        });
+        setSelectedSch(null);
+        setShowSuccess(true);
+      } else { alert(res.data.message); }
+    } catch (err) { alert("Error applying scholarship."); }
+    finally { setLoading(false); }
   };
 
   return (
-    <div className="p-6 space-y-6 text-left max-w-7xl mx-auto relative">
-      <div className="flex flex-col">
-        <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Student Billing Portal</h1>
-        <p className="text-slate-400 font-medium italic text-sm">Review assessments and manage payment allocations.</p>
-      </div>
-
-      <div className="bg-white p-4 rounded-[2rem] shadow-sm border-2 border-slate-100 flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-3.5 text-slate-400" size={20} />
+    <div className="p-6 space-y-6 text-left max-w-7xl mx-auto">
+      {/* Header & Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase italic">Cashiering</h1>
+          <p className="text-slate-400 font-medium text-sm italic">Search student to manage accounts.</p>
+        </div>
+        <div className="flex gap-2">
           <input
-            type="text"
-            placeholder="Search Student ID (e.g. 2026-0001)"
-            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-none rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            value={searchId}
-            onChange={(e) => setSearchId(e.target.value)}
+            type="text" placeholder="Enter Student ID..."
+            className="pl-6 pr-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl font-bold text-xs w-64 outline-none focus:border-blue-600 shadow-sm"
+            value={searchId} onChange={(e) => setSearchId(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           />
+          <button onClick={handleSearch} disabled={loading} className="bg-blue-600 text-white px-8 py-3.5 rounded-2xl font-black uppercase text-[10px] hover:bg-slate-900 transition-all">
+            {loading ? "..." : "Search"}
+          </button>
         </div>
-        <button onClick={handleSearch} disabled={loading} className="bg-blue-600 text-white px-10 py-2 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-100">
-          {loading ? 'Searching...' : 'Search'}
-        </button>
       </div>
 
-      {billingData ? (
+      {billingData && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-slate-50">
-              <div className="flex justify-between items-center mb-8 border-b pb-6">
-                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                    <User size={28} />
-                  </div>
-                  <div>
-                    <h2 className="font-black text-slate-800 text-2xl uppercase leading-tight">{billingData.summary.first_name} {billingData.summary.last_name}</h2>
-                    <span className="text-xs font-bold text-slate-400 font-mono tracking-widest bg-slate-100 px-2 py-0.5 rounded-md">ID: {billingData.summary.student_id}</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
-                  <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                    overallBalance === 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'
-                  }`}>
-                    {overallBalance === 0 ? 'Fully Paid' : 'Balance Pending'}
-                  </div>
+            {/* Student Info */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600"><User size={32} /></div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-800 uppercase leading-none">{billingData.summary.first_name} {billingData.summary.last_name}</h2>
+                  <p className="text-slate-400 font-bold text-xs mt-1 uppercase tracking-widest">{billingData.summary.student_id}</p>
                 </div>
               </div>
+              <span className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full font-black text-[10px] uppercase">{billingData.summary.payment_status || "Active"}</span>
+            </div>
 
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                <Info size={14} /> Itemized Allocation
-              </h3>
-
-              <div className="grid grid-cols-1 gap-4">
-                {pendingItems.length > 0 ? pendingItems.map((item, i) => {
-                  const balance = parseFloat(item.amount) - parseFloat(item.paid_amount);
-                  return (
-                    <div key={i} className="flex flex-col p-5 bg-slate-50 rounded-[1.8rem] border-2 border-transparent hover:border-blue-100 hover:bg-white transition-all">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="font-black text-slate-700 uppercase text-sm">{item.item_name}</span>
-                        <span className="font-bold text-slate-400 text-xs italic">Rem. Balance: ₱{balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex gap-3 items-center">
-                        <div className="relative flex-1">
-                          <span className="absolute left-4 top-2.5 font-black text-slate-300">₱</span>
+            {/* Fees Table */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-8">
+              <h3 className="text-xs font-black uppercase text-slate-400 mb-6 flex items-center gap-2"><Receipt size={16} /> Breakdown of Contributions</h3>
+              <table className="w-full">
+                <thead>
+                  <tr className="text-[10px] font-black uppercase text-slate-400 border-b border-slate-50">
+                    <th className="pb-4 text-left">Fee Description</th>
+                    <th className="pb-4 text-right">Balance</th>
+                    <th className="pb-4 text-right">Amount to Pay</th>
+                    <th className="pb-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {billingData.items.map((item) => {
+                    const currentItemBalance = parseFloat(item.amount) - parseFloat(item.paid_amount);
+                    if (currentItemBalance <= 0) return null;
+                    return (
+                      <tr key={item.id} className="group border-b border-slate-50">
+                        <td className="py-4 text-xs font-bold text-slate-700">{item.item_name}</td>
+                        <td className="py-4 text-right text-xs font-black">₱{currentItemBalance.toLocaleString()}</td>
+                        <td className="py-4 text-right">
                           <input
-                            type="number"
-                            className="w-full bg-white border-2 border-slate-100 p-2 pl-8 rounded-xl font-black text-blue-600"
-                            value={allocations[item.id] || ''}
-                            onChange={(e) => handleAllocationChange(item.id, e.target.value, balance)}
+                            type="number" value={allocations[item.id] || ''} placeholder="0.00"
+                            onChange={(e) => handleAllocationChange(item.id, e.target.value, currentItemBalance)}
+                            className="w-24 text-right p-2 bg-slate-50 border border-slate-100 rounded-lg font-black text-xs outline-none focus:border-blue-600"
                           />
-                        </div>
-                        <button onClick={() => payFullItem(item.id, balance)} className="bg-slate-200 hover:bg-blue-600 hover:text-white text-slate-500 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase">Pay Full</button>
-                      </div>
-                    </div>
-                  );
-                }) : (
-                  <div className="p-10 text-center bg-emerald-50 rounded-3xl border-2 border-dashed border-emerald-200">
-                    <CheckCircle2 size={40} className="text-emerald-500 mx-auto mb-2" />
-                    <p className="font-black text-emerald-800 uppercase text-sm tracking-widest">No Pending Balance</p>
-                    <p className="text-emerald-600 text-[10px] font-bold italic mt-1 uppercase opacity-70 tracking-widest">Account is cleared for this period</p>
-                  </div>
-                )}
-              </div>
+                        </td>
+                        <td className="py-4 text-right">
+                          <button onClick={() => handlePayFull(item.id, currentItemBalance)} className="text-[10px] font-black text-blue-600 uppercase hover:underline">Pay Full</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            {/* RECENT TRANSACTIONS SECTION */}
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
-               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                <History size={14} /> Recent Transactions
-              </h3>
-              <div className="space-y-3">
-                {billingData.history?.length > 0 ? billingData.history.map((h, i) => (
-                  <div key={i} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Receipt size={16}/></div>
-                      <div>
-                        <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{h.fee_category || 'Miscellaneous'}</p>
-                        <p className="text-[10px] text-slate-400 font-bold">{new Date(h.transaction_date).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <p className="font-black text-slate-900">₱{parseFloat(h.amount_paid).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+            {/* History */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8">
+              <h3 className="text-xs font-black uppercase text-slate-400 mb-6 flex items-center gap-2"><History size={16} /> Recent Transactions</h3>
+              <div className="space-y-4">
+                {billingData.recent_payments?.length > 0 ? billingData.recent_payments.map((p, i) => (
+                  <div key={i} className="flex justify-between items-center text-xs border-b border-slate-50 pb-4">
+                    <span className="font-bold text-slate-400 italic">{p.transaction_date}</span>
+                    <span className="font-black text-slate-800 uppercase">{p.fee_category} <span className="text-[10px] text-slate-300 ml-2">({p.payment_method})</span></span>
+                    <span className="font-black text-emerald-600">₱{parseFloat(p.amount_paid).toLocaleString()}</span>
                   </div>
-                )) : (
-                  <p className="text-center py-6 text-slate-300 font-bold italic text-xs uppercase tracking-widest">No Payment History</p>
-                )}
+                )) : <p className="text-center italic text-slate-300 text-xs py-4">No transactions found.</p>}
               </div>
             </div>
           </div>
 
-          {/* RIGHT COLUMN */}
           <div className="space-y-6">
-            <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl sticky top-6">
-              <div className="space-y-8">
-                <div>
-                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2 opacity-60">Overall Remaining Balance</p>
-                  <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] text-center">
-                    <h2 className="text-4xl font-black text-white tracking-tighter">₱{overallBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h2>
-                  </div>
-                </div>
-                
-                <div>
-                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2 opacity-60">Amount to Post Now</p>
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-[2rem] text-center">
-                    <h2 className="text-5xl font-black text-emerald-400 tracking-tighter">₱{totalToPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h2>
-                  </div>
-                </div>
+            <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
+              <p className="text-slate-400 text-[10px] font-black uppercase mb-2 relative z-10">Overall Balance</p>
+              <h2 className="text-4xl font-black relative z-10">₱{parseFloat(billingData.summary.balance).toLocaleString()}</h2>
+              <Wallet className="absolute -right-4 -bottom-4 text-white/5" size={120} />
+            </div>
 
-                <button onClick={() => totalToPay > 0 && setShowConfirm(true)} className="w-full bg-emerald-500 hover:bg-emerald-600 py-6 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-3">
-                  Review Transaction <ArrowRight size={20} />
-                </button>
+            <div className="bg-white rounded-[2.5rem] border-4 border-slate-900 p-8 shadow-xl">
+              <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Total Collected Today</p>
+              <h2 className="text-3xl font-black text-emerald-600 mb-6">₱{totalToPost.toLocaleString()}</h2>
+              <button
+                disabled={totalToPost <= 0}
+                onClick={() => setShowConfirm(true)}
+                className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg transition-all ${totalToPost > 0 ? 'bg-blue-600 text-white hover:bg-black' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+              >
+                Review Transaction
+              </button>
+            </div>
+
+            {/* Scholarships Sidebar */}
+            <div className="bg-white rounded-[2.5rem] border border-blue-100 p-6 shadow-sm">
+              <h3 className="text-[10px] font-black text-blue-600 uppercase mb-4 flex items-center gap-2"><Award size={14} /> Available Scholarships</h3>
+              <div className="space-y-3">
+                {availableScholarships.length > 0 ? availableScholarships.map((sch, i) => (
+                  <div key={i} className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                    <p className="font-black text-slate-800 text-[10px] uppercase leading-tight">{sch.scholarship_name}</p>
+                    <p className="text-[10px] font-bold text-blue-600 mb-3">{sch.discount_type === 'Percentage' ? `${sch.value}% Discount` : `₱${Number(sch.value).toLocaleString()} Fixed Grant`}</p>
+                    <button onClick={() => setSelectedSch(sch)} className="w-full py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-slate-900 transition-all">Apply Grant</button>
+                  </div>
+                )) : <p className="text-center italic text-slate-300 text-[10px] uppercase py-4">No Approved Grants</p>}
               </div>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3rem] p-32 flex flex-col items-center text-slate-400 animate-pulse">
-          <Wallet size={60} className="opacity-10 mb-4" />
-          <p className="font-black uppercase tracking-[0.2em] text-sm">Waiting for Student Search</p>
-        </div>
       )}
 
-      {/* MODALS SECTION (Confirmation & Success remain largely the same) */}
+      {/* MODAL: REVIEW PAYMENT */}
       {showConfirm && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[3rem] w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="p-8 bg-slate-50 border-b flex justify-between items-center">
-              <h2 className="font-black text-slate-800 uppercase tracking-tight flex items-center gap-2"><CheckCircle2 className="text-emerald-500" /> Confirm Allocation</h2>
-              <button onClick={() => setShowConfirm(false)}><X className="text-slate-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[150] flex items-center justify-center p-4 text-left">
+          <div className="bg-white rounded-[3rem] w-full max-w-md shadow-2xl p-10 animate-in zoom-in duration-200">
+            <h2 className="text-xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2"><Banknote size={24} /> Confirm Payment</h2>
+            <div className="space-y-3 bg-slate-50 p-6 rounded-3xl mb-8 border border-slate-100">
+              {Object.entries(allocations).map(([id, amt]) => amt > 0 && (
+                <div key={id} className="flex justify-between text-xs font-bold text-slate-600 uppercase">
+                  <span>{billingData.items.find(i => i.id == id)?.item_name}</span>
+                  <span className="text-slate-900">₱{amt.toLocaleString()}</span>
+                </div>
+              ))}
+              <div className="pt-4 border-t border-slate-200 flex justify-between font-black text-emerald-600 uppercase">
+                <span>Total to Post</span>
+                <span className="text-lg">₱{totalToPost.toLocaleString()}</span>
+              </div>
             </div>
-            <div className="p-10 space-y-6 text-left">
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {billingData.items.filter(item => allocations[item.id] > 0).map(item => (
-                  <div key={item.id} className="flex justify-between text-sm py-2 border-b border-slate-50">
-                    <span className="font-bold text-slate-600">{item.item_name}</span>
-                    <span className="font-black text-slate-800">₱{Number(allocations[item.id]).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between pt-4 border-t-2 border-slate-900 font-black text-2xl mt-4">
-                <span>TOTAL</span>
-                <span className="text-blue-600">₱{totalToPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="bg-blue-50 p-6 rounded-[2.5rem] border border-blue-100">
-                <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest block text-center mb-3">Enrollment Status</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => setManualStatus('Enrolled')} className={`py-3 rounded-xl font-black text-xs uppercase ${manualStatus === 'Enrolled' ? 'bg-blue-600 text-white' : 'bg-white text-slate-400 border'}`}>Enrolled</button>
-                  <button onClick={() => setManualStatus('Pending')} className={`py-3 rounded-xl font-black text-xs uppercase ${manualStatus === 'Pending' ? 'bg-amber-500 text-white' : 'bg-white text-slate-400 border'}`}>Pending</button>
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => setShowConfirm(false)} className="py-4 text-[10px] font-black uppercase text-slate-400">Cancel</button>
+              <button onClick={processFinalPayment} className="bg-blue-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase shadow-lg hover:bg-black transition-all">Post Payment</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: SCHOLARSHIP PREVIEW */}
+      {selectedSch && (() => {
+        const tuitionItem = billingData.items.find(i => i.item_name.toLowerCase().includes('tuition'));
+        const currentTuitionBal = tuitionItem ? (parseFloat(tuitionItem.amount) - parseFloat(tuitionItem.paid_amount)) : 0;
+        const previewDiscount = selectedSch.discount_type === 'Percentage'
+          ? currentTuitionBal * (parseFloat(selectedSch.value) / 100)
+          : parseFloat(selectedSch.value);
+
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[150] flex items-center justify-center p-4 text-left">
+            <div className="bg-white rounded-[3rem] w-full max-w-md shadow-2xl p-10">
+              <h2 className="text-xl font-black text-slate-800 uppercase mb-2 flex items-center gap-2"><Award size={24} /> Grant Preview</h2>
+              <p className="text-slate-400 text-xs font-bold uppercase mb-6 tracking-widest">{selectedSch.scholarship_name}</p>
+              <div className="space-y-3 bg-slate-50 p-6 rounded-3xl mb-8 border border-slate-100">
+                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase">
+                  <span>Overall Balance</span>
+                  <span>₱{parseFloat(billingData.summary.balance).toLocaleString()}</span>
+                </div>
+                <div className="pt-4 border-t border-slate-200 space-y-2">
+                  <p className="text-[10px] font-black text-blue-600 uppercase">Estimated Distribution:</p>
+                  {selectedSch.discount_type === 'Percentage' ? (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase">
+                        <span>Current Tuition Balance:</span>
+                        <span>₱{currentTuitionBal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-xs font-black text-slate-700 uppercase italic">
+                        <span>Discount ({selectedSch.value}%)</span>
+                        <span className="text-emerald-600">- ₱{previewDiscount.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-xs font-black text-slate-700 uppercase">
+                      <span>Total Grant Amount</span>
+                      <span className="text-emerald-600">- ₱{previewDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-              <button onClick={processFinalPayment} className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black uppercase tracking-widest hover:bg-black shadow-xl">Post Payment Records</button>
+              <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => setSelectedSch(null)} className="py-4 text-[10px] font-black uppercase text-slate-400">Cancel</button>
+                <button onClick={handleApplyScholarship} className="bg-blue-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase shadow-lg hover:bg-blue-700 transition-all">Confirm Apply</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
+      {/* FIXED: MODAL: SUCCESS & PRINT RECEIPT (ILINAYLAY KO ITO SA LABAS) */}
       {showSuccess && (
-        <div className="fixed inset-0 bg-blue-900/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[3.5rem] w-full max-w-md shadow-2xl p-12 text-center border-t-8 border-emerald-500">
-            <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner"><CheckCircle2 size={56} /></div>
-            <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter mb-2">Payment Posted!</h2>
-            <p className="text-slate-400 font-medium text-sm mb-10 italic">Account record updated successfully.</p>
-            <div className="space-y-3">
-              <button onClick={handlePrint} className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3"><Printer size={20} /> Print Receipt</button>
-              <button onClick={() => { setShowSuccess(false); handleSearch(); }} className="w-full bg-slate-100 text-slate-500 py-4 rounded-2xl font-black uppercase">Close</button>
+        <div className="fixed inset-0 bg-blue-900/40 backdrop-blur-md z-[160] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[3.5rem] w-full max-w-md p-12 text-center border-t-8 border-emerald-500 shadow-2xl">
+            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle2 size={40} /></div>
+            <h2 className="text-2xl font-black text-slate-800 uppercase leading-tight">
+                {receiptInfo?.type === 'Scholarship' ? 'Grant Applied!' : 'Transaction Successful!'}
+            </h2>
+            <p className="text-slate-400 font-medium text-xs mt-2 italic uppercase">The student's account has been updated.</p>
+
+            {/* Breakdown preview sa success modal */}
+            {receiptInfo?.type === 'Scholarship' && receiptInfo.applied_items?.length > 0 && (
+                <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left">
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Deduction Breakdown:</p>
+                    {receiptInfo.applied_items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-[10px] font-bold text-slate-600 py-1">
+                            <span>{item.item_name}</span>
+                            <span className="text-emerald-600">-₱{item.discount.toLocaleString()}</span>
+                        </div>
+                    ))}
+                    <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between font-black text-slate-800">
+                        <span>TOTAL DEDUCTION</span>
+                        <span>₱{receiptInfo.total_deduction.toLocaleString()}</span>
+                    </div>
+                </div>
+            )}
+
+            <div className="mt-8 space-y-3">
+              <button onClick={() => window.print()} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-2 shadow-lg hover:bg-slate-900 transition-all"><Printer size={16} /> Print Official Receipt</button>
+              <button onClick={() => { setShowSuccess(false); handleSearch(); }} className="w-full text-slate-400 py-3 font-black uppercase text-[10px] hover:text-slate-600 transition-colors">Close and Refresh</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Hidden print logic and CSS preserved... */}
     </div>
   );
 };
