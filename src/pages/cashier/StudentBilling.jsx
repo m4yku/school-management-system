@@ -125,7 +125,19 @@ const StudentBilling = () => {
         </div>
       </div>
 
-      {billingData && (
+      {/* MAIN CONTENT AREA */}
+      {!billingData && !loading ? (
+        // ETO YUNG PAPALIT KAPAG WALA PANG SEARCHED ID
+        <div className="flex flex-col items-center justify-center py-32 border-4 border-dashed border-slate-100 rounded-[3.5rem] bg-slate-50/50">
+          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-sm mb-6 text-slate-300">
+            <Search size={40} />
+          </div>
+          <h3 className="text-xl font-black text-slate-400 uppercase italic tracking-tighter">Ready to Assess</h3>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2 max-w-xs text-center leading-relaxed">
+            Search a Student ID to manage billing, <br /> apply grants, and process payments.
+          </p>
+        </div>
+      ) : billingData && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="lg:col-span-2 space-y-6">
             {/* Student Info */}
