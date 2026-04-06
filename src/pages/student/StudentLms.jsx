@@ -15,31 +15,25 @@ const StudentLms = () => {
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); 
-  // --- NEW STATE FOR FETCHED DATABASE MODULES ---
   const [modules, setModules] = useState([]); 
 
-  // --- UPDATED LOGIC FOR COLLEGE, SHS, AND PROGRAMS ---
   const getStudentDetails = (data) => {
     const grade = (data.grade_level || "").toString().toUpperCase();
     const gNum = parseInt(grade.replace(/\D/g, ''));
     const isCollege = grade.includes('YEAR') || gNum > 12 || grade.includes('COLLEGE');
     const isSHS = gNum === 11 || gNum === 12;
 
-    // Default values
     let dept = data.department_name || "Basic Education";
-    let displayMain = data.section || "TBA"; // Default to Section
+    let displayMain = data.section || "TBA"; 
     let majorDisplay = data.major || "N/A";
 
     if (isCollege) {
         dept = data.department_name || "College";
-        // Para sa College: Mawawala ang section, Program Code at Major ang ipapakita
         displayMain = data.program_code || "N/A"; 
     } else if (isSHS) {
         dept = data.department_name || "Senior High School";
-        // Para sa SHS: Program Code (Strand) + Section
         displayMain = data.program_code ? `${data.program_code} - ${data.section}` : data.section;
     } else {
-        // Elementary / JHS
         if (grade.includes('KINDER') || (gNum >= 1 && gNum <= 6)) dept = "Elementary";
         if (gNum >= 7 && gNum <= 10) dept = "Junior High School";
         displayMain = data.section || "TBA";
@@ -55,76 +49,75 @@ const StudentLms = () => {
   };
 
   const fetchData = async () => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/student/get_students.php`);
-    
-    // Siguraduhin na may data na bumalik
-    const studentList = response.data.students || [];
-    const billingItems = response.data.billing_items || []; 
-    const myData = studentList.find(s => s.email === user.email);
-    
-    if (myData) {
-      // 1. HANAPIN ANG TUITION ITEM SA BREAKDOWN
-      const tuitionItem = billingItems.find(item => 
-          item.billing_id === myData.billing_id && 
-          item.item_name.toLowerCase().includes("tuition")
-      );
-
-      // 2. KUNIN ANG TOTOONG VALUE MULA SA DATABASE
-      const totalTuitionPrice = tuitionItem ? parseFloat(tuitionItem.amount) : 0;
-      const actualTuitionPaid = tuitionItem ? parseFloat(tuitionItem.paid_amount) : 0;
+    try {
+      const response = await axios.get(`${API_BASE_URL}/student/get_students.php`);
+      const studentList = response.data.students || [];
+      const billingItems = response.data.billing_items || []; 
+      const myData = studentList.find(s => s.email === user.email);
       
-      // 3. CALCULATE THE 50% THRESHOLD
-      const tuitionThreshold = totalTuitionPrice * 0.5; 
-      const isEnrolled = (myData.enrollment_status || "").trim() === 'Enrolled';
+      if (myData) {
+        // --- 1. CALCULATE OVERALL PAYMENT STATUS ---
+        const totalAmount = parseFloat(myData.total_amount || 0);
+        const totalPaidOverall = parseFloat(myData.paid_amount || 0);
+        const isPaidFull = totalPaidOverall >= (totalAmount - 1); 
+        const isPartial = totalPaidOverall > 0 && totalPaidOverall < totalAmount;
+        myData.computedPaymentStatus = isPaidFull ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid';
 
-      // 4. THE STRICT GATEKEEPER LOGIC
-      if (isEnrolled && actualTuitionPaid >= tuitionThreshold && totalTuitionPrice > 0) {
-        myData.isLmsLocked = false;
+        // --- 2. IMPROVED TUITION SEARCH (Flexible names like "Tuition SHS") ---
+        const tuitionItem = billingItems.find(item => 
+            item.billing_id === myData.billing_id && 
+            (item.item_name.toLowerCase().includes("tuition") || item.item_name.toLowerCase().includes("tf"))
+        );
 
-        // --- NEW: FETCH REAL MODULES FROM STUDENTS FOLDER BASED ON SECTION_ID ---
-        try {
-            const moduleResponse = await axios.get(`${API_BASE_URL}/student/get_lms_content.php`, {
-                params: { section_id: myData.section_id }
-            });
-            setModules(moduleResponse.data.modules || []);
-        } catch (modErr) {
-            console.error("Error loading modules:", modErr);
+        const totalTuitionPrice = tuitionItem ? parseFloat(tuitionItem.amount) : (totalAmount * 0.7); 
+        const actualTuitionPaid = tuitionItem ? parseFloat(tuitionItem.paid_amount) : totalPaidOverall;
+        const tuitionThreshold = totalTuitionPrice * 0.5; 
+
+        // --- 3. THE SMART GATEKEEPER ---
+        // Tanggapin ang "Enrolled" OR "Assessed" para hindi ma-stuck ang student
+        const isValidStatus = ["Enrolled", "Assessed"].includes((myData.enrollment_status || "").trim());
+        
+        // Unlock if threshold is met OR if the overall status is already Partial/Paid
+        const hasPaidThreshold = actualTuitionPaid >= (tuitionThreshold - 1);
+        const isOfficiallyPaid = myData.computedPaymentStatus === 'Partial Payment' || myData.computedPaymentStatus === 'Fully Paid';
+
+        if (isValidStatus && (hasPaidThreshold || isOfficiallyPaid)) {
+          myData.isLmsLocked = false;
+          myData.neededForUnlock = 0;
+
+          // Fetch LMS Content
+          try {
+              const moduleResponse = await axios.get(`${API_BASE_URL}/student/get_lms_content.php`, {
+                  params: { section_id: myData.section_id }
+              });
+              setModules(moduleResponse.data.modules || []);
+          } catch (modErr) {
+              console.error("Error loading modules:", modErr);
+          }
+        } else {
+          myData.isLmsLocked = true;
+          myData.neededForUnlock = Math.max(0, tuitionThreshold - actualTuitionPaid);
         }
 
-      } else {
-        myData.isLmsLocked = true;
-        // Kalkulahin kung magkano pa ang kulang para maabot ang 50%
-        myData.neededForUnlock = Math.max(0, tuitionThreshold - actualTuitionPaid);
+        // Dashboard display values
+        myData.displayTuition = totalTuitionPrice; 
+        myData.actualTuitionPaid = actualTuitionPaid;
+
+        const details = getStudentDetails(myData);
+        myData.dynamicDept = details.dept;
+        myData.formattedMain = details.displayMain; 
+        myData.major = details.major;
+        myData.isCollege = details.isCollege;
+        myData.programDesc = details.programDesc;
+        
+        setStudentData(myData);
       }
-
-      // I-update ang UI data
-      myData.displayTuition = totalTuitionPrice; 
-      myData.actualTuitionPaid = actualTuitionPaid;
-
-      // Status Labels para sa Dashboard
-      const totalAmount = parseFloat(myData.total_amount || 0);
-      const totalPaidOverall = parseFloat(myData.paid_amount || 0);
-      const isPaidFull = totalPaidOverall >= totalAmount && totalAmount > 0;
-      const isPartial = totalPaidOverall > 0 && totalPaidOverall < totalAmount;
-      myData.computedPaymentStatus = isPaidFull ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid';
-
-      // Apply College/SHS Program Logic
-      const details = getStudentDetails(myData);
-      myData.dynamicDept = details.dept;
-      myData.formattedMain = details.displayMain; 
-      myData.major = details.major;
-      myData.isCollege = details.isCollege;
-      myData.programDesc = details.programDesc;
-      
-      setStudentData(myData);
+    } catch (err) {
+      console.error("Critical Error fetching LMS data:", err);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Critical Error fetching LMS data:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     if (user?.email) fetchData();
@@ -137,7 +130,6 @@ const StudentLms = () => {
     </div>
   );
 
-  // --- LOCK SCREEN VIEW ---
   if (studentData?.isLmsLocked) {
     return (
       <div className="h-screen w-full flex items-center justify-center p-6 bg-slate-50 font-sans">
@@ -148,31 +140,32 @@ const StudentLms = () => {
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter mb-4 uppercase leading-none">LMS Locked</h2>
           <div className="text-slate-500 font-medium leading-relaxed mb-8 text-sm">
             Paumanhin, <span className="font-black text-slate-800">{studentData?.first_name}</span>. 
-            Naka-lock ang iyong access. Mahalagang <strong className="font-bold text-slate-900">bayaran ang 50% ng Tuition Fee</strong> para ma-activate ang iyong modules.
+            Naka-lock ang iyong access. Mahalagang <strong className="font-bold text-slate-900">bayaran ang 50% ng Tuition Fee</strong>.
             <br/><br/>
             <div className="bg-red-50 p-6 rounded-[1.5rem] text-[11px] space-y-2 border border-red-100 shadow-inner">
                 <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
-                  Tuition Fee (Total): 
+                  Tuition Fee (Basis): 
                   <span className="font-black text-slate-900 bg-white px-2 py-1 rounded shadow-sm">₱{studentData?.displayTuition?.toLocaleString()}</span>
                 </p>
                 <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
+                  Total Paid: 
+                  <span className="font-black text-emerald-600 bg-white px-2 py-1 rounded shadow-sm">₱{studentData?.actualTuitionPaid?.toLocaleString()}</span>
+                </p>
+                <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
                   Payment Status: 
-                  <span className={`font-black px-2 py-1 rounded shadow-sm italic ${studentData?.computedPaymentStatus === 'Unpaid' ? 'text-red-600 bg-white' : 'text-blue-600 bg-white'}`}>
-                    {studentData?.computedPaymentStatus}
-                  </span>
+                  <span className="font-black text-blue-600 bg-white px-2 py-1 rounded shadow-sm italic">{studentData?.computedPaymentStatus}</span>
                 </p>
                 <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
                   Enrollment: 
-                  <span className="font-black text-red-600 bg-white px-2 py-1 rounded shadow-sm italic">{studentData?.enrollment_status || 'Pending'}</span>
+                  <span className="font-black text-red-600 bg-white px-2 py-1 rounded shadow-sm italic">{studentData?.enrollment_status || 'Assessed'}</span>
                 </p>
                 {studentData?.neededForUnlock > 0 && (
                    <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider pt-2 border-t border-red-100">
                    Kulang para ma-unlock: 
-                   <span className="font-black text-red-600">₱{studentData.neededForUnlock.toLocaleString()}</span>
+                   <span className="font-black text-red-600 animate-pulse">₱{studentData.neededForUnlock.toLocaleString()}</span>
                  </p>
                 )}
             </div>
-            <p className="mt-4 text-[10px] italic font-medium">Mangyaring magbayad sa Cashier para mabuksan ang portal.</p>
           </div>
           <button onClick={() => navigate('/student/dashboard')} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95">
             <ArrowLeft size={14} /> Back to Dashboard
@@ -182,17 +175,13 @@ const StudentLms = () => {
     );
   }
 
-  // --- AUTHORIZED UI ---
   const renderClassroomView = (title, icon, color, category, typeIcon) => {
-    // --- FILTER REAL DATA FROM DATABASE ---
     const filteredModules = modules.filter(m => m.type === category);
-
     return (
       <div className="max-w-7xl mx-auto p-4 md:p-8 animate-in slide-in-from-right duration-500 font-sans">
         <button onClick={() => setViewMode('grid')} className="flex items-center gap-2 text-slate-500 font-black uppercase text-[11px] tracking-widest mb-6 hover:text-slate-900 transition-colors">
           <ArrowLeft size={16} /> Back to Dashboard
         </button>
-
         <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
           <div style={{ backgroundColor: color }} className="h-48 relative p-8 flex flex-col justify-end text-white">
             <div className="absolute top-0 right-0 p-8 opacity-20">{icon}</div>
@@ -280,7 +269,6 @@ const StudentLms = () => {
         </div>
 
         <div className="space-y-8">
-          {/* ENROLLMENT INFO WITH NEW ACADEMIC DETAILS */}
           <div className="bg-white border-2 border-slate-50 p-10 rounded-[3rem] shadow-xl">
             <h3 className="font-black text-slate-900 mb-8 uppercase text-[11px] tracking-[0.2em] flex items-center gap-3">
               <GraduationCap size={20} className="text-emerald-500"/> Academic Profile
@@ -297,7 +285,6 @@ const StudentLms = () => {
               <StatusItem label="Payment Status" value={studentData?.computedPaymentStatus} />
             </div>
           </div>
-
           <div className="bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
             <h3 className="font-black text-white/40 mb-8 uppercase text-[11px] tracking-[0.2em] flex items-center gap-3">
               <BarChart3 size={20} className="text-yellow-400"/> Overall Progress
@@ -316,7 +303,7 @@ const StudentLms = () => {
                    <span className="text-emerald-400">98%</span>
                 </div>
                 <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" style={{ width: '98%' }}></div>
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: '98%' }}></div>
                 </div>
               </div>
             </div>
@@ -330,10 +317,8 @@ const StudentLms = () => {
 const LMSCard = ({ icon, title, desc, count, color }) => (
   <div className="bg-white p-10 rounded-[3rem] border-2 border-slate-50 shadow-sm hover:shadow-2xl hover:-translate-y-3 transition-all cursor-pointer group h-full flex flex-col justify-between">
     <div>
-      <div style={{ color: color }} className="mb-8 group-hover:scale-125 transition-transform duration-500 ease-out">{icon}</div>
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">{title}</h3>
-      </div>
+      <div style={{ color: color }} className="mb-8 group-hover:scale-125 transition-transform duration-500">{icon}</div>
+      <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-tight mb-4">{title}</h3>
       <p className="text-slate-400 text-sm font-bold leading-relaxed">{desc}</p>
     </div>
     <div className="mt-8">
