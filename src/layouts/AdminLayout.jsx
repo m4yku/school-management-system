@@ -6,7 +6,7 @@ import {
   BookOpen, CreditCard, UserCircle, Search, Receipt, 
   History, ClipboardList, GraduationCap, Layers, FileText,
   Library, Award, ChevronLeft, ChevronRight, MapPin,
-  Bell, Megaphone 
+  Bell, Megaphone, FileSpreadsheet
 } from 'lucide-react'; 
 import { useAuth } from '../context/AuthContext';
 import UserProfileModal from '../components/admin/UserProfileModal'; 
@@ -111,6 +111,7 @@ const AdminLayout = () => {
         { icon: <FileText size={20} />, label: 'Student Requests', path: '/registrar/requests' }, 
         { icon: <Award size={20} />, label: 'Scholarship Applications', path: '/registrar/scholarships' },
         { icon: <Layers size={20} />, label: 'Section Management', path: '/registrar/sections' },
+        { icon: <FileSpreadsheet size={20} />, label: 'Student Grades', path: '/registrar/grades' },
     ],
     cashier: [
         { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/cashier/dashboard' },
