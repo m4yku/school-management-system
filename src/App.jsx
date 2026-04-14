@@ -21,7 +21,8 @@ import StudentRequests from './pages/registrar/StudentRequests'; // <--- Ito yun
 import AcademicPrograms from './pages/registrar/AcademicPrograms'; // <--- BAGONG DAGDAG
 import ScholarshipApplications from './pages/registrar/ScholarshipApplications';
 import RegistrarSubjects from './pages/registrar/RegistrarSubjects';
-import SectionManagement from './pages/registrar/SectionManagement'; // <--- BAGONG DAGDAG
+import SectionManagement from './pages/registrar/SectionManagement';
+import StudentGrades from './pages/registrar/StudentGradesView';// <--- BAGONG DAGDAG
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentAccounting from './pages/student/StudentAccounting';
@@ -198,6 +199,7 @@ function App() {
             <Route path="subjects" element={<RegistrarSubjects />} />
 
             <Route path="sections" element={<SectionManagement />} />
+            <Route path="grades" element={<StudentGrades />} />
             
           </Route>
 

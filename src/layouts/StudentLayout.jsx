@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
 import { 
-  User, BookOpen, CreditCard, LogOut, Menu, X, GraduationCap
+  User, BookOpen, CreditCard, LogOut, Menu, X, 
+  GraduationCap, LayoutDashboard, Bell, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import ProfileModal from '../components/student/ProfileModal';
+import ReadNotificationModal from '../components/shared/ReadNotificationModal';
 
 const StudentLayout = () => {
   const { user, logout, branding, API_BASE_URL } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [studentData, setStudentData] = useState(null);
   
@@ -18,10 +21,15 @@ const StudentLayout = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
 
-  // FETCH DATA WITH CORRECT MAPPING
+  // Notifications State (Para consistent sa Admin)
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+
+  // FETCH STUDENT DATA
   const fetchData = useCallback(async () => {
     try {
-      // Path based on directory: /sms-api/student/
       const res = await axios.get(`${API_BASE_URL}/student/get_students.php`);
       const studentsList = res.data.students || [];
       const myData = studentsList.find(s => s.email === user.email);
@@ -39,188 +47,231 @@ const StudentLayout = () => {
     }
   }, [user.email, API_BASE_URL]);
 
+  // FETCH NOTIFICATIONS
+  const fetchNotifications = async () => {
+    if (!user) return;
+    try {
+      const currentId = user.student_id || user.id;
+      const response = await axios.get(
+        `${API_BASE_URL}/notifications/get_notifications.php?user_id=${currentId}&role=student`
+      );
+      if (response.data.success) {
+        setNotifications(response.data.notifications);
+        setUnreadCount(response.data.unread_count);
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
   useEffect(() => {
     if (user?.email) {
       fetchData();
+      fetchNotifications();
     }
   }, [user?.email, fetchData]);
 
   const studentMenu = [
-    { icon: <User size={18}/>, label: "Dashboard", path: "/student/dashboard" },
-    { icon: <BookOpen size={18}/>, label: "LMS Classroom", path: "/student/lms" },
-    { icon: <CreditCard size={18}/>, label: "Accounting", path: "/student/accounting" },
-    { icon: <GraduationCap size={18}/>, label: "Scholarship", path: "/student/scholarship" },
+    { icon: <LayoutDashboard size={20}/>, label: "Dashboard", path: "/student/dashboard" },
+    { icon: <BookOpen size={20}/>, label: "LMS Classroom", path: "/student/lms" },
+    { icon: <CreditCard size={20}/>, label: "Accounting", path: "/student/accounting" },
+    { icon: <GraduationCap size={20}/>, label: "Scholarship", path: "/student/scholarship" },
   ];
 
-  const getPageTitle = () => {
-    if (location.pathname.includes('dashboard')) return 'Student Dashboard';
-    if (location.pathname.includes('accounting')) return 'Accounting Portal';
-    if (location.pathname.includes('lms')) return 'LMS Classroom';
-    if (location.pathname.includes('scholarship')) return 'Scholarship Application';
-    return 'Student Portal';
+  const handleNotifClick = async (notif) => {
+    setSelectedNotification({
+      ...notif,
+      sender: notif.sender_name || "System",
+      time: new Date(notif.created_at).toLocaleString(),
+    });
+    setIsNotifOpen(false);
+    if (notif.is_read === 0) {
+      try {
+        await axios.post(`${API_BASE_URL}/notifications/mark_as_read.php`, {
+          notification_id: notif.id,
+          user_id: studentData?.student_id
+        });
+        fetchNotifications();
+      } catch (err) { console.error(err); }
+    }
   };
 
   const handleUpdateProfile = async (e) => {
     if (e) e.preventDefault();
-    
-    // Validation para sa Student ID
-    if (!studentData?.student_id) {
-      alert("Error: Student ID not found.");
-      return;
-    }
+    if (!studentData?.student_id) return alert("Error: Student ID not found.");
 
     const formData = new FormData();
-formData.append('student_id', studentData.student_id);
-formData.append('email', editForm.email);
-formData.append('mobile_no', editForm.contact_no); // 'mobile_no' ang key sa PHP
-formData.append('address_house', editForm.address); // 'address_house' ang key sa PHP
-
-if (selectedFile) {
-  formData.append('profile_image', selectedFile);
-}
+    formData.append('student_id', studentData.student_id);
+    formData.append('email', editForm.email);
+    formData.append('mobile_no', editForm.contact_no);
+    formData.append('address_house', editForm.address);
+    if (selectedFile) formData.append('profile_image', selectedFile);
 
     try {
-      // API call gamit ang API_BASE_URL mula sa AuthContext
       const res = await axios.post(`${API_BASE_URL}/student/update_student.php`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-
-      // Check if response exist and is successful
-      if (res.data && res.data.success) {
-        alert("Success: " + res.data.message);
-        await fetchData(); // Refresh student info sa sidebar
-        setIsEditModalOpen(false); // Close the modal
-        setSelectedFile(null);
-        setPreviewUrl(null);
-      } else {
-        // Ipakita ang error message na galing mismo sa PHP
-        alert("Server Error: " + (res.data?.message || "Something went wrong in the server."));
+      if (res.data?.success) {
+        alert("Success!");
+        await fetchData();
+        setIsEditModalOpen(false);
       }
-    } catch (err) {
-      console.error("Update failed:", err);
-      // Ipakita ang actual connection error (hal. 404 or 500)
-      alert("System Error: " + (err.response?.data?.message || err.message));
-    }
-  };
-
-  const handleOpenModal = () => {
-    if (studentData) {
-      setEditForm({
-        email: studentData.email || '',
-        contact_no: studentData.mobile_no || '',
-        address: studentData.address_house || ''
-      });
-      setIsEditModalOpen(true);
-    }
+    } catch (err) { console.error(err); }
   };
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans">
+    <div className="flex h-screen bg-slate-50 relative font-sans overflow-hidden">
       
-      {/* SIDEBAR */}
-      <aside 
-        style={{ backgroundColor: branding.theme_color }} 
-        className={`fixed inset-y-0 left-0 z-50 w-72 text-white transform transition-transform duration-300 lg:relative lg:translate-x-0 border-r-4 border-yellow-500 shadow-2xl shrink-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
-      >
-        <div className="p-8 text-center border-b border-white/5 relative">
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden absolute top-4 right-4 text-white/50 hover:text-white">
-            <X size={20}/>
-          </button>
-          <div className="w-16 h-16 bg-white rounded-2xl mx-auto mb-4 flex items-center justify-center overflow-hidden border-2 border-yellow-500 shadow-xl">
-            <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} alt="Logo" className="w-9 h-9 rounded-lg object-cover" />
+      {/* 1. MOBILE OVERLAY */}
+      {isSidebarOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
+      )}
+
+      {/* 2. SIDEBAR (ADAPTED FROM ADMIN) */}
+      <aside className={`
+        fixed z-50 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 ease-in-out shadow-2xl
+        inset-y-0 left-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+        lg:translate-x-0 lg:static lg:h-[calc(100vh-2rem)] lg:my-4 lg:ml-4 lg:rounded-[2rem]
+        w-64 ${isCollapsed ? 'lg:w-[5.5rem]' : 'lg:w-64'} 
+      `}>
+        {/* LOGO SECTION */}
+        <div className={`h-20 px-4 border-b border-slate-800 flex items-center shrink-0 transition-all justify-between ${isCollapsed ? 'lg:justify-center' : 'lg:justify-between'}`}>
+          <div className="flex items-center gap-3 overflow-hidden">
+            <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} alt="Logo" className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-lg" />
+            <span className={`text-[15px] leading-tight font-black text-white tracking-tight line-clamp-2 w-36 ${isCollapsed ? 'lg:w-0 lg:opacity-0 lg:hidden' : ''}`}>{branding.school_name}</span>
           </div>
-          <h2 className="text-[9px] font-black uppercase tracking-[0.2em] opacity-80 leading-tight">{branding.school_name}</h2>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white/50 hover:text-white"><X size={20}/></button>
         </div>
 
-        <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
-          <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">Student Menu</p>
-          {studentMenu.map((item) => (
-            <Link 
-              key={item.path}
-              to={item.path}
-              onClick={() => setIsSidebarOpen(false)}
-              className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold text-sm transition-all ${location.pathname === item.path ? 'bg-yellow-50 text-[#001f3f] shadow-lg' : 'hover:bg-white/10 text-slate-300'}`}
-            >
-              {item.icon} {item.label}
-            </Link>
-          ))}
+        {/* NAVIGATION */}
+        <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto scrollbar-hide">
+          <div className={`px-3 mb-2 ${isCollapsed ? 'hidden' : 'block'}`}>
+            <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Student Portal</p>
+          </div>
+          {studentMenu.map((item, index) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link 
+                key={index} 
+                to={item.path} 
+                className={`flex items-center p-3 rounded-2xl transition-all ${isActive ? 'text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800'} ${isCollapsed ? 'lg:justify-center' : 'gap-4'}`} 
+                style={isActive ? { backgroundColor: branding.theme_color || '#2563eb' } : {}}
+              >
+                {item.icon}
+                {!isCollapsed && <span className="font-bold text-sm">{item.label}</span>}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="p-4 border-t border-white/5 bg-black/20">
-          <button onClick={logout} className="flex items-center space-x-3 p-4 w-full rounded-2xl hover:bg-red-500 text-white transition-all duration-200 group">
-            <LogOut size={20} className="group-hover:rotate-12 transition-transform" />
-            <span className="text-sm font-black uppercase tracking-widest">Sign Out</span>
+        {/* SIDEBAR FOOTER */}
+        <div className="p-4 border-t border-slate-800 shrink-0">
+          <button onClick={logout} className="flex items-center p-3 rounded-2xl hover:bg-red-500/10 text-slate-400 hover:text-red-400 w-full gap-3 transition-all">
+            <LogOut size={20} />
+            {!isCollapsed && <span className="text-sm font-bold">Sign Out</span>}
           </button>
         </div>
+
+        {/* COLLAPSE TOGGLE (Desktop Only) */}
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="hidden lg:flex absolute -right-3 top-24 w-6 h-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-600 shadow-sm hover:text-blue-600 z-50"
+        >
+          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 overflow-y-auto relative flex flex-col">
-        
-        {/* TOP NAV */}
-        <nav className="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center shadow-sm">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600 bg-slate-100 rounded-xl">
-              <Menu size={20} />
-            </button>
-            <h2 className="font-black text-slate-800 text-sm uppercase tracking-widest hidden sm:block">
-              {getPageTitle()}
+      {/* 3. MAIN CONTENT AREA */}
+      <main className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 lg:px-10 sticky top-0 z-30 shrink-0 shadow-sm">
+          <div className="flex items-center space-x-4">
+            <button className="p-2 lg:hidden text-slate-600" onClick={() => setIsSidebarOpen(true)}><Menu size={20} /></button>
+            <h2 className="text-slate-800 font-black text-lg lg:text-xl capitalize">
+              {location.pathname.split('/').pop()?.replace('-', ' ')}
             </h2>
           </div>
 
-          <div className="flex items-center gap-3 relative">
-            <div className="hidden md:block text-right">
-              <p className="text-[11px] font-black text-slate-900 leading-none mb-1">
-                {studentData?.first_name} {studentData?.last_name}
-              </p>
-              
-              {/* STATUS INDICATOR LOGIC */}
-              {(() => {
-                const total = Number(studentData?.total_amount || 0);
-                const paid = Number(studentData?.paid_amount || 0);
-                const balance = Number(studentData?.balance || 0);
-
-                let statusLabel = "";
-                let statusColor = "";
-
-                if (paid <= 0) {
-                  statusLabel = "Unpaid";
-                  statusColor = "text-red-500";
-                } else if (balance <= 0 || paid >= total) {
-                  statusLabel = "Fully Paid";
-                  statusColor = "text-green-600";
-                } else {
-                  statusLabel = "Partial";
-                  statusColor = "text-yellow-500";
-                }
-
-                return (
-                  <p className={`text-[9px] font-bold uppercase tracking-widest ${statusColor}`}>
-                    {statusLabel}
-                  </p>
-                );
-              })()}
+          <div className="flex items-center">
+            {/* NOTIFICATION BELL */}
+            <div className="flex items-center space-x-2 mr-6 pr-6 border-r border-slate-200 relative">
+              <div className="relative">
+                <button onClick={() => setIsNotifOpen(!isNotifOpen)} className={`p-2.5 rounded-full transition-all relative ${isNotifOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}>
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-2 right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white animate-bounce">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                {isNotifOpen && (
+                  <div className="absolute top-full right-0 mt-3 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50">
+                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                      <h3 className="font-bold text-slate-800 text-sm">Notifications</h3>
+                      <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-bold">{unreadCount} New</span>
+                    </div>
+                    <div className="max-h-[60vh] overflow-y-auto p-2">
+                      {notifications.length === 0 ? (
+                        <div className="p-10 text-center text-slate-400">
+                          <Bell className="mx-auto mb-2 opacity-20" size={30} />
+                          <p className="text-[10px] font-bold uppercase">No updates</p>
+                        </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div key={notif.id} onClick={() => handleNotifClick(notif)} className={`flex gap-3 p-3 rounded-2xl cursor-pointer transition-all ${notif.is_read === 0 ? 'bg-blue-50/50' : 'opacity-60'}`}>
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                               <Bell size={16} className="text-blue-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-900 truncate">{notif.title}</p>
+                              <p className="text-[10px] text-slate-500 truncate">{notif.message}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <button
-              onClick={handleOpenModal}
-              style={{ backgroundColor: branding.theme_color }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-white shadow-md hover:scale-110 active:scale-95 transition-all overflow-hidden cursor-pointer"
-            >
-              {studentData?.profile_image ? (
-                <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
-              ) : (
-                <span className="text-white font-black text-sm">{studentData?.first_name?.charAt(0)}</span>
-              )}
-            </button>
+            {/* USER PROFILE SECTION */}
+            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setIsEditModalOpen(true)}>
+              <div className="hidden sm:block text-right">
+                <p className="text-sm font-black text-slate-800">{studentData?.first_name} {studentData?.last_name}</p>
+                {/* Status Logic integrated in Admin Style */}
+                {(() => {
+                  const balance = Number(studentData?.balance || 0);
+                  const paid = Number(studentData?.paid_amount || 0);
+                  const isPaid = paid > 0 && balance <= 0;
+                  return (
+                    <p className={`text-[10px] font-bold uppercase tracking-widest ${isPaid ? 'text-green-600' : 'text-red-500'}`}>
+                      {isPaid ? 'Fully Paid' : (paid > 0 ? 'Partial' : 'Unpaid')}
+                    </p>
+                  );
+                })()}
+              </div>
+              <div className="w-11 h-11 bg-slate-200 rounded-2xl overflow-hidden shadow-sm border-2 border-white ring-1 ring-slate-100">
+                {studentData?.profile_image ? (
+                  <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center font-black text-slate-400 bg-slate-100">
+                    {studentData?.first_name?.charAt(0)}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </nav>
+        </header>
 
-        <div className="flex-1">
-          <Outlet />
+        {/* DYNAMIC CONTENT AREA */}
+        <div className="p-6 lg:p-10">
+          <div className="max-w-7xl mx-auto">
+            <Outlet />
+          </div>
         </div>
       </main>
 
+      {/* MODALS */}
       <ProfileModal 
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -240,7 +291,11 @@ if (selectedFile) {
         API_BASE_URL={API_BASE_URL}
       />
 
-      {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm" />}
+      <ReadNotificationModal 
+        isOpen={!!selectedNotification} 
+        onClose={() => setSelectedNotification(null)} 
+        notification={selectedNotification}
+      />
     </div>
   );
 };

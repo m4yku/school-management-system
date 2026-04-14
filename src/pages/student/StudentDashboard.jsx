@@ -4,7 +4,7 @@ import {
   User, BookOpen, CreditCard, Lock, Unlock,
   LogOut, CheckCircle2, Megaphone, Wallet,
   Info, Eye, Menu, X, Camera, Save, Edit3, ArrowRight, Loader2,
-  Printer, Image as ImageIcon
+  Printer, Image as ImageIcon, BellOff
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,10 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
+
+  // --- NEW STATE FOR ANNOUNCEMENTS ---
+  const [announcements, setAnnouncements] = useState([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
 
   // --- STATES FOR MODALS ---
   const [billingItems, setBillingItems] = useState([]); 
@@ -25,6 +29,7 @@ const StudentDashboard = () => {
 
   const fetchData = async () => {
     try {
+      // 1. Fetch Student and Billing Data
       const res = await axios.get(`${API_BASE_URL}/student/get_students.php`);
       const studentsArray = res.data.students;
       const allItems = res.data.billing_items;
@@ -39,10 +44,8 @@ const StudentDashboard = () => {
             parseInt(item.billing_id) === parseInt(myData.billing_id)
           );
 
-          // Save original items for threshold calculation
           setAllBillingItems(rawItems);
 
-          // Logic para sa breakdown display (kung ano pa ang kulang)
           let currentPaidPool = paid;
           const remainingItems = rawItems.map(item => {
             let itemAmount = parseFloat(item.amount);
@@ -63,6 +66,22 @@ const StudentDashboard = () => {
           setBillingItems(remainingItems);
         }
       }
+
+      // 2. NEW: Fetch Announcements Logic
+      try {
+        const annRes = await axios.get(`${API_BASE_URL}/notifications/get_student_announcements.php?student_id=${user.id}`)
+        if (annRes.data.success) {
+          setAnnouncements(annRes.data.data);
+        } else {
+          setAnnouncements([]);
+        }
+      } catch (annErr) {
+        console.error("Announcements fetch error:", annErr);
+        setAnnouncements([]);
+      } finally {
+        setLoadingAnnouncements(false);
+      }
+
     } catch (err) {
       console.error("Error fetching student data:", err);
     } finally {
@@ -87,7 +106,6 @@ const StudentDashboard = () => {
   const isUnpaid = paidAmount <= 0;
   const isPartial = paidAmount > 0 && paidAmount < totalAmount;
 
-  // --- STRICT ITEM-SPECIFIC LMS LOGIC (NEW UPDATE) ---
   const tuitionItem = allBillingItems.find(item => 
     item.item_name.toLowerCase().includes('tuition')
   );
@@ -98,7 +116,6 @@ const StudentDashboard = () => {
 
   const isLmsActive = isPaid || (tuitionAmount > 0 && actualTuitionPaid >= tuitionThreshold);
 
-  // --- DYNAMIC STYLES FOR LMS CARD AND NOTICES ---
   let lmsStatusLabel = "INACTIVE";
   let lmsBgColor = "bg-red-50 border-red-100";
   let lmsStatusColor = "bg-red-500";
@@ -139,7 +156,10 @@ const StudentDashboard = () => {
           .animate-scroll {
             display: inline-block;
             white-space: nowrap;
-            animation: scroll-text 15s linear infinite;
+            animation: scroll-text 20s linear infinite;
+          }
+          .animate-scroll:hover {
+            animation-play-state: paused;
           }
         `}
       </style>
@@ -167,6 +187,32 @@ const StudentDashboard = () => {
           </div>
         </header>
 
+        {/* --- REPLACED STATIC MARQUEE WITH DYNAMIC ANNOUNCEMENTS --- */}
+        <div style={{ backgroundColor: safeThemeColor }} className="text-white p-5 rounded-3xl flex items-center gap-5 shadow-xl overflow-hidden relative group">
+          <div className="z-10 bg-inherit pr-4 border-r border-white/20 flex items-center gap-2">
+            <Megaphone size={20} className="shrink-0 animate-bounce text-yellow-400" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Bulletin:</span>
+          </div>
+          
+          <div className="flex-1 overflow-hidden relative h-6 flex items-center">
+            {loadingAnnouncements ? (
+                <p className="text-[10px] font-bold uppercase animate-pulse">Checking for news...</p>
+            ) : announcements.length > 0 ? (
+                <div className="animate-scroll whitespace-nowrap">
+                   {announcements.map((ann, idx) => (
+                     <span key={idx} className="font-black text-xs uppercase tracking-widest italic mr-20">
+                       📢 [{ann.type}] {ann.title}: {ann.message} • 
+                     </span>
+                   ))}
+                </div>
+            ) : (
+                <p className="text-[10px] font-bold uppercase italic opacity-70">
+                    Welcome to {branding?.school_name}! No new announcements at this moment. Stay tuned for updates.
+                </p>
+            )}
+          </div>
+        </div>
+
         {/* --- DYNAMIC ACCOUNT NOTICE --- */}
         <div className={`border-2 p-5 rounded-3xl flex items-center gap-4 ${!isLmsActive ? 'bg-red-50 border-red-100' : isPaid ? 'bg-emerald-50 border-emerald-100' : 'bg-yellow-50 border-yellow-100'}`}>
           <div className={`text-white p-2 rounded-xl shadow-lg ${!isLmsActive ? 'bg-red-500' : isPaid ? 'bg-emerald-500' : 'bg-yellow-500'}`}>
@@ -192,7 +238,7 @@ const StudentDashboard = () => {
                 <div style={{ backgroundColor: safeThemeColor }} className="p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
                   <Wallet size={40} className="mb-6 text-yellow-500" />
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Remaining Balance</p>
-                  <h2 className="text-4xl font-black mt-1">₱ {remainingBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</h2>
+                  <h2 className="text-3xl md:text-4xl font-black mt-1">₱ {parseFloat(studentData?.balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</h2>
                   <button onClick={() => navigate('/student/accounting')} className="mt-6 flex items-center gap-2 text-[9px] font-black uppercase bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full transition-all">
                     View Breakdown <ArrowRight size={14}/>
                   </button>
@@ -213,14 +259,46 @@ const StudentDashboard = () => {
                 </div>
             </div>
 
-            <div style={{ backgroundColor: safeThemeColor }} className="text-white p-5 rounded-3xl flex items-center gap-5 shadow-xl overflow-hidden relative">
-              <Megaphone size={24} className="shrink-0 animate-bounce text-yellow-500 z-10 bg-inherit pr-2" />
-              <div className="flex-1 overflow-hidden">
-                <p className="animate-scroll font-black text-xs uppercase tracking-widest italic">
-                    Important: School Year {studentData?.school_year} enrollment is ongoing. Please visit the registrar for more details. 
-                </p>
+            {/* --- REPLACED STATIC TEXT WITH ANNOUNCEMENT CARDS SECTION --- */}
+            <section className="bg-white border border-slate-200 rounded-[2.5rem] p-6 md:p-10 shadow-sm">
+              <div className="flex justify-between items-center mb-8">
+                 <h3 className="font-black text-slate-800 uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
+                    <Megaphone size={16} className="text-blue-500"/> Recent Announcements
+                 </h3>
+                 <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-3 py-1 rounded-full uppercase">Today's Updates</span>
               </div>
-            </div>
+              
+              <div className="space-y-4">
+                 {loadingAnnouncements ? (
+                    <div className="flex flex-col items-center py-10 text-slate-300">
+                        <Loader2 className="animate-spin mb-2" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Fetching Bulletin...</span>
+                    </div>
+                 ) : announcements.length > 0 ? (
+                    announcements.slice(0, 3).map((notif, i) => (
+                        <div key={i} className="group p-5 rounded-3xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all">
+                           <div className="flex justify-between items-start mb-2">
+                              <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider ${
+                                 notif.type === 'Urgent Alert' ? 'bg-red-100 text-red-600' : 
+                                 notif.type === 'Task Reminder' ? 'bg-amber-100 text-amber-600' : 
+                                 'bg-blue-100 text-blue-600'
+                              }`}>
+                                 {notif.type}
+                              </span>
+                              <span className="text-[8px] font-bold text-slate-400">{notif.date_posted}</span>
+                           </div>
+                           <h4 className="font-black text-slate-800 text-sm group-hover:text-blue-700 transition-colors">{notif.title}</h4>
+                           <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{notif.message}</p>
+                        </div>
+                    ))
+                 ) : (
+                    <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-slate-100 rounded-[2rem] text-slate-300">
+                        <BellOff size={40} strokeWidth={1} className="mb-3 opacity-20" />
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">No notifications for you yet</p>
+                    </div>
+                 )}
+              </div>
+            </section>
 
             <section className="bg-white border border-slate-200 rounded-[2.5rem] p-6 md:p-10 shadow-sm">
               <h3 className="font-black text-slate-800 mb-8 uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
