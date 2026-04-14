@@ -7,7 +7,7 @@ import {
 import OfflineBanner from '../../utils/offlinebanner';
 import { useAuth } from '../../context/AuthContext';
 import { PageHeader, EmptyState } from '../../components/shared/TeacherComponents';
-import { DEPARTMENT_STYLES, PRIORITY_TYPES, ANIMATION_DELAYS, SHARED_STYLES } from '../../utils/teacherConstants';
+import { DEPARTMENT_STYLES, PRIORITY_TYPES, ANIMATION_DELAYS, SHARED_STYLES } from '../../components/shared/teacherConstants';
 import ReadNotificationModal from '../../components/shared/ReadNotificationModal';
 
 const AnnouncementSkeleton = ({ themeColor }) => (
@@ -86,13 +86,6 @@ const TeacherNotify = () => {
     <div className="w-full h-full overflow-y-auto custom-scroll pr-2 pb-10">
       <style>{`${SHARED_STYLES} .custom-scroll::-webkit-scrollbar { width: 8px; } .custom-scroll::-webkit-scrollbar-track { background: transparent; } .custom-scroll::-webkit-scrollbar-thumb { background-color: ${themeColor}; border-radius: 20px; border: 2px solid transparent; background-clip: content-box; } .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: ${themeColor}; opacity: 0.8; }`}</style>
       
-      {/* 🟢 RENDER THE MODAL COMPONENT */}
-      <ReadNotificationModal 
-        isOpen={!!selectedNotif} 
-        onClose={() => setSelectedNotif(null)} 
-        notification={selectedNotif} 
-      />
-
       <div className="max-w-4xl mx-auto space-y-6">
         <PageHeader icon={<Bell size={24} />} title="Announcements" subtitle="Stay updated with the latest memos and notices from the school administration." badge={`${announcements.length} Recent Updates`} />
         
@@ -131,11 +124,7 @@ const AnnouncementCard = ({ announcement, index, iconMap, themeColor, onClick })
   const formattedDate = announcement.created_at ? new Date(announcement.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
 
   return (
-    <div 
-      onClick={onClick} 
-      className="animate-stagger group relative flex flex-col bg-white/70 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:bg-white cursor-pointer" 
-      style={{ animationDelay: `${ANIMATION_DELAYS.firstCard + index * ANIMATION_DELAYS.increment}ms` }}
-    >
+    <div className={`group  relative bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white shadow-sm flex flex-col animate-in fade-in-up ${index % 2 === 0 ? 'animation-delay-200' : 'animation-delay-300'}`}>
       <div className="absolute left-0 top-10 bottom-10 w-1.5 rounded-r-full transition-all duration-300" style={{ backgroundColor: isUrgent ? '#ef4444' : themeColor, opacity: 0.6 }} />
       <div className="px-6 py-4 flex justify-between items-center border-b border-slate-100/50">
         <div className="flex items-center gap-3">

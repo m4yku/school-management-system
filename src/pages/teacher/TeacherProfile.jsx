@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import OfflineBanner from '../../utils/offlinebanner';
 import { PageHeader, InfoItem, Card, CardHeader, EmptyState } from '../../components/shared/TeacherComponents';
-import { SHARED_STYLES, ANIMATION_DELAYS } from '../../utils/teacherConstants';
+import { SHARED_STYLES, ANIMATION_DELAYS } from '../../components/shared/teacherConstants';
 
 // ─── Profile Skeleton ─────────────────────────────────────────────────────────
 const ProfileSkeleton = ({ themeColor }) => (

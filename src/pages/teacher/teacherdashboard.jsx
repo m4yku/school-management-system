@@ -1,48 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { School, Users, Clock, AlertCircle, Zap, BookOpen, Bell, CheckCircle } from 'lucide-react';
+import { School, Users, Clock, AlertCircle, Zap, BookOpen, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getActiveSchoolYear } from '../../utils/dateUtils';
 import { useAuth } from '../../context/AuthContext';
-import { StatCard, PageHeader, ClassDetailsModal } from '../../components/shared/TeacherComponents';
-import { SHARED_STYLES, STAT_CARD_COLORS } from '../../utils/teacherConstants';
+import { DashboardSkeleton, StatCard, PageHeader, ClassDetailsModal } from '../../components/shared/TeacherComponents';
+import { STAT_CARD_COLORS } from '../../components/shared/teacherConstants';
 import ReadNotificationModal from '../../components/shared/ReadNotificationModal';
 import OfflineBanner from '../../utils/offlinebanner';
-
-const DashboardSkeleton = ({ themeColor }) => (
-  <div className="flex flex-col lg:h-full lg:overflow-hidden pb-8 lg:pb-0">
-    <style>{`@keyframes dashSkPulse { 0% { background-color: ${themeColor}12; } 50% { background-color: ${themeColor}2e; } 100% { background-color: ${themeColor}12; } } .dash-sk { animation: dashSkPulse 1.6s ease-in-out infinite; border-radius: 6px; }`}</style>
-    <div className="shrink-0 space-y-6 mb-6">
-      <div className="flex justify-between items-center bg-white/40 backdrop-blur-md px-5 py-4 rounded-xl border border-white shadow-sm gap-4">
-        <div className="flex flex-col gap-2 flex-1"><div className="dash-sk" style={{ width: '130px', height: '22px' }} /><div className="dash-sk" style={{ width: '200px', height: '13px' }} /></div>
-        <div className="dash-sk" style={{ width: '160px', height: '28px', borderRadius: '2rem' }} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        {[1, 2, 3, 4].map(n => (
-          <div key={n} className="bg-white/40 backdrop-blur-md p-4 rounded-xl shadow-sm border border-white flex items-center gap-3"><div className="dash-sk" style={{ width: '42px', height: '42px', borderRadius: '0.75rem', flexShrink: 0 }} /><div className="flex flex-col gap-2 flex-1"><div className="dash-sk" style={{ width: '70%', height: '10px' }} /><div className="dash-sk" style={{ width: '45%', height: '22px' }} /></div></div>
-        ))}
-      </div>
-    </div>
-    <div className="flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:min-h-0">
-      <div className="lg:col-span-2 bg-white/60 backdrop-blur-md rounded-[2rem] border border-white flex flex-col overflow-hidden shadow-sm min-h-[400px] lg:min-h-0">
-        <div className="px-6 py-5 border-b border-white/50 bg-white/30 shrink-0 flex justify-between items-center"><div className="dash-sk" style={{ width: '140px', height: '16px' }} /><div className="dash-sk" style={{ width: '60px', height: '24px', borderRadius: '2rem' }} /></div>
-        <div className="flex-1 p-4 lg:p-6 space-y-3 overflow-hidden">
-          {[1, 2, 3, 4, 5].map(n => (
-            <div key={n} className="flex items-center justify-between p-4 bg-white/70 rounded-2xl border border-white gap-4"><div className="flex flex-col gap-2 flex-1"><div className="dash-sk" style={{ width: '55%', height: '14px' }} /><div className="dash-sk" style={{ width: '35%', height: '11px' }} /></div><div className="dash-sk" style={{ width: '90px', height: '28px', borderRadius: '0.75rem' }} /></div>
-          ))}
-        </div>
-      </div>
-      <div className="lg:col-span-1 bg-white/60 backdrop-blur-md rounded-[2rem] border border-white flex flex-col overflow-hidden shadow-sm min-h-[400px] lg:min-h-0">
-        <div className="px-6 py-5 border-b border-white/50 bg-white/30 shrink-0"><div className="dash-sk" style={{ width: '160px', height: '16px' }} /></div>
-        <div className="flex-1 p-4 lg:p-6 space-y-3 overflow-hidden">
-          {[1, 2, 3, 4, 5].map(n => (
-            <div key={n} className="p-4 bg-white/70 rounded-2xl border border-white flex items-start gap-3"><div className="dash-sk" style={{ width: '36px', height: '36px', borderRadius: '0.75rem', flexShrink: 0 }} /><div className="flex flex-col gap-2 flex-1"><div className="dash-sk" style={{ width: '75%', height: '12px' }} /><div className="dash-sk" style={{ width: '45%', height: '10px' }} /></div></div>
-          ))}
-        </div>
-      </div>
-    </div>
-  </div>
-);
 
 const TeacherDashboard = () => {
   const { syStart, syEnd, semester } = getActiveSchoolYear();
@@ -53,9 +18,8 @@ const TeacherDashboard = () => {
   const [schedules, setSchedules] = useState([]);
   const [tasks, setTasks] = useState([]); 
   
-  // 🟢 STATES PARA SA MODALS
   const [selectedClass, setSelectedClass] = useState(null);
-  const [selectedNotif, setSelectedNotif] = useState(null); // Pinalitan ang selectedTask
+  const [selectedNotif, setSelectedNotif] = useState(null);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isServerOffline, setIsServerOffline] = useState(false);
@@ -82,58 +46,87 @@ const TeacherDashboard = () => {
 
       let hasError = false;
 
+      // Process Sections (Assigned Classes)
       if (sectionsRes.status === 'fulfilled' && sectionsRes.value.data.status === 'success') {
         const data = sectionsRes.value.data.data || [];
         setSchedules(data);
         setStats(prev => ({
-          ...prev, classes: data.length, students: sectionsRes.value.data.total_overall_students || 0, nextSchedule: data[0]?.schedule || '--',
+          ...prev,
+          classes: data.length,
+          students: sectionsRes.value.data.total_overall_students || 0,
+          nextSchedule: data[0]?.schedule || '--',
         }));
       } else {
         hasError = true;
       }
 
+      // Process Notifications (Reminders)
       if (notifRes.status === 'fulfilled' && notifRes.value.data.status === 'success') {
         const allNotifs = notifRes.value.data.data || [];
         
-        // 🟢 FINORMAT NATIN PARA SAKTONG-SAKTO SA HINIHINGI NG ReadNotificationModal
-        const formattedTasks = allNotifs.slice(0, 6).map(n => ({
-          id: n.id, 
-          title: n.title, 
-          message: n.message, 
-          // Ginagamit din sa list UI ang 'due' property kaya magfo-format tayo dalawa:
+        // Filter: ONLY specific notifications for this teacher (not 'all')
+        const reminderNotifs = allNotifs.filter(n => {
+          const recipientId = String(n.recipient_id || '');
+          const currentUserId = String(user.id);
+          
+          // Check if this is a specific notification for this user
+          const isNotAll = recipientId.toLowerCase() !== 'all';
+          const matchesUser = recipientId === currentUserId;
+          
+          return isNotAll && matchesUser;
+        });
+        
+        const formattedTasks = reminderNotifs.slice(0, 6).map(n => ({
+          id: n.id,
+          title: n.title,
+          message: n.message,
           due: new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          
-          // Mga properties na eksaktong kailangan ng ReadNotificationModal:
-          type: n.type || 'Task Reminder', 
+          type: n.type || 'Announcement',
           sender: n.sender_name || n.sender_role || 'Admin',
-          time: n.created_at ? new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently',
+          time: n.created_at ? new Date(n.created_at).toLocaleString() : 'Recently',
           attachment: n.attachment,
-          
-          status: n.type === 'Urgent Alert' ? 'Urgent' : n.type === 'Task Reminder' ? 'Pending' : 'Announcement',
+          status: n.type === 'Urgent Alert' ? 'Urgent' : 
+                  n.type === 'Task Reminder' ? 'Pending' : 'Announcement',
         }));
+
         setTasks(formattedTasks);
+      } else {
+        console.log('Notification fetch failed or returned error');
       }
 
       setIsServerOffline(hasError && !schedules.length);
 
-    } catch (e) { 
-      console.error("Dashboard Fetch Error:", e); 
+    } catch (e) {
+      console.error("Dashboard Fetch Error:", e);
       setIsServerOffline(true);
-    } finally { 
-      setTimeout(() => { setIsLoading(false); setIsRetrying(false); }, 800);
+    } finally {
+      setTimeout(() => {
+        setIsLoading(false);
+        setIsRetrying(false);
+      }, 800);
     }
   }, [user?.id, user?.role, API_BASE_URL]);
 
-  useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
-  if (isLoading) return <><style>{SHARED_STYLES}</style><DashboardSkeleton themeColor={themeColor} /></>;
+  if (isLoading) return <DashboardSkeleton themeColor={themeColor} />;
 
   return (
     <div className="flex flex-col lg:h-full lg:overflow-hidden pb-8 lg:pb-0">
-      <style>{SHARED_STYLES}</style>
       
-      {/* 🟢 MODALS (Class Modal at ReadNotificationModal) */}
-      {selectedClass && <ClassDetailsModal class={selectedClass} onClose={() => setSelectedClass(null)} navigate={navigate} />}
+      {/* 🟢 CLASS DETAILS MODAL */}
+      {selectedClass && (
+        <ClassDetailsModal 
+          class={selectedClass} 
+          onClose={() => setSelectedClass(null)} 
+          navigate={navigate} 
+          themeColor={themeColor} 
+        />
+      )}
+
+      {/* 🟢 READ NOTIFICATION MODAL (ITO ANG NA-FIX) */}
       <ReadNotificationModal 
         isOpen={!!selectedNotif} 
         onClose={() => setSelectedNotif(null)} 
@@ -141,7 +134,7 @@ const TeacherDashboard = () => {
       />
 
       <div className="shrink-0 space-y-6 mb-6">
-        <PageHeader title="Overview" subtitle={`Magandang araw! ${user?.full_name?.split(' ')[0]}.`} badge={`SY ${syStart}-${syEnd} | ${semester}`} />
+        <PageHeader title="Overview" subtitle={`Magandang araw! ${user?.full_name?.split(' ')[0]}.`} badge={`SY ${syStart}-${syEnd} | ${semester}`} themeColor={themeColor} />
         <OfflineBanner isServerOffline={isServerOffline} isRetrying={isRetrying} onRetry={() => fetchDashboardData(false)} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           <StatCard icon={<School size={20} />} label="My Classes" value={stats.classes} color={STAT_CARD_COLORS.classes.color} bg={STAT_CARD_COLORS.classes.bg} />
@@ -152,10 +145,15 @@ const TeacherDashboard = () => {
       </div>
 
       <div className="flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:min-h-0">
+        {/* ASSIGNED CLASSES */}
         <div className="lg:col-span-2 bg-white/60 backdrop-blur-md rounded-[2rem] border border-white flex flex-col overflow-hidden shadow-sm min-h-[400px] lg:min-h-0 lg:h-full">
           <div className="px-6 py-5 border-b border-white/50 bg-white/30 shrink-0 flex justify-between items-center">
-            <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2"><Clock className="w-4 h-4 text-indigo-500" /> Assigned Classes</h3>
-            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">{schedules.length} Active</span>
+            <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+              <Clock className="w-4 h-4 text-indigo-500" /> Assigned Classes
+            </h3>
+            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+              {schedules.length} Active
+            </span>
           </div>
           <div className="flex-1 overflow-y-auto custom-scroll p-4 lg:p-6 space-y-3">
             {schedules.map(sched => (
@@ -170,43 +168,61 @@ const TeacherDashboard = () => {
               </div>
             ))}
             {schedules.length === 0 && !isServerOffline && (
-              <div className="h-full flex flex-col items-center justify-center opacity-50"><BookOpen size={48} className="mb-3 text-slate-400" /><p className="font-bold text-slate-500">No assigned classes yet.</p></div>
-            )}
-            {schedules.length === 0 && isServerOffline && (
-              <div className="h-full flex flex-col items-center justify-center opacity-50"><AlertCircle size={48} className="mb-3 text-orange-400" /><p className="font-bold text-slate-500">Cannot load classes right now.</p></div>
+              <div className="h-full flex flex-col items-center justify-center opacity-50">
+                <BookOpen size={48} className="mb-3 text-slate-400" />
+                <p className="font-bold text-slate-500">No assigned classes yet.</p>
+              </div>
             )}
           </div>
         </div>
 
+        {/* REMINDERS */}
         <div className="lg:col-span-1 bg-white/60 backdrop-blur-md rounded-[2rem] border border-white flex flex-col overflow-hidden shadow-sm min-h-[400px] lg:min-h-0 lg:h-full">
           <div className="px-6 py-5 border-b border-white/50 bg-white/30 shrink-0 flex items-center justify-between">
-            <div className="flex items-center gap-2"><AlertCircle className="w-4 h-4 text-orange-500" /><h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Reminders</h3></div>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-orange-500" />
+              <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Reminders</h3>
+            </div>
             {tasks.length > 0 && <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-1 rounded-md border shadow-sm">Recent</span>}
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scroll p-4 lg:p-6 space-y-3">
             {tasks.map(task => {
               const isUrgent = task.status === 'Urgent';
-              const isPending = task.status === 'Pending';
-              const bgClass = isUrgent ? 'bg-red-100 text-red-500' : isPending ? 'bg-orange-100 text-orange-500' : 'bg-blue-100 text-blue-500';
-              const TaskIcon = isUrgent ? Zap : isPending ? AlertCircle : Bell;
+              const bgClass = isUrgent ? 'bg-red-100 text-red-500' : 'bg-orange-100 text-orange-500';
+              const TaskIcon = isUrgent ? Zap : AlertCircle;
 
               return (
-                // 🟢 PINIPINDOT ANG ITEM, LALABAS ANG ReadNotificationModal 🟢
-                <div key={task.id} onClick={() => setSelectedNotif(task)} className="p-4 bg-white/70 rounded-2xl border border-white hover:bg-white hover:shadow-md transition-all cursor-pointer group flex items-start gap-3">
-                  <div className={`p-2 rounded-xl mt-0.5 shadow-sm border border-white ${bgClass}`}><TaskIcon size={14} /></div>
+                <div 
+                  key={task.id} 
+                  onClick={() => setSelectedNotif(task)} 
+                  className="p-4 bg-white/70 rounded-2xl border border-white hover:bg-white hover:shadow-md transition-all cursor-pointer group flex items-start gap-3"
+                  style={{ '--theme-color': themeColor }} /* 🟢 INJECT THE BRAND COLOR AS CSS VARIABLE */
+                >
+                  <div className={`p-2 rounded-xl mt-0.5 shadow-sm border border-white ${bgClass}`}>
+                    <TaskIcon size={14} />
+                  </div>
                   <div className="flex-1">
-                    <p className="text-xs font-black text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors line-clamp-2">{task.title}</p>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase mt-1.5 flex items-center gap-1"><span>{task.type}</span><span className="opacity-50">•</span><span>{task.due}</span></p>
+                    {/* 🟢 USE THE CSS VARIABLE PARA SA GROUP-HOVER */}
+                    <p className="text-xs font-black text-slate-800 leading-tight group-hover:text-[var(--theme-color)] transition-colors line-clamp-2">
+                      {task.title}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mt-1.5 flex items-center gap-1">
+                      <span>{task.type}</span>
+                      <span className="opacity-50">•</span>
+                      <span>{task.due}</span>
+                    </p>
                   </div>
                 </div>
               );
             })}
-            {tasks.length === 0 && !isServerOffline && (
-              <div className="h-full flex flex-col items-center justify-center opacity-60 py-10"><CheckCircle size={40} className="mb-3 text-emerald-400" /><p className="font-bold text-slate-600 text-sm">You're all caught up!</p><p className="text-xs text-slate-400 mt-1">No pending personal tasks.</p></div>
-            )}
-            {tasks.length === 0 && isServerOffline && (
-              <div className="h-full flex flex-col items-center justify-center opacity-50 py-10"><AlertCircle size={40} className="mb-3 text-orange-400" /><p className="font-bold text-slate-500 text-sm">Cannot load tasks.</p></div>
+
+            {tasks.length === 0 && (
+              <div className="h-full flex flex-col items-center justify-center opacity-60 py-10">
+                <CheckCircle size={40} className="mb-3 text-emerald-400" />
+                <p className="font-bold text-slate-600 text-sm">You're all caught up!</p>
+                <p className="text-xs text-slate-400 mt-1">No reminders for now.</p>
+              </div>
             )}
           </div>
         </div>
