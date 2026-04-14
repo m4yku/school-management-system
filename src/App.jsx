@@ -48,7 +48,7 @@ import GradeManagement from './pages/teacher/GradeManagement';
 import TeacherSubjects from './pages/teacher/TeacherSubjects';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import TeacherActivityGrading from './pages/teacher/TeacherActivityGrading';
-import CreateExam from './pages/teacher/CreateExam';
+import CreateExam from './components/shared/CreateExam';
 
 // Layouts
 import AdminLayout from './layouts/AdminLayout';
