@@ -319,6 +319,7 @@ export const gradeStyles = (theme) => `
     font-size: .82rem;
     font-weight: 600;
   }
+    
 
   /* ── TABLE FOOTER ── */
   .gm-table-footer {
@@ -350,4 +351,55 @@ export const gradeStyles = (theme) => `
   @keyframes spin { to { transform: rotate(360deg); } }
   .spin            { animation: spin .6s linear infinite; }
   .gm-loading-text { color: #64748b; font-size: .82rem; font-weight: 600; }
+
+  // Add after the existing styles in gradeStyles()
+
+  /* ── COLLEGE SPECIFIC STYLES ── */
+  .gm-period-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.65rem;
+    background: ${theme}15;
+    border: 1px solid ${theme}30;
+    border-radius: 0.5rem;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: ${theme};
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .gm-grade-scale-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.5rem;
+    background: #f8fafc;
+    border-radius: 0.4rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+  }
+
+  /* College final grade display */
+  .gm-final--college {
+    font-family: 'Plus Jakarta Sans', monospace;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  /* Weight display for college periods */
+  .gm-weight-indicator {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    background: ${theme}10;
+    border-radius: 0.3rem;
+    font-size: 0.55rem;
+    font-weight: 800;
+    color: ${theme};
+    margin-left: 0.25rem;
+  }
 `;
+
