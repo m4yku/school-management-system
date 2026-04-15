@@ -325,69 +325,71 @@ const filteredNotifs = notifications.filter(notif => {
 </div>
         
         <nav className="flex-1 py-6 px-3 space-y-2 sidebar-scroll">
-          {currentMenu.map((item, index) => {
-            const isActive = location.pathname === item.path || (location.pathname.startsWith('/teacher/sections') && item.path === '/teacher/classes') || (location.pathname.startsWith('/teacher/activities') && item.path === '/teacher/activities');
-            return (
+  {currentMenu.map((item, index) => {
+    const isActive = location.pathname === item.path || 
+                     (location.pathname.startsWith('/teacher/sections') && item.path === '/teacher/classes') || 
+                     (location.pathname.startsWith('/teacher/activities') && item.path === '/teacher/activities');
+    return (
+      <Link 
+        key={index} 
+        to={item.path} 
+        state={item.state} 
+        onClick={() => setIsSidebarOpen(false)} 
+        className={`flex items-center rounded-2xl transition-all duration-300 group relative ${
+          isCollapsed ? 'lg:justify-center p-3.5' : 'gap-4 px-4 p-3.5'
+        } ${isActive ? 'text-white shadow-md border border-white/40' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}`}
+        style={isActive ? { backgroundColor: themeColor } : {}}
+      >
+        <span className={`w-6 h-6 flex items-center justify-center shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'} transition-transform group-hover:scale-110`}>
+          {item.icon}
+        </span>
+        
+        <span className={`font-bold text-sm transition-all duration-300 whitespace-nowrap ${isCollapsed ? 'lg:hidden' : ''}`}>
+          {item.label}
+        </span>
+      </Link>
+    );
+  })}
+  
+  {teachingClasses.length > 0 && (
+    <div className="pt-4 mt-4 border-t border-slate-200/60">
+      <p className={`px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 transition-all duration-300 ${isCollapsed ? 'lg:hidden' : ''}`}>
+        Teaching
+      </p>
+      <div className="space-y-1">
+        {teachingClasses.map(cls => {
+          const isActiveClass = location.pathname.includes(`/${cls.id}`);
+          return (
             <Link 
-                  key={index} 
-                  to={item.path} 
-                  state={item.state} 
-                  onClick={() => setIsSidebarOpen(false)} 
-                  className={`flex items-center p-3.5 rounded-2xl transition-all duration-300 group relative gap-4 px-4 ${
-                    isActive ? 'text-white shadow-md border border-white/40' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  style={isActive ? { backgroundColor: themeColor } : {}}
-                >
-                  <span className={`w-6 h-6 flex items-center justify-center shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'} transition-transform group-hover:scale-110`}>
-                    {item.icon}
-                  </span>
-                  
-                  <span className={`font-bold text-sm transition-all duration-300 whitespace-nowrap ${isCollapsed ? 'lg:hidden' : ''}`}>
-                    {item.label}
-                  </span>
-                </Link>
-                );
-          })}
-          
-          {teachingClasses.length > 0 && (
-            <div className="pt-4 mt-4 border-t border-slate-200/60">
-              <p className={`px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 transition-all duration-300 ${isCollapsed ? 'lg:hidden' : ''}`}>
-                Teaching
-              </p>
-              <div className="space-y-1">
-                {teachingClasses.map(cls => {
-                  const isActiveClass = location.pathname.includes(`/${cls.id}`);
-                  return (
-                   <Link 
-                        key={cls.id} 
-                        to={`/teacher/activities/${cls.id}`} 
-                        state={{ tab: 'Stream' }} 
-                        onClick={() => setIsSidebarOpen(false)} 
-                        className={`flex items-center p-2.5 rounded-2xl transition-all duration-200 group relative gap-3 ${
-                          isActiveClass ? 'text-white shadow-md border border-white/40' : 'hover:bg-slate-100/50 border border-transparent'
-                        }`}
-                        style={isActiveClass ? { backgroundColor: themeColor } : {}}
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all ${
-                          isActiveClass ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500 group-hover:bg-slate-300 group-hover:text-slate-700'
-                        }`}>
-                          {cls.subject?.charAt(0) || 'C'}
-                        </div>
-                        <div className={`flex flex-col min-w-0 transition-all duration-300 ${isCollapsed ? 'lg:hidden' : 'flex-1'}`}>
-                          <span className={`text-[13px] font-bold truncate ${isActiveClass ? 'text-white' : 'text-slate-900 group-hover:text-slate-800'}`}>
-                            {cls.subject}
-                          </span>
-                          <span className={`text-[10px] font-semibold truncate ${isActiveClass ? 'text-white/80' : 'text-slate-500'}`}>
-                            {cls.section_name || cls.section}
-                          </span>
-                        </div>
-                      </Link>
-                  );
-                })}
+              key={cls.id} 
+              to={`/teacher/activities/${cls.id}`} 
+              state={{ tab: 'Stream' }} 
+              onClick={() => setIsSidebarOpen(false)} 
+              className={`flex items-center rounded-2xl transition-all duration-200 group relative ${
+                isCollapsed ? 'lg:justify-center p-2.5' : 'gap-3 p-2.5'
+              } ${isActiveClass ? 'text-white shadow-md border border-white/40' : 'hover:bg-slate-100/50 border border-transparent'}`}
+              style={isActiveClass ? { backgroundColor: themeColor } : {}}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all ${
+                isActiveClass ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500 group-hover:bg-slate-300 group-hover:text-slate-700'
+              }`}>
+                {cls.subject?.charAt(0) || 'C'}
               </div>
-            </div>
-          )}
-        </nav>
+              <div className={`flex flex-col min-w-0 transition-all duration-300 ${isCollapsed ? 'lg:hidden' : 'flex-1'}`}>
+                <span className={`text-[13px] font-bold truncate ${isActiveClass ? 'text-white' : 'text-slate-900 group-hover:text-slate-800'}`}>
+                  {cls.subject}
+                </span>
+                <span className={`text-[10px] font-semibold truncate ${isActiveClass ? 'text-white/80' : 'text-slate-500'}`}>
+                  {cls.section_name || cls.section}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  )}
+</nav>
 
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)} 
