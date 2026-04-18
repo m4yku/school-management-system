@@ -58,7 +58,7 @@ import TeacherNotify from './pages/teacher/TeacherNotify';
 import TeacherProfile from './pages/teacher/TeacherProfile';
 import TeacherClasses from './pages/teacher/TeacherClasses';
 import GradeManagement from './pages/teacher/GradeManagement';
-import TeacherSubjects from './pages/teacher/TeacherSubjects';
+import TeacherDTR from './pages/teacher/TeacherDTR';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import TeacherActivityGrading from './pages/teacher/TeacherActivityGrading';
 import CreateExam from './components/shared/CreateExam';
@@ -98,6 +98,7 @@ const Unauthorized = () => (
     <a href="/" className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-blue-200">Balik sa Home</a>
   </div>
 );
+
 
 function App() {
   return (
@@ -160,7 +161,7 @@ function App() {
             <Route path="dashboard" element={<TeacherDashboard />} />
             <Route path="announcements" element={<TeacherNotify />} />
             <Route path="classes" element={<TeacherClasses />} />
-            <Route path="subjects" element={<TeacherSubjects />} />
+            <Route path="dtr" element={<TeacherDTR />} />
             <Route path="profile" element={<TeacherProfile />} />
             <Route path="/teacher/sections/:classId" element={<GradeManagement />} />
             <Route path="/teacher/grades/:classId" element={<GradeManagement />} />

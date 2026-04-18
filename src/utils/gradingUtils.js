@@ -25,21 +25,14 @@ export const getTeacherLevel = (classInfo) => {
 
 /**
  * Returns grading categories matching sms_db `student_grades` columns.
- * K-10 / SHS  → written (30%), performance (50%), exam (20%)  [DepEd]
- * College      → prelim (30%), midterm (30%), finals (40%)
+ * Both K-12 and College use the same categories for input.
  */
 export const getGradingCategories = (level) => {
-  if (level === 'College') {
-    return [
-      { key: 'prelim',      label: 'Prelim',        percentage: '30%', weight: 0.30 },
-      { key: 'midterm',     label: 'Midterm',       percentage: '30%', weight: 0.30 },
-      { key: 'finals',      label: 'Finals',        percentage: '40%', weight: 0.40 },
-    ];
-  }
+  // Both K-12 and College use the same categories
   return [
     { key: 'written',     label: 'Written Work',   percentage: '30%', weight: 0.30 },
     { key: 'performance', label: 'Performance',    percentage: '50%', weight: 0.50 },
-    { key: 'exam',        label: 'Quarterly Exam', percentage: '20%', weight: 0.20 },
+    { key: 'exam',        label: 'Examination',    percentage: '20%', weight: 0.20 },
   ];
 };
 
@@ -84,31 +77,32 @@ export const getGradeStatus = (finalGrade, level) => {
  */
 export const normaliseStudent = (raw) => ({
   ...raw,
-  name:           raw.name || `${raw.first_name || ''} ${raw.last_name || ''}`.trim(),
+  id: raw.id || raw.student_id,
+  name: raw.name || `${raw.first_name || ''} ${raw.last_name || ''}`.trim(),
   student_number: raw.student_number || raw.student_id || '',
-  written:        parseFloat(raw.written)     || 0,
-  performance:    parseFloat(raw.performance) || 0,
-  exam:           parseFloat(raw.exam)        || 0,
-  prelim:         parseFloat(raw.prelim)      || 0,
-  midterm:        parseFloat(raw.midterm)     || 0,
-  finals:         parseFloat(raw.finals)      || 0,
+  written: parseFloat(raw.written) || 0,
+  performance: parseFloat(raw.performance) || 0,
+  exam: parseFloat(raw.exam) || 0,
+  prelim: parseFloat(raw.prelim) || 0,
+  midterm: parseFloat(raw.midterm) || 0,
+  finals: parseFloat(raw.finals) || 0,
 });
 
 /**
  * Builds the payload for saving a single student.
  */
 export const buildStudentPayload = (student, level) => {
-  const final   = calculateFinalGrade(student, level);
+  const final = calculateFinalGrade(student, level);
   const remarks = getGradeStatus(final, level);
   return {
-    student_id:  student.student_number || student.student_id,
-    written:     student.written,
+    student_id: student.student_number || student.student_id,
+    written: student.written,
     performance: student.performance,
-    exam:        student.exam,
-    prelim:      student.prelim,
-    midterm:     student.midterm,
-    finals:      student.finals,
-    final_grade: parseFloat(final),
+    exam: student.exam,
+    prelim: student.prelim,
+    midterm: student.midterm,
+    finals: student.finals,
+    final_grade: parseFloat(final) || 0,
     remarks,
   };
 };
@@ -121,32 +115,141 @@ export const clampGrade = (value) => {
   return isNaN(parsed) ? 0 : Math.min(100, Math.max(0, parsed));
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTIVITY SCORE COMPUTATION FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Computes the Written Work grade for a student from their activity scores.
- *
- * Formula (DepEd): Written Work grade = (sum of scores / sum of highest possible scores) * 100
- * Each activity contributes: (student_score / max_score).
- *
- * @param {string} studentId        - The student's student_id/student_number
- * @param {Array}  writtenActivities - Array of activity objects from get_activities_by_class.php
- *                                    Each must have: { activity_id, max_score }
- * @param {Object} scoresMap        - Map of { [activity_id]: { [student_id]: score } }
- *                                    Built from get_activity_scores.php responses
- * @returns {number} - Computed written grade (0–100), rounded to 2 decimal places
+ * Build scores map from activity scores API response
+ * @param {Array} scoresData - Array of { activity_id, student_id, score }
+ * @returns {Object} - { [activity_id]: { [student_id]: score } }
+ */
+export const buildScoresMap = (scoresData) => {
+  const map = {};
+  if (!scoresData || !Array.isArray(scoresData)) return map;
+  
+  scoresData.forEach(score => {
+    if (!map[score.activity_id]) {
+      map[score.activity_id] = {};
+    }
+    map[score.activity_id][score.student_id] = parseFloat(score.score) || 0;
+  });
+  return map;
+};
+
+/**
+ * Compute Written Work grade from activities
+ * Formula: (Total Student Score / Total Max Score) * 100
+ * @param {string} studentId - Student ID
+ * @param {Array} writtenActivities - Array of written work activities
+ * @param {Object} scoresMap - { [activity_id]: { [student_id]: score } }
+ * @returns {number} - Computed grade (0-100)
  */
 export const computeWrittenFromActivities = (studentId, writtenActivities, scoresMap) => {
   if (!writtenActivities || writtenActivities.length === 0) return 0;
 
-  let totalScore    = 0;
+  let totalScore = 0;
   let totalPossible = 0;
 
   writtenActivities.forEach(activity => {
-    const maxScore      = parseFloat(activity.max_score) || 0;
-    const studentScore  = parseFloat(scoresMap?.[activity.id]?.[studentId] ?? 0);
-    totalScore    += studentScore;
+    const maxScore = parseFloat(activity.max_score) || 0;
+    const studentScore = parseFloat(scoresMap?.[activity.id]?.[studentId] ?? 0);
+    totalScore += studentScore;
     totalPossible += maxScore;
   });
 
   if (totalPossible === 0) return 0;
   return parseFloat(((totalScore / totalPossible) * 100).toFixed(2));
+};
+
+/**
+ * Compute Performance Task grade from activities
+ * Formula: (Total Student Score / Total Max Score) * 100
+ * @param {string} studentId - Student ID
+ * @param {Array} performanceActivities - Array of performance activities
+ * @param {Object} scoresMap - { [activity_id]: { [student_id]: score } }
+ * @returns {number} - Computed grade (0-100)
+ */
+export const computePerformanceFromActivities = (studentId, performanceActivities, scoresMap) => {
+  if (!performanceActivities || performanceActivities.length === 0) return 0;
+
+  let totalScore = 0;
+  let totalPossible = 0;
+
+  performanceActivities.forEach(activity => {
+    const maxScore = parseFloat(activity.max_score) || 0;
+    const studentScore = parseFloat(scoresMap?.[activity.id]?.[studentId] ?? 0);
+    totalScore += studentScore;
+    totalPossible += maxScore;
+  });
+
+  if (totalPossible === 0) return 0;
+  return parseFloat(((totalScore / totalPossible) * 100).toFixed(2));
+};
+
+/**
+ * Compute Examination grade from exam activities
+ * Formula: (Total Student Score / Total Max Score) * 100
+ * @param {string} studentId - Student ID
+ * @param {Array} examActivities - Array of exam activities
+ * @param {Object} scoresMap - { [activity_id]: { [student_id]: score } }
+ * @returns {number} - Computed grade (0-100)
+ */
+export const computeExamFromActivities = (studentId, examActivities, scoresMap) => {
+  if (!examActivities || examActivities.length === 0) return 0;
+
+  let totalScore = 0;
+  let totalPossible = 0;
+
+  examActivities.forEach(activity => {
+    const maxScore = parseFloat(activity.max_score) || 0;
+    const studentScore = parseFloat(scoresMap?.[activity.id]?.[studentId] ?? 0);
+    totalScore += studentScore;
+    totalPossible += maxScore;
+  });
+
+  if (totalPossible === 0) return 0;
+  return parseFloat(((totalScore / totalPossible) * 100).toFixed(2));
+};
+
+/**
+ * Categorize activities by type
+ * @param {Array} activities - Array of all activities
+ * @returns {Object} - { written: [], performance: [], exam: [] }
+ */
+export const categorizeActivities = (activities) => {
+  const writtenCategories = ['written', 'quiz', 'assignment', 'task', 'homework'];
+  const examCategories = ['exam', 'quarterly_exam', 'prelim', 'midterm', 'finals', 'test'];
+  
+  return {
+    written: activities.filter(a => {
+      const cat = (a.category || '').toLowerCase();
+      return writtenCategories.includes(cat);
+    }),
+    performance: activities.filter(a => {
+      const cat = (a.category || '').toLowerCase();
+      return cat === 'performance';
+    }),
+    exam: activities.filter(a => {
+      const cat = (a.category || '').toLowerCase();
+      return examCategories.includes(cat);
+    })
+  };
+};
+
+/**
+ * Compute all auto-grades for a student
+ * @param {string} studentId - Student ID
+ * @param {Array} activities - All activities
+ * @param {Object} scoresMap - { [activity_id]: { [student_id]: score } }
+ * @returns {Object} - { written: number, performance: number, exam: number }
+ */
+export const computeAllAutoGrades = (studentId, activities, scoresMap) => {
+  const categorized = categorizeActivities(activities);
+  
+  return {
+    written: computeWrittenFromActivities(studentId, categorized.written, scoresMap),
+    performance: computePerformanceFromActivities(studentId, categorized.performance, scoresMap),
+    exam: computeExamFromActivities(studentId, categorized.exam, scoresMap)
+  };
 };

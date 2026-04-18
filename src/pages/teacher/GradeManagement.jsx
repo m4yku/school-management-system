@@ -5,7 +5,9 @@ import { useAuth } from '../../context/AuthContext';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import {
   getGradingCategories, calculateFinalGrade, getGradeStatus,
-  normaliseStudent, buildStudentPayload, clampGrade
+  normaliseStudent, buildStudentPayload, clampGrade,
+  buildScoresMap, computeWrittenFromActivities, computeExamFromActivities,
+  categorizeActivities
 } from '../../utils/gradingUtils';
 import { gradeStyles } from '../../components/shared/GradeManagementStyles';
 import { GradeHeader, GradeStats, GradeTable, GradeManagementSkeleton } from '../../components/shared/GradeManagementUI';
@@ -19,9 +21,9 @@ const GradeManagement = () => {
 
   const themeColor = branding?.theme_color || '#6366f1';
 
-  // 🟢 Kinuha na rin natin ang grade_level mula sa location state
+  // ─── STATE ──────────────────────────────────────────────────────────────────
   const { subject: stateSubject, section: stateSection, grade_level: stateGradeLevel, fromActivities } = location.state || {};
-  const initialQuarter = parseInt(searchParams.get('quarter')) || location.state?.quarter || 1;
+  const initialQuarter = parseInt(searchParams.get('quarter')) || parseInt(searchParams.get('period')) || location.state?.quarter || 1;
   const [selectedQuarter, setSelectedQuarter] = useState(initialQuarter);
 
   const [students, setStudents] = useState([]);
@@ -35,112 +37,171 @@ const GradeManagement = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [allActivities, setAllActivities] = useState([]);
+  const [activityScores, setActivityScores] = useState([]);
 
-  // 🟢 DYNAMIC LEVEL COMPUTATION (College, SHS, K-10)
+  // ─── DERIVED VALUES ────────────────────────────────────────────────────────
   const currentLevel = useMemo(() => {
     const dept = (classInfo?.department || '').toUpperCase();
     const gl = (classInfo?.grade_level || classInfo?.level || stateGradeLevel || '').toUpperCase();
     if (dept === 'COLLEGE' || gl.includes('YEAR') || gl.includes('COLLEGE')) return 'College';
     if (dept === 'SHS' || gl.includes('11') || gl.includes('12')) return 'SHS';
-    return 'K-10'; 
+    return 'K-10';
   }, [classInfo, stateGradeLevel]);
 
   const isK12 = currentLevel !== 'College';
-  const categories = getGradingCategories(currentLevel);
+  const categories = useMemo(() => getGradingCategories(currentLevel), [currentLevel]);
 
-  // 🟢 DYNAMIC UI LABELS
   const systemLabel = currentLevel === 'College' ? 'College System' : (currentLevel === 'SHS' ? 'SHS System' : 'JHS System');
   const displaySubject = classInfo?.subject_description || classInfo?.subject_name || stateSubject || 'Grade Management';
   const displaySection = classInfo?.section_name || classInfo?.section || stateSection || 'TBA';
   const displayGradeLevel = classInfo?.grade_level || classInfo?.level || stateGradeLevel || 'Grade Level';
+  const periodLabels = { 1: 'Prelim', 2: 'Midterm', 3: 'Finals' };
 
-  const fetchData = useCallback(async (isInitialLoad = false) => {
-    if (isInitialLoad) setIsLoading(true);
-    try {
-      const token = localStorage.getItem('sms_token');
-      const params = { class_id: classId };
-      if (selectedQuarter && isK12) params.quarter = selectedQuarter;
-
-      const res = await axios.get(`${API_BASE_URL}/teacher/get_class_grades.php`, { params, headers: { Authorization: `Bearer ${token}` } });
-
-      if (res.data.status === 'success') {
-        setClassInfo(prev => res.data.class_info || prev);
-        setStudents(res.data.data.map(normaliseStudent) || []);
-        setIsSubmitted(res.data.class_info?.is_grades_submitted === 1 || res.data.class_info?.is_grades_submitted === true);
-        setIsServerOffline(false);
-      }
-    } catch (err) {
-      setIsServerOffline(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [classId, selectedQuarter, isK12, API_BASE_URL]);
-
+  // ─── FETCH FUNCTIONS ───────────────────────────────────────────────────────
   const fetchActivities = useCallback(async () => {
-    setAllActivities([]); 
     try {
       const token = localStorage.getItem('sms_token') || '';
       const params = { class_id: classId };
       if (isK12) params.quarter = selectedQuarter;
 
-      const res = await axios.get(`${API_BASE_URL}/teacher/get_activities.php`, { params, headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.status === 'success') setAllActivities(res.data.data || []);
-    } catch (err) {}
+      const res = await axios.get(`${API_BASE_URL}/teacher/get_activities.php`, {
+        params,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.status === 'success') {
+        setAllActivities(res.data.data || []);
+        return res.data.data || [];
+      }
+    } catch (err) {
+      console.error('Failed to fetch activities:', err);
+    }
+    return [];
   }, [classId, selectedQuarter, isK12, API_BASE_URL]);
 
+  const fetchActivityScores = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('sms_token') || '';
+      const params = { class_id: classId };
+      if (isK12) params.quarter = selectedQuarter;
+
+      const res = await axios.get(`${API_BASE_URL}/teacher/get_activity_scores.php`, {
+        params,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.status === 'success') {
+        setActivityScores(res.data.data || []);
+        return res.data.data || [];
+      }
+    } catch (err) {
+      console.error('Failed to fetch activity scores:', err);
+    }
+    return [];
+  }, [classId, selectedQuarter, isK12, API_BASE_URL]);
+
+  const fetchData = useCallback(async (isInitialLoad = false) => {
+    if (isInitialLoad) setIsLoading(true);
+    try {
+      const token = localStorage.getItem('sms_token');
+      const params = { class_id: classId, quarter: selectedQuarter };
+
+      const [gradesRes, activities, scores] = await Promise.all([
+        axios.get(`${API_BASE_URL}/teacher/get_class_grades.php`, { params, headers: { Authorization: `Bearer ${token}` } }),
+        fetchActivities(),
+        fetchActivityScores()
+      ]);
+
+      if (gradesRes.data.status === 'success') {
+        setClassInfo(prev => gradesRes.data.class_info || prev);
+        
+        let mappedStudents = gradesRes.data.data.map(normaliseStudent) || [];
+        
+        const scoresMapData = buildScoresMap(scores);
+        const categorized = categorizeActivities(activities);
+        
+        mappedStudents = mappedStudents.map(s => {
+          const studentId = String(s.student_number || s.student_id);
+          return {
+            ...s,
+            written: computeWrittenFromActivities(studentId, categorized.written, scoresMapData),
+            exam: computeExamFromActivities(studentId, categorized.exam, scoresMapData),
+            performance: parseFloat(s.performance) || 0,
+          };
+        });
+        
+        setStudents(mappedStudents);
+        setIsSubmitted(gradesRes.data.class_info?.is_grades_submitted === 1 || gradesRes.data.class_info?.is_grades_submitted === true);
+        setIsServerOffline(false);
+      }
+    } catch (err) {
+      console.error('Fetch data error:', err);
+      setIsServerOffline(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [classId, selectedQuarter, API_BASE_URL, fetchActivities, fetchActivityScores]);
+
+  // ─── EFFECTS ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (user?.id && classId) { fetchData(true); fetchActivities(); }
-  }, [user?.id, classId, selectedQuarter, fetchData, fetchActivities]);
+    if (user?.id && classId) {
+      fetchData(true);
+    }
+  }, [user?.id, classId, selectedQuarter, fetchData]);
 
+  // ─── ACTIVITY COUNT ────────────────────────────────────────────────────────
   const actCount = useMemo(() => {
-    const k12Map = { written: 'written', quiz: 'written', assignment: 'written', task: 'written', performance: 'performance', exam: 'exam', quarterly_exam: 'exam' };
-    const collegeMap = { prelim: 'prelim', midterm: 'midterm', finals: 'finals' };
+    const categorized = categorizeActivities(allActivities);
+    return {
+      written: categorized.written.length,
+      performance: categorized.performance.length,
+      exam: categorized.exam.length,
+    };
+  }, [allActivities]);
 
-    return categories.reduce((acc, cat) => {
-      acc[cat.key] = allActivities.filter(a => {
-        let mappedCat = (a.category ? a.category.toLowerCase() : '');
-        mappedCat = isK12 ? (k12Map[mappedCat] || 'written') : (collegeMap[mappedCat] || mappedCat);
-        return mappedCat === cat.key;
-      }).length;
-      return acc;
-    }, {});
-  }, [allActivities, categories, isK12]);
+  // ─── HANDLERS ──────────────────────────────────────────────────────────────
+  const handleQuarterChange = (quarter) => {
+    setSelectedQuarter(quarter);
+    setSearchParams(isK12 ? { quarter } : { period: quarter }, { replace: true, state: location.state });
+  };
 
   const syncFromActivities = async () => {
     if (isSubmitted) return;
-    const quarterText = isK12 ? `Quarter ${selectedQuarter}` : 'this class';
-    if (!window.confirm(`This will auto-calculate all scores based on recorded activities for ${quarterText}. Continue?`)) return;
+    const quarterText = isK12 ? `Quarter ${selectedQuarter}` : periodLabels[selectedQuarter] || 'this period';
+    if (!window.confirm(`This will auto-calculate Written Work and Examination for ${quarterText}. Continue?`)) return;
 
-    setIsSaving(true); setStatusMsg(null);
+    setIsSaving(true);
+    setStatusMsg(null);
     try {
-      const token = localStorage.getItem('sms_token');
-      const payload = { class_id: parseInt(classId) };
-      if (isK12 && selectedQuarter) payload.quarter = selectedQuarter;
-
-      const res = await axios.post(`${API_BASE_URL}/teacher/sync_grades.php`, payload, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.status === 'success') {
-        setStatusMsg({ type: 'success', text: `Grades synced successfully for ${quarterText}!` });
-        await fetchData(false); await fetchActivities();
-      } else throw new Error(res.data.message || 'Sync failed');
+      await fetchData(false);
+      setStatusMsg({ type: 'success', text: `Grades synced successfully!` });
     } catch (err) {
-      setStatusMsg({ type: 'error', text: err.response?.data?.message || err.message || 'Unknown error' });
+      setStatusMsg({ type: 'error', text: err.message || 'Unknown error' });
     } finally {
-      setIsSaving(false); setTimeout(() => setStatusMsg(null), 5000);
+      setIsSaving(false);
+      setTimeout(() => setStatusMsg(null), 4000);
     }
   };
 
   const handleInputChange = (id, field, value) => {
     if (isSubmitted) return;
-    if (value === '') return setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: '' } : s));
-    if (/^\d+$/.test(value)) {
+    if (field !== 'performance') return;
+    
+    if (value === '') {
+      return setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: '' } : s));
+    }
+    if (/^\d*$/.test(value)) {
       const num = parseInt(value, 10);
-      if (num <= 100) setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: num } : s));
+      if (!isNaN(num) && num <= 100) {
+        setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: num } : s));
+      }
     }
   };
 
   const handleInputBlur = (id, field, value) => {
     if (isSubmitted) return;
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: value === '' ? 0 : clampGrade(value) } : s));
+    if (field !== 'performance') return;
+    setStudents(prev => prev.map(s => 
+      s.id === id ? { ...s, [field]: value === '' ? 0 : clampGrade(value) } : s
+    ));
   };
 
   const saveAllGrades = async () => {
@@ -148,37 +209,61 @@ const GradeManagement = () => {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('sms_token');
-      const payload = { class_id: parseInt(classId), students: students.map(s => buildStudentPayload(s, currentLevel)) };
-      if (isK12 && selectedQuarter) payload.quarter = selectedQuarter;
+      const payload = { 
+        class_id: parseInt(classId), 
+        quarter: selectedQuarter,
+        students: students.map(s => buildStudentPayload(s, currentLevel)) 
+      };
 
-      const res = await axios.post(`${API_BASE_URL}/teacher/save_grades.php`, payload, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.status === 'success') setStatusMsg({ type: 'success', text: 'Draft grades successfully saved!' });
-      else throw new Error(res.data.message || 'Save failed');
-    } catch (err) { setStatusMsg({ type: 'error', text: err.message || 'Save failed.' }); } 
-    finally { setIsSaving(false); setTimeout(() => setStatusMsg(null), 4000); }
+      const res = await axios.post(`${API_BASE_URL}/teacher/save_grades.php`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (res.data.status === 'success') {
+        setStatusMsg({ type: 'success', text: 'Grades saved!' });
+      } else {
+        throw new Error(res.data.message || 'Save failed');
+      }
+    } catch (err) {
+      setStatusMsg({ type: 'error', text: err.message || 'Save failed.' });
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setStatusMsg(null), 4000);
+    }
   };
 
   const submitFinalGrades = async () => {
-    if (!window.confirm("Are you sure you want to SUBMIT these grades? This locks the gradebook.")) return;
+    if (!window.confirm("Submit and lock these grades?")) return;
     setIsSaving(true);
     try {
       const token = localStorage.getItem('sms_token');
       const payload = {
-        class_id: parseInt(classId), quarter: isK12 && selectedQuarter ? selectedQuarter : null,
+        class_id: parseInt(classId),
+        quarter: selectedQuarter,
         students: students.map(s => ({
-          student_id: s.student_id, final_grade: calculateFinalGrade(s, currentLevel),
+          student_id: s.student_id || s.student_number,
+          final_grade: calculateFinalGrade(s, currentLevel),
           remarks: getGradeStatus(calculateFinalGrade(s, currentLevel), currentLevel),
           ...buildStudentPayload(s, currentLevel)
         }))
       };
 
-      const res = await axios.post(`${API_BASE_URL}/teacher/submit_final_grades.php`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.post(`${API_BASE_URL}/teacher/submit_final_grades.php`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
       if (res.data.status === 'success') {
         setStatusMsg({ type: 'success', text: 'Grades submitted and locked!' });
         setIsSubmitted(true);
-      } else throw new Error(res.data.message || 'Submission failed');
-    } catch (err) { setStatusMsg({ type: 'error', text: err.message || 'Failed to submit.' }); } 
-    finally { setIsSaving(false); setTimeout(() => setStatusMsg(null), 4000); }
+      } else {
+        throw new Error(res.data.message || 'Submission failed');
+      }
+    } catch (err) {
+      setStatusMsg({ type: 'error', text: err.message || 'Failed to submit.' });
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setStatusMsg(null), 4000);
+    }
   };
 
   const requestEditPermission = async () => {
@@ -186,33 +271,55 @@ const GradeManagement = () => {
     setIsRequesting(true);
     try {
       const token = localStorage.getItem('sms_token');
-      const payload = { class_id: parseInt(classId), quarter: isK12 && selectedQuarter ? selectedQuarter : null };
-      const res = await axios.post(`${API_BASE_URL}/teacher/request_grade_unlock.php`, payload, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.data.status === 'success') setStatusMsg({ type: 'success', text: 'Unlock request sent.' });
-      else throw new Error(res.data.message || 'Request failed');
-    } catch (err) { setStatusMsg({ type: 'error', text: err.message || 'Failed to send request.' }); } 
-    finally { setIsRequesting(false); setTimeout(() => setStatusMsg(null), 4000); }
+      const payload = { class_id: parseInt(classId), quarter: selectedQuarter };
+      
+      const res = await axios.post(`${API_BASE_URL}/teacher/request_grade_unlock.php`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (res.data.status === 'success') {
+        setStatusMsg({ type: 'success', text: 'Unlock request sent.' });
+      } else {
+        throw new Error(res.data.message || 'Request failed');
+      }
+    } catch (err) {
+      setStatusMsg({ type: 'error', text: err.message || 'Failed to send request.' });
+    } finally {
+      setIsRequesting(false);
+      setTimeout(() => setStatusMsg(null), 4000);
+    }
   };
 
-  const handleGoBack = () => navigate(fromActivities ? `/teacher/activities/${classId}` : '/teacher/classes');
+  const handleGoBack = () => {
+    navigate(fromActivities ? `/teacher/activities/${classId}` : '/teacher/classes');
+  };
 
-  const stats = useMemo(() => students.reduce((acc, s) => {
-    getGradeStatus(calculateFinalGrade(s, currentLevel), currentLevel) === 'Passed' ? acc.passed++ : acc.failed++;
-    return acc;
-  }, { passed: 0, failed: 0 }), [students, currentLevel]);
+  // ─── COMPUTED STATS ────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    return students.reduce((acc, s) => {
+      const finalGrade = calculateFinalGrade(s, currentLevel);
+      const status = getGradeStatus(finalGrade, currentLevel);
+      status === 'Passed' ? acc.passed++ : acc.failed++;
+      return acc;
+    }, { passed: 0, failed: 0 });
+  }, [students, currentLevel]);
 
   const passRate = students.length ? Math.round((stats.passed / students.length) * 100) : 0;
 
   const filteredStudents = useMemo(() => {
     const q = searchQuery.toLowerCase();
     return students.filter(s => {
-      const matchSearch = !q || (s.name || '').toLowerCase().includes(q) || (s.student_number || '').toLowerCase().includes(q);
+      const matchSearch = !q || 
+        (s.name || '').toLowerCase().includes(q) || 
+        (s.student_number || '').toLowerCase().includes(q);
       if (!matchSearch) return false;
       if (filterStatus === 'All') return true;
-      return getGradeStatus(calculateFinalGrade(s, currentLevel), currentLevel) === filterStatus;
+      const finalGrade = calculateFinalGrade(s, currentLevel);
+      return getGradeStatus(finalGrade, currentLevel) === filterStatus;
     });
   }, [students, searchQuery, filterStatus, currentLevel]);
 
+  // ─── RENDER ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <>
@@ -223,20 +330,37 @@ const GradeManagement = () => {
   }
 
   return (
-    <div className="gm-root">
+  <div className="gm-root w-full max-w-full overflow-hidden px-1 sm:px-3" style={{ maxWidth: '100vw' }}>
       <style>{gradeStyles(themeColor)}</style>
-      
-      <GradeHeader 
-        displaySubject={displaySubject} displayGradeLevel={displayGradeLevel} displaySection={displaySection}
-        systemLabel={systemLabel} isK12={isK12} selectedQuarter={selectedQuarter} setSelectedQuarter={setSelectedQuarter}
-        setSearchParams={setSearchParams} locationState={location.state} themeColor={themeColor} isSubmitted={isSubmitted}
-        handleGoBack={handleGoBack} syncFromActivities={syncFromActivities} saveAllGrades={saveAllGrades}
-        submitFinalGrades={submitFinalGrades} requestEditPermission={requestEditPermission}
-        isSaving={isSaving} isServerOffline={isServerOffline} isRequesting={isRequesting}
+
+      <GradeHeader
+        displaySubject={displaySubject}
+        displayGradeLevel={displayGradeLevel}
+        displaySection={displaySection}
+        systemLabel={systemLabel}
+        isK12={isK12}
+        selectedQuarter={selectedQuarter}
+        setSelectedQuarter={handleQuarterChange}
+        setSearchParams={setSearchParams}
+        locationState={location.state}
+        themeColor={themeColor}
+        isSubmitted={isSubmitted}
+        handleGoBack={handleGoBack}
+        syncFromActivities={syncFromActivities}
+        saveAllGrades={saveAllGrades}
+        submitFinalGrades={submitFinalGrades}
+        requestEditPermission={requestEditPermission}
+        isSaving={isSaving}
+        isServerOffline={isServerOffline}
+        isRequesting={isRequesting}
       />
 
-      {isServerOffline && <div className="gm-offline-banner"><AlertCircle size={15} /> Server is offline. Showing cached data.</div>}
-      
+      {isServerOffline && (
+        <div className="gm-offline-banner">
+          <AlertCircle size={15} /> Server is offline. Showing cached data.
+        </div>
+      )}
+
       {statusMsg && (
         <div className={`gm-status gm-status--${statusMsg.type}`}>
           {statusMsg.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
@@ -244,13 +368,29 @@ const GradeManagement = () => {
         </div>
       )}
 
-      <GradeStats studentsLength={students.length} stats={stats} passRate={passRate} themeColor={themeColor} />
+      <GradeStats
+        studentsLength={students.length}
+        stats={stats}
+        passRate={passRate}
+        themeColor={themeColor}
+      />
 
-      <GradeTable 
-        themeColor={themeColor} categories={categories} actCount={actCount} isK12={isK12} isSubmitted={isSubmitted}
-        studentsLength={students.length} filteredStudents={filteredStudents} handleInputChange={handleInputChange}
-        handleInputBlur={handleInputBlur} currentLevel={currentLevel} searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery} filterStatus={filterStatus} setFilterStatus={setFilterStatus} classInfo={classInfo}
+      <GradeTable
+        themeColor={themeColor}
+        categories={categories}
+        actCount={actCount}
+        isK12={isK12}
+        isSubmitted={isSubmitted}
+        studentsLength={students.length}
+        filteredStudents={filteredStudents}
+        handleInputChange={handleInputChange}
+        handleInputBlur={handleInputBlur}
+        currentLevel={currentLevel}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        classInfo={classInfo}
       />
     </div>
   );
