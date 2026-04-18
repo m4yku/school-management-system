@@ -6,7 +6,7 @@ import {
   BookOpen, CreditCard, UserCircle, Search, Receipt, 
   History, ClipboardList, GraduationCap, Layers, FileText,
   Library, Award, ChevronLeft, ChevronRight, MapPin,
-  Bell, Megaphone, Banknote, FileSpreadsheet
+  Bell, Megaphone, Banknote, FileCheck2, Image
 } from 'lucide-react'; 
 import { useAuth } from '../context/AuthContext';
 import UserProfileModal from '../components/admin/UserProfileModal'; 
@@ -21,7 +21,7 @@ const AdminLayout = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   // ==========================================
-  // 🚀 ARCHITECT UPDATE: NOTIFICATION STATES
+  // 🚀 NOTIFICATION STATES
   // ==========================================
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isCreateNotifModalOpen, setIsCreateNotifModalOpen] = useState(false);
@@ -29,11 +29,9 @@ const AdminLayout = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedNotification, setSelectedNotification] = useState(null);
 
-  // 1. FETCH NOTIFICATIONS FROM BACKEND
   const fetchNotifications = async () => {
     if (!user) return;
     try {
-      // Gagamit tayo ng student_id kung student, o id kung staff
       const currentId = user.role === 'student' ? user.student_id : user.id;
       const response = await axios.get(
         `${API_BASE_URL}/notifications/get_notifications.php?user_id=${currentId}&role=${user.role}`
@@ -42,48 +40,36 @@ const AdminLayout = () => {
         setNotifications(response.data.notifications);
         setUnreadCount(response.data.unread_count);
       }
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    }
+    } catch (error) { console.error("Error fetching notifications:", error); }
   };
 
-  // Auto-fetch tuwing mag-load ang layout o magpalit ng user
   useEffect(() => {
     fetchNotifications();
-    // Optional: Mag-set ng interval para mag-check ng bagong notif tuwing 1 minute
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, [user]);
 
-  // 2. MARK AS READ LOGIC
   const handleNotifClick = async (notif) => {
     const currentId = user.role === 'student' ? user.student_id : user.id;
-    
-    // I-set ang selected notif para lumabas ang modal
     setSelectedNotification({
       ...notif,
       sender: notif.sender_name || "System",
       time: new Date(notif.created_at).toLocaleString(),
       hasImage: notif.attachment ? true : false
     });
+    setIsNotifOpen(false);
 
-    setIsNotifOpen(false); // Isara ang dropdown
-
-    // Kung unread pa, tawagin ang API para maging read
     if (notif.is_read === 0) {
       try {
         await axios.post(`${API_BASE_URL}/notifications/mark_as_read.php`, {
           notification_id: notif.id,
           user_id: currentId
         });
-        fetchNotifications(); // Refresh para mawala ang red dot/badge
-      } catch (error) {
-        console.error("Error marking as read:", error);
-      }
+        fetchNotifications(); 
+      } catch (error) { console.error("Error marking as read:", error); }
     }
   };
 
-  // Helper para sa icon ng notif list
   const getNotifIcon = (type) => {
     switch (type) {
       case 'Urgent Alert': return <AlertTriangle size={16} className="text-red-600" />;
@@ -97,6 +83,7 @@ const AdminLayout = () => {
       { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/admin/dashboard' },
       { icon: <Users size={20} />, label: 'User Management', path: '/admin/users' },
       { icon: <Settings size={20} />, label: 'Branding Engine', path: '/admin/branding' },
+      { icon: <Image size={20} />, label: 'Landing Banners', path: '/admin/promotions' },
       { icon: <MapPin size={20} />, label: 'Room Management', path: '/admin/rooms' },
     ],
     registrar: [
@@ -111,7 +98,7 @@ const AdminLayout = () => {
         { icon: <FileText size={20} />, label: 'Student Requests', path: '/registrar/requests' }, 
         { icon: <Award size={20} />, label: 'Scholarship Applications', path: '/registrar/scholarships' },
         { icon: <Layers size={20} />, label: 'Section Management', path: '/registrar/sections' },
-        { icon: <FileSpreadsheet size={20} />, label: 'Student Grades', path: '/registrar/grades' },
+        { icon: <FileCheck2 size={20} />, label: 'Student Grades', path: '/registrar/grades' },
     ],
     cashier: [
         { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/cashier/dashboard' },
@@ -135,48 +122,88 @@ const AdminLayout = () => {
         <div className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      {/* 2. SIDEBAR */}
+      {/* 2. SIDEBAR - ARCHITECT FIX: Inalis ang bg-color at overflow-hidden dito para hindi maputol ang button */}
       <aside className={`
-        fixed z-50 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 ease-in-out shadow-2xl
+        fixed z-40 transition-all duration-300 ease-in-out
         inset-y-0 left-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        lg:translate-x-0 lg:static lg:h-[calc(100vh-2rem)] lg:my-4 lg:ml-4 lg:rounded-[2rem]
+        lg:translate-x-0 lg:relative lg:h-[calc(100vh-2rem)] lg:my-4 lg:ml-4
         w-64 ${isCollapsed ? 'lg:w-[5.5rem]' : 'lg:w-64'} 
       `}>
-        {/* ... Sidebar Content stays same ... */}
-        <div className={`h-20 px-4 border-b border-slate-800 flex items-center shrink-0 transition-all justify-between ${isCollapsed ? 'lg:justify-center' : 'lg:justify-between'}`}>
-          <div className="flex items-center gap-3 overflow-hidden">
-            {branding.school_logo ? (
-              <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} alt="Logo" className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-lg" />
-            ) : (
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black shrink-0 shadow-lg" style={{ backgroundColor: branding.theme_color || '#2563eb' }}>{branding.school_name?.charAt(0)}</div>
-            )}
-            <span className={`text-[15px] leading-tight font-black text-white tracking-tight line-clamp-2 w-36 ${isCollapsed ? 'lg:w-0 lg:opacity-0 lg:hidden' : ''}`}>{branding.school_name}</span>
-          </div>
-        </div>
+        
+        {/* COLLAPSE BUTTON - Ngayon ay makakalabas na ito ng sidebar nang buo */}
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="hidden lg:flex absolute right-0 translate-x-1/2 top-10 w-8 h-8 bg-blue-600 text-white rounded-full items-center justify-center shadow-md border-[3px] border-slate-50 z-50 hover:bg-blue-700 hover:scale-105 transition-all"
+        >
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} strokeWidth={2.5} />}
+        </button>
 
-        <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto scrollbar-hide">
-          {currentMenu.map((item, index) => {
-            if (item.type === 'header') return <div key={index} className="pt-6 pb-2 px-3"><p className="text-[10px] font-black uppercase text-slate-500">{item.label}</p></div>;
-            const isActive = location.pathname === item.path;
-            return (
-              <Link key={index} to={item.path} className={`flex items-center p-3 rounded-2xl transition-all ${isActive ? 'text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800'} ${isCollapsed ? 'lg:justify-center' : 'gap-4'}`} style={isActive ? { backgroundColor: branding.theme_color || '#2563eb' } : {}}>
-                {item.icon}
-                {!isCollapsed && <span className="font-bold text-sm">{item.label}</span>}
-              </Link>
-            );
-          })}
-        </nav>
-        {/* ... Footer stays same ... */}
-        <div className="p-4 border-t border-slate-800 shrink-0">
-             <button onClick={logout} className="flex items-center p-3 rounded-2xl hover:bg-red-500/10 text-slate-400 hover:text-red-400 w-full gap-3 transition-all">
-                <LogOut size={20} />
-                {!isCollapsed && <span className="text-sm font-bold">Sign Out</span>}
-             </button>
+        {/* VISUAL BOX - Dito napunta ang kulay at ang overflow-hidden para mapigilan ang text bleed */}
+        <div className="bg-slate-900 text-slate-300 flex flex-col w-full h-full overflow-hidden shadow-2xl lg:rounded-[2rem]">
+          
+          {/* LOGO HEADER */}
+          <div className={`h-20 px-4 border-b border-slate-800 flex items-center shrink-0 transition-all ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
+            <div className="flex items-center gap-3 overflow-hidden">
+              {branding.school_logo ? (
+                <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} alt="Logo" className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-lg" />
+              ) : (
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black shrink-0 shadow-lg" style={{ backgroundColor: branding.theme_color || '#2563eb' }}>{branding.school_name?.charAt(0)}</div>
+              )}
+              <span className={`text-[15px] leading-tight font-black text-white tracking-tight line-clamp-2 w-36 whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'lg:w-0 lg:opacity-0 lg:hidden' : 'opacity-100'}`}>
+                  {branding.school_name}
+              </span>
+            </div>
+          </div>
+
+          {/* NAVIGATION LIST */}
+          <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {currentMenu.map((item, index) => {
+              
+              if (item.type === 'header') {
+                  return (
+                    <React.Fragment key={index}>
+                      <div className={`my-4 mx-auto w-6 border-t border-slate-700 hidden ${isCollapsed ? 'lg:block' : ''}`}></div>
+                      <div className={`pt-6 pb-2 px-3 ${isCollapsed ? 'lg:hidden' : ''}`}>
+                          <p className="text-[10px] font-black uppercase text-slate-500 whitespace-nowrap truncate">{item.label}</p>
+                      </div>
+                    </React.Fragment>
+                  );
+              }
+
+              const isActive = location.pathname === item.path;
+              return (
+                <Link 
+                  key={index} 
+                  to={item.path} 
+                  className={`flex items-center p-3 rounded-2xl transition-all ${isActive ? 'text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${isCollapsed ? 'lg:justify-center gap-0' : 'gap-4'}`} 
+                  style={isActive ? { backgroundColor: branding.theme_color || '#2563eb' } : {}}
+                  title={isCollapsed ? item.label : ''} 
+                >
+                  <div className="shrink-0">{item.icon}</div>
+                  <span className={`font-bold text-sm whitespace-nowrap truncate transition-all duration-300 ${isCollapsed ? 'lg:hidden lg:w-0 lg:opacity-0' : 'opacity-100'}`}>
+                      {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+          
+          {/* FOOTER */}
+          <div className="p-4 border-t border-slate-800 shrink-0">
+               <button 
+                  onClick={logout} 
+                  className={`flex items-center p-3 rounded-2xl hover:bg-red-500/10 text-slate-400 hover:text-red-400 w-full transition-all ${isCollapsed ? 'lg:justify-center' : 'gap-3'}`}
+                  title={isCollapsed ? "Sign Out" : ""}
+               >
+                  <LogOut size={20} className="shrink-0" />
+                  <span className={`text-sm font-bold whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'lg:hidden lg:w-0 lg:opacity-0' : 'opacity-100'}`}>Sign Out</span>
+               </button>
+          </div>
         </div>
       </aside>
 
       {/* 3. MAIN CONTENT */}
-      <main className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto z-10">
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 lg:px-10 sticky top-0 z-30 shrink-0 shadow-sm">
           <div className="flex items-center space-x-4">
             <button className="p-2 lg:hidden text-slate-600" onClick={() => setIsSidebarOpen(true)}><Menu size={20} /></button>
@@ -187,15 +214,11 @@ const AdminLayout = () => {
             
             {/* NOTIFICATION SECTION */}
             <div className="flex items-center space-x-2 mr-6 pr-6 border-r border-slate-200 relative">
-              
-              {/* CREATE BUTTON (Only for Staff/Admin) */}
               {user?.role !== 'student' && (
                 <button onClick={() => setIsCreateNotifModalOpen(true)} className="p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all">
                     <Megaphone size={20} />
                 </button>
               )}
-
-              {/* BELL DROPDOWN */}
               <div className="relative">
                 <button onClick={() => setIsNotifOpen(!isNotifOpen)} className={`p-2.5 rounded-full transition-all relative ${isNotifOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}>
                   <Bell size={20} />
@@ -228,7 +251,6 @@ const AdminLayout = () => {
                           >
                             {notif.is_read === 0 && <div className="w-2 h-2 bg-blue-500 rounded-full absolute left-2 top-1/2 -translate-y-1/2" />}
                             
-                            {/* SENDER IMAGE OR ICON */}
                             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 ml-2 overflow-hidden border border-slate-200">
                                {notif.sender_image ? (
                                  <img src={`${API_BASE_URL}/uploads/profiles/${notif.sender_image}`} className="w-full h-full object-cover" />
@@ -281,7 +303,7 @@ const AdminLayout = () => {
         isOpen={isCreateNotifModalOpen} 
         onClose={() => {
             setIsCreateNotifModalOpen(false);
-            fetchNotifications(); // Refresh para makita yung bagong gawa
+            fetchNotifications(); 
         }} 
       />
 

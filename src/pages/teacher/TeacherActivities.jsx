@@ -1,694 +1,374 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { getTeacherLevel, getGradingCategories } from '../../utils/gradingUtils';
 import {
-  Plus, ArrowLeft, Calendar, FileText, CheckCircle,
-  AlertCircle, Target, Layers, Filter, X, Edit3, Target as TargetIcon,
-  BookOpen, Hash, AlignLeft, School
+  Plus, BookOpen, FileText, MoreVertical, ChevronDown, ChevronUp, MessageSquare, Share, Link as LinkIcon, Edit3
 } from 'lucide-react';
-import { activityStyles } from '../../components/shared/activityStyles';
-import OfflineBanner from '../../utils/offlinebanner';
 
-// ─── 1. UTILS & CONSTANTS ─────────────────────────────────────────────────────
-
-const quarterLabel = (q) => (q ? `Q${q}` : null);
-
-const quarterColors = {
-  1: { bg: '#dbeafe', color: '#1e40af' },
-  2: { bg: '#d1fae5', color: '#065f46' },
-  3: { bg: '#fef3c7', color: '#92400e' },
-  4: { bg: '#ede9fe', color: '#5b21b6' },
-};
-
-const MODAL_GLOBAL_STYLES = `
-  @keyframes fadeInOverlay { 
-    from { opacity: 0; backdrop-filter: blur(0px); } 
-    to { opacity: 1; backdrop-filter: blur(6px); } 
-  }
-  @keyframes popInModal { 
-    0% { opacity: 0; transform: scale(0.95) translateY(20px); } 
-    100% { opacity: 1; transform: scale(1) translateY(0); } 
-  }
-  
-  .glass-overlay {
-    position: fixed; inset: 0; z-index: 100; background: rgba(15, 23, 42, 0.4);
-    display: flex; align-items: center; justify-content: center; padding: 1rem;
-    animation: fadeInOverlay 0.3s ease-out forwards;
-  }
-  .glass-modal {
-    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
-    border-radius: 1.5rem; width: 100%; animation: popInModal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; overflow: hidden;
-  }
-
-  .type-card {
-    display: flex; flex-direction: column; text-align: left; padding: 1.5rem; border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.6); border: 2px solid transparent; cursor: pointer; transition: all 0.25s ease;
-  }
-  .type-card:hover { background: #ffffff; transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08); }
-  .type-card.basic:hover { border-color: #cbd5e1; }
-  .type-card.exam:hover { border-color: var(--theme-color); }
-  .type-icon-wrapper { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
-
-  /* Modern Inputs UI */
-  .glass-input-group { display: flex; flex-direction: column; gap: 0.4rem; }
-  .glass-label { font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
-  .input-with-icon { position: relative; display: flex; align-items: center; }
-  .input-with-icon.align-top { align-items: flex-start; }
-  .input-icon { position: absolute; left: 1rem; color: #94a3b8; pointer-events: none; }
-  .pl-10 { padding-left: 2.75rem !important; }
-  .pt-3 { padding-top: 0.75rem !important; }
-  
-  .glass-input-modern {
-    width: 100%; padding: 0.85rem 1rem; background: #f8fafc;
-    border: 1.5px solid rgba(0, 0, 0, 0.08); border-radius: 0.75rem;
-    font-family: inherit; font-size: 0.95rem; color: #1e293b; transition: all 0.2s ease;
-  }
-  .glass-input-modern:focus {
-    outline: none; background: #ffffff; border-color: var(--theme-color);
-    box-shadow: 0 0 0 4px var(--theme-color)20;
-  }
-  .glass-input-modern::placeholder { color: #cbd5e1; }
-`;
-
-// ─── 2. SKELETON LOADER COMPONENT ─────────────────────────────────────────────
-
-const ActivitySkeletonCard = ({ themeColor }) => (
-  <div className="bg-white/60 backdrop-blur-md border border-white rounded-2xl p-5 flex flex-col gap-4 shadow-sm relative overflow-hidden min-h-[220px]">
-    <style>{`
-      @keyframes dashSkPulse { 
-        0% { background-color: ${themeColor}15; } 
-        50% { background-color: ${themeColor}30; } 
-        100% { background-color: ${themeColor}15; } 
-      }
-      .dash-sk { animation: dashSkPulse 1.6s ease-in-out infinite; }
-    `}</style>
-    
-    <div className="flex justify-between items-start gap-3">
-      <div className="dash-sk" style={{ width: '60%', height: '24px', borderRadius: '8px' }} />
-      <div className="dash-sk" style={{ width: '25%', height: '24px', borderRadius: '9999px' }} />
-    </div>
-
-    <div className="flex flex-col gap-2 mt-1">
-      <div className="dash-sk" style={{ width: '100%', height: '14px', borderRadius: '6px' }} />
-      <div className="dash-sk" style={{ width: '80%', height: '14px', borderRadius: '6px' }} />
-    </div>
-
-    <div className="flex gap-4 mt-auto pt-4 border-t border-white/50">
-      <div className="dash-sk" style={{ width: '35%', height: '16px', borderRadius: '6px' }} />
-      <div className="dash-sk" style={{ width: '45%', height: '16px', borderRadius: '6px' }} />
-    </div>
-
-    <div className="dash-sk mt-1" style={{ width: '100%', height: '40px', borderRadius: '0.75rem' }} />
-  </div>
-);
-
-// ─── 3. TYPE SELECTOR MODAL COMPONENT ─────────────────────────────────────────
-
-const TypeSelectorModal = ({ isOpen, onClose, onSelectBasic, onSelectExam, themeColor }) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="glass-overlay" onClick={onClose}>
-      <div className="glass-modal" style={{ maxWidth: '440px' }} onClick={e => e.stopPropagation()}>
-        
-        <div style={{ padding: '2.5rem 2rem', textAlign: 'center' }}>
-          <div 
-            style={{ 
-              width: '56px', height: '56px', background: `${themeColor}15`, 
-              color: themeColor, borderRadius: '50%', display: 'flex', 
-              alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto' 
-            }}
-          >
-            <Layers size={28} />
-          </div>
-          
-          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#1e293b' }}>What to create?</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem', marginTop: '0.5rem', marginBottom: '2rem' }}>
-            Select the type of activity you want to assign to your students.
-          </p>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <button className="type-card basic" onClick={onSelectBasic}>
-              <div className="type-icon-wrapper" style={{ background: '#f1f5f9', color: '#475569' }}>
-                <Edit3 size={22} />
-              </div>
-              <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '1.1rem' }}>Written Work / Task</div>
-              <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.4rem', lineHeight: 1.4 }}>
-                Standard assignment. Students submit offline or you manually encode their scores.
-              </div>
-            </button>
-
-            <button className="type-card exam" style={{ background: `${themeColor}08` }} onClick={onSelectExam}>
-              <div className="type-icon-wrapper" style={{ background: themeColor, color: 'white', boxShadow: `0 4px 12px ${themeColor}40` }}>
-                <TargetIcon size={22} />
-              </div>
-              <div style={{ fontWeight: 800, color: themeColor, fontSize: '1.1rem' }}>Interactive Examination</div>
-              <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.4rem', lineHeight: 1.4 }}>
-                Create a dynamic quiz with multiple choices. The system grades it automatically.
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <div style={{ background: '#f8fafc', padding: '1rem', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
-          <button 
-            onClick={onClose} 
-            style={{ 
-              background: 'transparent', border: 'none', color: '#64748b', fontWeight: 600, 
-              cursor: 'pointer', padding: '0.6rem 1.5rem', borderRadius: '0.5rem', transition: 'all 0.2s ease' 
-            }} 
-            onMouseOver={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; }} 
-            onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
-          >
-            Cancel
-          </button>
-        </div>
-
-      </div>
-    </div>
-  );
-};
-
-// ─── 4. CREATE ACTIVITY MODAL COMPONENT (READ-ONLY CLASS UI) ──────────────────
-
-const CreateActivityModal = ({ isOpen, onClose, formData, setFormData, onSubmit, isSubmitting, selectedClass, modalCategories, isModalKto12, themeColor }) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="glass-overlay" onClick={onClose}>
-      <div className="glass-modal" style={{ maxWidth: '580px', padding: 0 }} onClick={e => e.stopPropagation()}>
-        
-        {/* Header */}
-        <div style={{ 
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-          padding: '1.5rem 2rem', background: `linear-gradient(to right, #ffffff, ${themeColor}0A)`, 
-          borderBottom: '1px solid rgba(0,0,0,0.05)' 
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ background: themeColor, color: 'white', padding: '0.5rem', borderRadius: '0.75rem', boxShadow: `0 4px 10px ${themeColor}40` }}>
-              <Edit3 size={20} />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#1e293b' }}>New Basic Activity</h2>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', marginTop: '0.1rem' }}>Encode a written work or standard task</p>
-            </div>
-          </div>
-          <button 
-            onClick={onClose} 
-            style={{ 
-              background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%', width: '36px', height: '36px', 
-              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', 
-              boxShadow: '0 2px 5px rgba(0,0,0,0.05)', transition: 'all 0.2s' 
-            }} 
-            onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'} 
-            onMouseOut={e => e.currentTarget.style.background = 'white'}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <form onSubmit={onSubmit} style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-          {/* Read-Only Class Display & Quarter Selection */}
-          <div style={{ display: 'grid', gridTemplateColumns: isModalKto12 ? '1fr 1fr' : '1fr', gap: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
-            
-            <div>
-              <label className="glass-label"><School size={12} style={{ display: 'inline', marginRight: '4px', marginBottom: '2px' }}/> Assigned Class</label>
-              <div 
-                style={{ 
-                  padding: '0.85rem 1rem', background: '#f8fafc',
-                  border: '1.5px solid rgba(0, 0, 0, 0.08)', borderRadius: '0.75rem',
-                  fontFamily: 'inherit', fontSize: '0.95rem', color: '#1e293b', fontWeight: 700,
-                  display: 'flex', alignItems: 'center'
-                }}
-              >
-                {selectedClass ? `${selectedClass.subject_description} - ${selectedClass.section_name || selectedClass.section}` : 'Loading details...'}
-              </div>
-            </div>
-
-            {isModalKto12 && (
-              <div>
-                <label className="glass-label">Academic Quarter <span style={{ color: '#ef4444' }}>*</span></label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
-                  {[1, 2, 3, 4].map(q => {
-                    const qc = quarterColors[q];
-                    const selected = String(formData.quarter) === String(q);
-                    return (
-                      <button
-                        key={q} 
-                        type="button" 
-                        onClick={() => setFormData(prev => ({ ...prev, quarter: q }))}
-                        style={{
-                          padding: '0.75rem 0', borderRadius: '0.75rem',
-                          border: selected ? `2px solid ${qc.color}` : '1.5px solid rgba(0,0,0,0.08)',
-                          background: selected ? qc.bg : '#f8fafc',
-                          color: selected ? qc.color : '#64748b',
-                          fontWeight: selected ? 800 : 600, fontSize: '0.9rem', cursor: 'pointer',
-                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', 
-                          transform: selected ? 'scale(1.02)' : 'scale(1)',
-                          boxShadow: selected ? `0 6px 12px ${qc.color}30` : 'none'
-                        }}
-                      >
-                        Q{q}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Title & Category */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
-            <div className="glass-input-group">
-              <label className="glass-label">Activity Title</label>
-              <div className="input-with-icon">
-                <BookOpen size={18} className="input-icon" />
-                <input 
-                  required type="text" className="glass-input-modern pl-10" placeholder="e.g. Chapter 1 Essay" 
-                  value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} 
-                />
-              </div>
-            </div>
-
-            <div className="glass-input-group">
-              <label className="glass-label">Grading Category</label>
-              <select 
-                required className="glass-input-modern" 
-                value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}
-              >
-                <option value="" disabled>Select...</option>
-                {modalCategories.filter(cat => cat.key !== 'performance').map(cat => (
-                  <option key={cat.key} value={cat.key}>{cat.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Score & Due Date */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            <div className="glass-input-group">
-              <label className="glass-label">Max Score</label>
-              <div className="input-with-icon">
-                <Hash size={18} className="input-icon" />
-                <input 
-                  required type="number" min="1" className="glass-input-modern pl-10" placeholder="100" 
-                  value={formData.max_score} onChange={e => setFormData({ ...formData, max_score: e.target.value })} 
-                />
-              </div>
-            </div>
-            
-            <div className="glass-input-group">
-              <label className="glass-label">Due Date <span style={{fontWeight: 400, textTransform: 'none', color: '#94a3b8'}}>(Optional)</span></label>
-              <div className="input-with-icon">
-                <Calendar size={18} className="input-icon" />
-                <input 
-                  type="date" className="glass-input-modern pl-10" 
-                  value={formData.due_date} onChange={e => setFormData({ ...formData, due_date: e.target.value })} 
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Instructions */}
-          <div className="glass-input-group">
-            <label className="glass-label">Instructions <span style={{fontWeight: 400, textTransform: 'none', color: '#94a3b8'}}>(Optional)</span></label>
-            <div className="input-with-icon align-top">
-              <AlignLeft size={18} className="input-icon mt-3" />
-              <textarea 
-                className="glass-input-modern pl-10 pt-3" placeholder="Enter specific instructions or remarks..." 
-                value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} 
-                style={{ minHeight: '90px', resize: 'vertical' }} 
-              />
-            </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
-            <button 
-              type="button" 
-              onClick={onClose} 
-              style={{ background: 'transparent', border: 'none', color: '#64748b', fontWeight: 600, padding: '0.75rem 1.5rem', cursor: 'pointer', borderRadius: '0.75rem', transition: 'all 0.2s ease' }} 
-              onMouseOver={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; }} 
-              onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" disabled={isSubmitting} 
-              style={{ 
-                display: 'flex', alignItems: 'center', gap: '0.5rem', background: themeColor, color: 'white', border: 'none', 
-                fontWeight: 700, padding: '0.75rem 2rem', borderRadius: '0.75rem', cursor: isSubmitting ? 'not-allowed' : 'pointer', 
-                opacity: isSubmitting ? 0.7 : 1, boxShadow: `0 4px 15px ${themeColor}40`, transition: 'all 0.2s ease' 
-              }} 
-              onMouseDown={e => !isSubmitting && (e.currentTarget.style.transform = 'scale(0.96)')} 
-              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              {isSubmitting ? 'Saving...' : <><CheckCircle size={18}/> Save Activity</>}
-            </button>
-          </div>
-
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// ─── 5. MAIN SCREEN COMPONENT ─────────────────────────────────────────────────
+import { 
+  gcGlassStyles, 
+  ActivitySkeletonList, 
+  TypeSelectorModal, 
+  CreateActivityModal 
+} from '../../components/shared/TeacherActivityUI';
 
 const TeacherActivities = () => {
   const { classId: urlClassId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); // 🟢 Dinagdag para makuha ang ipinasang state mula sidebar
   
   const { user, API_BASE_URL, branding } = useAuth();
   const themeColor = branding?.theme_color || '#6366f1';
 
-  // ─── States ───
-  const [assignedClasses,  setAssignedClasses]  = useState([]);
-  const [viewClassId,      setViewClassId]      = useState(urlClassId || '');
-  const [activities,       setActivities]       = useState([]);
-  
-  // UI & Loading States
-  const [isServerOffline,  setIsServerOffline]  = useState(false);
-  const [isRetrying,       setIsRetrying]       = useState(false);
-  const [isLoading,        setIsLoading]        = useState(true);
-  const [isSubmitting,     setIsSubmitting]     = useState(false);
-  const [statusMsg,        setStatusMsg]        = useState(null);
+  const [assignedClasses, setAssignedClasses] = useState([]);
+  const [viewClassId, setViewClassId] = useState(urlClassId || '');
+  const [activities, setActivities] = useState([]);
+  const [activeTab, setActiveTab] = useState('Stream'); // 🟢 Default na ito
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Modals States
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterQuarter, setFilterQuarter] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [openMenuId, setOpenMenuId] = useState(null);
+
   const [showTypeSelector, setShowTypeSelector] = useState(false);
-  const [isModalOpen,      setIsModalOpen]      = useState(false);
-  
-  // Filters States
-  const [filterCategory,   setFilterCategory]   = useState('');
-  const [filterQuarter,    setFilterQuarter]    = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ class_id: '', title: '', description: '', category: '', quarter: '', max_score: 100, due_date: '' });
 
-  // Form State
-  const [formData, setFormData] = useState({
-    class_id:    '', title:       '', description: '',
-    category:    '', quarter:     '', max_score:   100, due_date:    ''
-  });
-
-  // ─── Derived Properties ───
-  
-  // For the main view
-  const selectedClassForView  = assignedClasses.find(c => String(c.id) === String(viewClassId));
-  const viewTeacherLevel      = getTeacherLevel(selectedClassForView);
-  const viewCategories        = getGradingCategories(viewTeacherLevel);
-  const isViewKto12           = viewTeacherLevel !== 'College';
-
-  // For the modal context (based on the current selected header class)
-  const selectedClassForModal = assignedClasses.find(c => String(c.id) === String(formData.class_id));
-  const modalTeacherLevel     = getTeacherLevel(selectedClassForModal);
-  const modalCategories       = getGradingCategories(modalTeacherLevel);
-  const isModalKto12          = modalTeacherLevel !== 'College';
-
-  // ─── Effects & Handlers ───
-
-  // 1. Fetch Assigned Classes
+  // 🟢 EFFECT PARA SALUHIN YUNG CLICK GALING SIDEBAR AT ILIPAT ANG TAB
   useEffect(() => {
-    const fetchClasses = async () => {
-      if (!user?.id) return;
-      try {
-        const token = localStorage.getItem('sms_token');
-        const res = await axios.get(`${API_BASE_URL}/teacher/get_my_schedule.php`, {
-          params: { teacher_id: user.id }, 
-          headers: { Authorization: `Bearer ${token}` }
-        });
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state]);
 
-        if (res.data.status === 'success') {
-          const classes = res.data.data;
-          setAssignedClasses(classes);
-          setIsServerOffline(false);
-          
-          if (classes.length === 0) {
-            setIsLoading(false);
-          } else if (!viewClassId && classes.length > 0) {
-            setViewClassId(classes[0].id);
-            setFormData(prev => ({ ...prev, class_id: classes[0].id }));
-          } else if (viewClassId && viewClassId !== 'undefined') {
-            setFormData(prev => ({ ...prev, class_id: viewClassId }));
-          }
-        }
-      } catch (err) {
-        setIsServerOffline(true); 
-        setIsLoading(false);
-      }
-    };
-    fetchClasses();
-  }, [user?.id, API_BASE_URL, viewClassId]);
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
 
-  // 2. Fetch Activities for Selected Class
-  const fetchActivities = useCallback(async (showLoading = true) => {
-    if (!viewClassId || viewClassId === 'undefined') return;
-    
-    if (showLoading) setIsLoading(true);
-    setIsRetrying(true);
-    
+  useEffect(() => {
+    if (urlClassId && urlClassId !== viewClassId) {
+      setViewClassId(urlClassId);
+    }
+  }, [urlClassId]);
+
+  const selectedClassForView = assignedClasses.find(c => String(c.id) === String(viewClassId));
+  const viewTeacherLevel = getTeacherLevel(selectedClassForView);
+  const viewCategories = getGradingCategories(viewTeacherLevel);
+  const isModalKto12 = viewTeacherLevel !== 'College';
+
+  const fetchClasses = useCallback(async () => {
+    if (!user?.id) return;
     try {
       const token = localStorage.getItem('sms_token');
-      const actRes = await axios.get(`${API_BASE_URL}/teacher/get_activities.php`, {
-        params: { 
-          class_id: viewClassId, 
-          category: filterCategory || undefined,
-          quarter: filterQuarter || undefined,
-          all: 1 
-        },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (actRes.data.status === 'success') {
-        setActivities(actRes.data.data || []);
-        setIsServerOffline(false);
+      const res = await axios.get(`${API_BASE_URL}/teacher/get_my_schedule.php?teacher_id=${user.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.status === 'success') {
+        setAssignedClasses(res.data.data);
+        if (!viewClassId && res.data.data.length > 0) {
+          setViewClassId(res.data.data[0].id);
+          navigate(`/teacher/activities/${res.data.data[0].id}`, { replace: true });
+        }
       }
-    } catch (err) {
-      setIsServerOffline(true);
-    } finally {
-      setTimeout(() => { setIsLoading(false); setIsRetrying(false); }, 800);
-    }
-  }, [viewClassId, API_BASE_URL, filterCategory, filterQuarter]);
+    } catch (err) { }
+  }, [user, API_BASE_URL, viewClassId, navigate]);
 
-  useEffect(() => { 
-    fetchActivities(); 
-  }, [fetchActivities]);
+  const fetchActivities = useCallback(async () => {
+    if (!viewClassId) return;
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('sms_token');
+      const res = await axios.get(`${API_BASE_URL}/teacher/get_activities.php?class_id=${viewClassId}&all=1`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.status === 'success') setActivities(res.data.data || []);
+    } catch (err) { }
+    finally { setIsLoading(false); }
+  }, [viewClassId, API_BASE_URL]);
 
-  // 3. Dropdown Change Handler
-  const handleViewClassChange = (classId) => {
-    setViewClassId(classId); 
-    setFilterCategory(''); 
-    setFilterQuarter('');
+  useEffect(() => { fetchClasses(); }, [fetchClasses]);
+  useEffect(() => { fetchActivities(); }, [fetchActivities]);
 
-    const cls = assignedClasses.find(c => String(c.id) === String(classId));
-    const isKto12 = cls ? getTeacherLevel(cls) !== 'College' : true;
-    setFormData(prev => ({ ...prev, class_id: classId, category: '', quarter: isKto12 ? '' : '' }));
+  const handleOpenModal = () => {
+    setFormData(prev => ({ ...prev, class_id: viewClassId, category: '', quarter: '' }));
+    setShowTypeSelector(false);
+    setIsModalOpen(true);
   };
 
-  // 4. Form Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isModalKto12 && !formData.quarter) return setStatusMsg({ type: 'error', text: 'Please select a Quarter.' });
-    if (!formData.class_id || !formData.category || !formData.title || !user?.id) return setStatusMsg({ type: 'error', text: 'Please complete all required fields.' });
-
-    setIsSubmitting(true); 
-    setStatusMsg(null);
-
+    if (isModalKto12 && !formData.quarter) {
+      alert('Please select a Quarter.');
+      return;
+    }
+    
+    setIsSubmitting(true);
     try {
       const token = localStorage.getItem('sms_token');
-      const payload = { 
-        ...formData, 
-        teacher_id: user.id, 
-        quarter: isModalKto12 ? parseInt(formData.quarter) : null 
-      };
+      const payload = { ...formData, teacher_id: user.id, quarter: isModalKto12 ? parseInt(formData.quarter) : null };
+      const res = await axios.post(`${API_BASE_URL}/teacher/create_activity.php`, payload, { headers: { Authorization: `Bearer ${token}` } });
       
-      const res = await axios.post(`${API_BASE_URL}/teacher/create_activity.php`, payload, { 
-        headers: { Authorization: `Bearer ${token}` } 
-      });
-
       if (res.data.status === 'success') {
         setIsModalOpen(false);
-        setFormData(prev => ({ ...prev, title: '', description: '', category: '', quarter: '', max_score: 100, due_date: '' }));
-        setStatusMsg({ type: 'success', text: 'Activity successfully saved!' });
-        
-        if (String(formData.class_id) === String(viewClassId)) {
-          fetchActivities(false);
-        } else {
-          setViewClassId(formData.class_id);
-        }
-      } else {
-        setStatusMsg({ type: 'error', text: res.data.message || "Failed to create activity." });
+        setFormData({ class_id: '', title: '', description: '', category: '', quarter: '', max_score: 100, due_date: '' });
+        alert('Activity created successfully!');
+        fetchActivities();
       }
     } catch (err) {
-      setStatusMsg({ type: 'error', text: "Network error. Please try again." });
+      alert('Failed to create activity.');
     } finally {
-      setIsSubmitting(false); 
-      setTimeout(() => setStatusMsg(null), 4000);
+      setIsSubmitting(false);
     }
   };
 
-  // ─── Render Data ───
-  
-  // Hide 'performance' category entirely from the list view
-  const displayedActivities = activities.filter(act => act.category !== 'performance');
+  const handleShareActivity = async (activity) => {
+    if (!window.confirm(`Share "${activity.title}" to all students in this class? They will receive a notification.`)) return;
+
+    try {
+      const token = localStorage.getItem('sms_token');
+      const payload = { activity_id: activity.id, class_id: viewClassId, title: activity.title };
+      const res = await axios.post(`${API_BASE_URL}/teacher/share_activity.php`, payload, { headers: { Authorization: `Bearer ${token}` } });
+
+      if (res.data.status === 'success') alert('Activity shared successfully! All enrolled students have been notified.');
+      else alert(res.data.message || 'Failed to share activity.');
+    } catch (err) {
+      alert('Error sharing activity to students. Please check your connection.');
+    }
+  };
+
+  const toggleGroup = (key) => setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+  const isAllCollapsed = viewCategories.every(cat => collapsedGroups[cat.key] === true);
+  const handleToggleAll = () => {
+    if (isAllCollapsed) {
+      setCollapsedGroups({}); 
+    } else {
+      const newState = {};
+      viewCategories.forEach(cat => newState[cat.key] = true);
+      setCollapsedGroups(newState); 
+    }
+  };
+
+  const displayedActivities = activities.filter(act => {
+    if (act.category === 'performance') return false; 
+    if (filterCategory && act.category !== filterCategory) return false;
+    if (filterQuarter && String(act.quarter) !== String(filterQuarter)) return false;
+    return true;
+  });
 
   return (
-    <div className="ta-root" style={{ '--theme-color': themeColor }}>
-      {/* GLOBAL STYLES INJECTION */}
-      <style>{activityStyles(themeColor)}</style>
-      <style>{MODAL_GLOBAL_STYLES}</style>
+    <div className="w-full max-w-5xl mx-auto pb-10">
+      <style>{gcGlassStyles(themeColor)}</style>
 
-      {/* HEADER SECTION */}
-      <div className="ta-header">
-        <div className="ta-header-left">
-          <button className="ta-back-btn" onClick={() => navigate(-1)}>
-            <ArrowLeft size={18} color="#64748b" />
-          </button>
-          <div>
-            <h1 className="ta-title">Activities & Examinations</h1>
-            <select className="ta-class-selector" value={viewClassId} onChange={(e) => handleViewClassChange(e.target.value)}>
-              {assignedClasses.length === 0 && <option value="">Loading classes...</option>}
-              {assignedClasses.map(c => (
-                <option key={c.id} value={c.id}>{c.subject_description} • {c.section_name || c.section}</option>
-              ))}
-            </select>
+    {/* TABS */}
+      <div className="gc-tabs">
+        {['Stream', 'Classwork', 'Grades'].map(tab => (
+          <div key={tab} className={`gc-tab ${activeTab === tab ? 'active' : ''}`}
+            onClick={() => {
+              if (tab === 'Grades' && selectedClassForView) {
+                navigate(`/teacher/sections/${selectedClassForView.id}`, { 
+                  state: { 
+                    subject: selectedClassForView.subject_description, 
+                    section: selectedClassForView.section_name || selectedClassForView.section, 
+                    grade_level: selectedClassForView.grade_level || selectedClassForView.level,
+                    fromActivities: true 
+                  } 
+                });
+              } else {
+                setActiveTab(tab);
+              }
+            }}>
+            {tab}
           </div>
-        </div>
-        <button className="ta-add-btn" onClick={() => setShowTypeSelector(true)}>
-          <Plus size={16} /> Create Activity
+        ))}
+      </div>
+
+      {/* STREAM TAB */}
+{activeTab === 'Stream' && (
+  <div className="w-full mt-4 animate-slide-up">
+    
+    {/* 🟢 EXACT GOOGLE CLASSROOM HERO BANNER 🟢 */}
+    <div className="relative w-full h-[240px] rounded-[1.5rem] overflow-hidden mb-6 shadow-md" style={{ background: 'linear-gradient(135deg, #d49a2a 0%, #4a545c 100%)' }}>
+      {/* Malaking Curve na Transparent sa Kanan */}
+      <div className="absolute right-[-10%] top-[-20%] w-[450px] h-[450px] bg-black/10 rounded-full" />
+      
+      {/* Customize Button (Top Right) */}
+      <div className="absolute top-5 right-5 z-10">
+        <button 
+          className="bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/40 text-white px-4 py-2.5 rounded-xl text-[13px] font-bold flex items-center gap-2 transition-all shadow-sm"
+          onClick={() => alert("Customization coming soon!")}
+        >
+          <Edit3 size={16} /> Customize
         </button>
       </div>
 
-      <OfflineBanner isServerOffline={isServerOffline} isRetrying={isRetrying} onRetry={() => fetchActivities(false)} />
-      
-      {statusMsg && (
-        <div className={`ta-status ta-status--${statusMsg.type}`}>
-          {statusMsg.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-          <span>{statusMsg.text}</span>
+      {/* Texts (Bottom Left) */}
+      <div className="absolute bottom-6 left-8 z-10">
+        <h1 className="text-white text-[2.4rem] leading-none font-bold tracking-tight mb-2 drop-shadow-sm">
+          {selectedClassForView ? selectedClassForView.subject_description : 'Earth and Life Science'}
+        </h1>
+        <p className="text-white/90 text-[1.1rem] font-semibold drop-shadow-sm">
+          {selectedClassForView ? `${selectedClassForView.section_name || selectedClassForView.section} • ${selectedClassForView.grade_level || ''}` : 'Malabhan • Grade 11'}
+        </p>
+      </div>
+    </div>
+
+          <div className="w-full max-w-4xl mx-auto">
+            <div className="bg-white/60 backdrop-blur-md border border-white rounded-2xl p-6 shadow-sm mb-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-lg shrink-0 shadow-sm" style={{ backgroundColor: themeColor }}>
+                  {user?.full_name?.charAt(0) || 'T'}
+              </div>
+              <div className="flex-1 bg-white border border-slate-200 rounded-full px-5 py-3.5 text-slate-500 font-bold text-sm cursor-pointer hover:bg-slate-50 transition-colors shadow-inner" onClick={() => alert("Announcement creation coming soon!")}>
+                Announce something to your class
+              </div>
+            </div>
+            
+            <div className="text-center py-16 bg-white/40 border border-white rounded-3xl backdrop-blur-md shadow-sm">
+              <MessageSquare size={54} className="mx-auto text-slate-300 mb-4" />
+              <p className="text-slate-600 font-black text-xl">This is where you can talk to your class</p>
+              <p className="text-slate-500 text-sm mt-2 font-semibold">Use the stream to share announcements, syllabi, and engaging materials.</p>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* MAIN CONTAINER SECTION */}
-      <div className="ta-container">
-        
-        <div className="ta-container-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <h2 className="ta-container-title"><Layers size={18} color={themeColor} /> Class Activities</h2>
-          
-          {/* Filters */}
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <Filter size={14} color="#64748b" />
-            <select 
-              value={filterCategory} 
-              onChange={e => setFilterCategory(e.target.value)} 
-              className="ta-select" 
-              style={{ width: 'auto', padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}
-            >
-              <option value="">All Categories</option>
-              {viewCategories.filter(cat => cat.key !== 'performance').map(cat => (
-                <option key={cat.key} value={cat.key}>{cat.label}</option>
-              ))}
-            </select>
-            
-            {isViewKto12 && (
-              <select 
-                value={filterQuarter} 
-                onChange={e => setFilterQuarter(e.target.value)} 
-                className="ta-select" 
-                style={{ width: 'auto', padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}
+      {/* CLASSWORK TAB */}
+      {activeTab === 'Classwork' && (
+        <div className="w-full mt-6 max-w-4xl mx-auto animate-slide-up">
+          <div className="mb-8">
+            <div className="mb-6">
+              <button 
+                className="px-6 py-2.5 rounded-full font-bold transition-all flex items-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5" 
+                style={{ backgroundColor: themeColor, color: 'white' }}
+                onClick={() => setShowTypeSelector(true)}
               >
-                <option value="">All Quarters</option>
-                <option value="1">Quarter 1</option>
-                <option value="2">Quarter 2</option>
-                <option value="3">Quarter 3</option>
-                <option value="4">Quarter 4</option>
-              </select>
-            )}
-          </div>
-        </div>
+                <Plus size={20} /> Create
+              </button>
+            </div>
 
-        {/* Content Display */}
-        {isLoading ? (
-          <div className="ta-grid">
-            {[1, 2, 3, 4].map((n) => <ActivitySkeletonCard key={n} themeColor={themeColor} />)}
-          </div>
-        ) : displayedActivities.length === 0 ? (
-          <div className="ta-empty-state">
-            <div className="ta-empty-icon"><FileText size={24} /></div>
-            <div>
-              <p className="ta-empty-title">No activities found</p>
-              <p className="ta-empty-desc">Click "Create Activity" to assign a task or adjust your filters.</p>
+            <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-300/50 pb-4">
+              <div className="flex items-center gap-4">
+                <div className="relative mt-2">
+                  <label className="absolute -top-2 left-3 bg-slate-50/80 backdrop-blur-md px-1.5 text-[11px] font-bold text-slate-500 z-10 rounded">Topic filter</label>
+                  <select 
+                    className="appearance-none bg-white/50 backdrop-blur-md border-2 border-slate-200/80 rounded-xl pl-4 pr-10 py-2 shadow-sm text-sm font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-400 focus:bg-white/80 transition-all relative z-0 w-48"
+                    value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}
+                  >
+                    <option value="">All topics</option>
+                    {viewCategories.filter(cat => cat.key !== 'performance').map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
+                  </select>
+                  <ChevronDown size={16} className="text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                </div>
+
+                {isModalKto12 && (
+                  <div className="relative mt-2">
+                    <label className="absolute -top-2 left-3 bg-slate-50/80 backdrop-blur-md px-1.5 text-[11px] font-bold text-slate-500 z-10 rounded">Quarter</label>
+                    <select 
+                      className="appearance-none bg-white/50 backdrop-blur-md border-2 border-slate-200/80 rounded-xl pl-4 pr-10 py-2 shadow-sm text-sm font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-400 focus:bg-white/80 transition-all relative z-0 w-40"
+                      value={filterQuarter} onChange={(e) => setFilterQuarter(e.target.value)}
+                    >
+                      <option value="">All quarters</option>
+                      {[1,2,3,4].map(q => <option key={q} value={q}>Quarter {q}</option>)}
+                    </select>
+                    <ChevronDown size={16} className="text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                  </div>
+                )}
+              </div>
+
+              <button 
+                className="flex items-center gap-1.5 font-bold text-sm hover:bg-white/50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-slate-200"
+                style={{ color: themeColor }} onClick={handleToggleAll}
+              >
+                {isAllCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                {isAllCollapsed ? 'Expand all' : 'Collapse all'}
+              </button>
             </div>
           </div>
-        ) : (
-          <div className="ta-grid">
-            {displayedActivities.map(act => {
-              const qNum = act.quarter ? parseInt(act.quarter) : null;
-              const qColors = qNum ? quarterColors[qNum] : null;
-              
-              return (
-                <div key={act.id} className="ta-card">
-                  <div className="ta-card-header">
-                    <h3 className="ta-card-title">{act.title}</h3>
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      <span className="ta-badge">{viewCategories.find(c => c.key === act.category)?.label || act.category}</span>
-                      {qNum && (
-                        <span style={{ padding: '0.25rem 0.65rem', borderRadius: '2rem', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.5px', backgroundColor: qColors.bg, color: qColors.color }}>
-                          {quarterLabel(qNum)} Quarter
-                        </span>
-                      )}
+
+          {isLoading ? (
+            <ActivitySkeletonList themeColor={themeColor} />
+          ) : displayedActivities.length === 0 ? (
+            <div className="text-center p-12 bg-white/40 border border-white rounded-3xl backdrop-blur-md shadow-sm mt-8 animate-slide-up">
+              <BookOpen size={48} className="mx-auto text-slate-300 mb-4" />
+              <p className="text-slate-600 font-bold text-lg">No activities found</p>
+              <p className="text-slate-500 text-sm mt-1">Click "Create" to assign new work to your students.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-10 pb-10">
+              {viewCategories.filter(c => c.key !== 'performance').map(category => {
+                const items = displayedActivities.filter(act => act.category === category.key);
+                if (items.length === 0) return null;
+                const isCollapsed = collapsedGroups[category.key];
+
+                return (
+                  <div key={category.key}>
+                    <div className="flex justify-between items-center py-3 px-2 group cursor-pointer hover:bg-white/30 rounded-lg transition-all" onClick={() => toggleGroup(category.key)}>
+                      <h2 className="text-[1.75rem] font-normal text-slate-800 tracking-tight leading-none" style={{ color: themeColor }}>{category.label}</h2>
+                      <div className="flex items-center gap-1 text-slate-400">
+                        <button className="p-2 hover:bg-slate-200/50 rounded-full transition-colors opacity-0 group-hover:opacity-100">{isCollapsed ? <ChevronDown size={22} /> : <ChevronUp size={22} />}</button>
+                      </div>
                     </div>
+
+                    {!isCollapsed && (
+                      <div className="flex flex-col border-t border-slate-300/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                        {items.map(act => (
+                          <div 
+                            key={act.id} 
+                            className="flex items-center gap-4 p-4 border-b border-slate-300/50 bg-white/30 hover:bg-white/70 backdrop-blur-md cursor-pointer transition-all group/item"
+                            onClick={() => navigate(`/teacher/activities/${act.id}/grading`, { state: { subject: selectedClassForView?.subject_description, section: selectedClassForView?.section_name } })}
+                          >
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm shrink-0" style={{ backgroundColor: themeColor }}><FileText size={20} /></div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-slate-800 text-[15px]">{act.title}</h3>
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-1">{act.max_score} pts {act.quarter && ` • Q${act.quarter}`}</p>
+                            </div>
+                            <div className="text-right flex items-center gap-4 relative">
+                              <span className="text-sm font-semibold text-slate-500 hidden sm:block">{act.due_date ? `Due ${new Date(act.due_date).toLocaleDateString()}` : 'No due date'}</span>
+                              
+                              <div className="relative">
+                                <button 
+                                  className={`p-2 rounded-full transition-colors ${openMenuId === act.id ? 'bg-slate-200/80 text-slate-700 opacity-100' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 opacity-0 group-hover/item:opacity-100'}`}
+                                  onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === act.id ? null : act.id); }}
+                                >
+                                  <MoreVertical size={20} />
+                                </button>
+                                {openMenuId === act.id && (
+                                  <div className="absolute right-0 top-full mt-1 w-48 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] z-[100] py-1.5 animate-in fade-in slide-in-from-top-2" onClick={(e) => e.stopPropagation()}>
+                                    <button 
+                                      className="w-full text-left px-4 py-2.5 text-[13px] font-bold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2.5"
+                                      onClick={(e) => {
+                                        e.stopPropagation(); setOpenMenuId(null);
+                                        const shareLink = `${window.location.origin}/student/activity/${act.id}`;
+                                        navigator.clipboard.writeText(shareLink).then(() => { alert('Link copied to clipboard!\n\n' + shareLink); });
+                                      }}
+                                    >
+                                      <LinkIcon size={16} style={{ color: themeColor }} /> Copy Link
+                                    </button>
+                                    <button 
+                                      className="w-full text-left px-4 py-2.5 text-[13px] font-bold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2.5"
+                                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); handleShareActivity(act); }}
+                                    >
+                                      <Share size={16} style={{ color: themeColor }} /> Share to Students
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  
-                  <p className="ta-card-desc">{act.description || 'No description provided.'}</p>
-                  
-                  <div className="ta-card-meta">
-                    <div className="ta-meta-item"><Target size={14} color={themeColor} /> {act.max_score} pts</div>
-                    <div className="ta-meta-item"><Calendar size={14} color="#f59e0b" /> {act.due_date ? new Date(act.due_date).toLocaleDateString() : 'No Due Date'}</div>
-                  </div>
-                  
-                  <button 
-                    className="ta-grade-btn" 
-                    onClick={() => navigate(`/teacher/activities/${act.id}/grading`, { 
-                      state: { 
-                        subject: selectedClassForView?.subject_description, 
-                        section: selectedClassForView?.section_name || selectedClassForView?.section, 
-                        quarter: qNum 
-                      } 
-                    })}
-                  >
-                    Grade Submissions
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* MODALS RENDERING */}
-      <TypeSelectorModal 
-        isOpen={showTypeSelector} 
-        onClose={() => setShowTypeSelector(false)} 
-        onSelectBasic={() => { setShowTypeSelector(false); setIsModalOpen(true); }}
-        onSelectExam={() => { setShowTypeSelector(false); navigate('/teacher/activities/create-exam', { state: { classId: viewClassId } }); }}
-        themeColor={themeColor}
-      />
-
-      <CreateActivityModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
-        formData={formData} 
-        setFormData={setFormData}
-        onSubmit={handleSubmit} 
-        isSubmitting={isSubmitting}
-        selectedClass={selectedClassForModal} 
-        modalCategories={modalCategories}
-        isModalKto12={isModalKto12}
-        themeColor={themeColor}
-      />
-
+      <TypeSelectorModal isOpen={showTypeSelector} onClose={() => setShowTypeSelector(false)} onSelectBasic={handleOpenModal} onSelectExam={() => { setShowTypeSelector(false); navigate('/teacher/activities/create-exam', { state: { classId: viewClassId } }); }} themeColor={themeColor} />
+      <CreateActivityModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} formData={formData} setFormData={setFormData} onSubmit={handleSubmit} isSubmitting={isSubmitting} selectedClass={selectedClassForView} modalCategories={viewCategories} isModalKto12={isModalKto12} themeColor={themeColor} />
     </div>
   );
 };

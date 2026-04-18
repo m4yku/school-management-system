@@ -8,7 +8,7 @@ import {
 import OfflineBanner from '../../utils/offlinebanner';
 import { useAuth } from '../../context/AuthContext';
 import { PageHeader, EmptyState } from '../../components/shared/TeacherComponents';
-import { SHARED_STYLES, ANIMATION_DELAYS } from '../../utils/teacherConstants';
+import { SHARED_STYLES, ANIMATION_DELAYS } from '../../components/shared/teacherConstants';
 
 // ─── Skeleton Card ────────────────────────────────────────────────────────────
 const SubjectSkeletonCard = ({ themeColor }) => (

@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
   // Piliin kung alin ang gamit ninyo. Naka-fallback sa localhost in case makalimutan ang .env
   
   // Option A (Para sa Vite):
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost/sms-api';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.100.14/sms-api';
   
   // Option B (Para sa Create React App - i-uncomment kung ito ang gamit):
   // const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost/sms-api';

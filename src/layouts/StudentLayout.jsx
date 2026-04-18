@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
 import { 
   User, BookOpen, CreditCard, LogOut, Menu, X, 
-  GraduationCap, LayoutDashboard, Bell, ChevronLeft, ChevronRight
+  GraduationCap, LayoutDashboard, Bell, ChevronLeft, ChevronRight,
+  FileBadge // Dinagdag natin ito para sa Scholarship Icon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -71,11 +72,15 @@ const StudentLayout = () => {
     }
   }, [user?.email, fetchData]);
 
+  // ====================================================
+  // 📌 DITO NATIN DINAGDAG ANG GRADES SA SIDEBAR
+  // ====================================================
   const studentMenu = [
     { icon: <LayoutDashboard size={20}/>, label: "Dashboard", path: "/student/dashboard" },
-    { icon: <BookOpen size={20}/>, label: "LMS Classroom", path: "/student/lms" },
+    { icon: <BookOpen size={20}/>, label: "Learning Hub", path: "/student/lms" },
+    { icon: <GraduationCap size={20}/>, label: "My Grades", path: "/student/grades" }, // <--- DINAGDAG
     { icon: <CreditCard size={20}/>, label: "Accounting", path: "/student/accounting" },
-    { icon: <GraduationCap size={20}/>, label: "Scholarship", path: "/student/scholarship" },
+    { icon: <FileBadge size={20}/>, label: "Scholarship", path: "/student/scholarship" }, // <--- INIBA ANG ICON
   ];
 
   const handleNotifClick = async (notif) => {
@@ -127,7 +132,7 @@ const StudentLayout = () => {
         <div className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      {/* 2. SIDEBAR (ADAPTED FROM ADMIN) */}
+      {/* 2. SIDEBAR */}
       <aside className={`
         fixed z-50 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 ease-in-out shadow-2xl
         inset-y-0 left-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
@@ -137,8 +142,8 @@ const StudentLayout = () => {
         {/* LOGO SECTION */}
         <div className={`h-20 px-4 border-b border-slate-800 flex items-center shrink-0 transition-all justify-between ${isCollapsed ? 'lg:justify-center' : 'lg:justify-between'}`}>
           <div className="flex items-center gap-3 overflow-hidden">
-            <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} alt="Logo" className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-lg" />
-            <span className={`text-[15px] leading-tight font-black text-white tracking-tight line-clamp-2 w-36 ${isCollapsed ? 'lg:w-0 lg:opacity-0 lg:hidden' : ''}`}>{branding.school_name}</span>
+            {branding?.school_logo && <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} alt="Logo" className="w-10 h-10 rounded-xl object-cover shrink-0 shadow-lg" />}
+            <span className={`text-[15px] leading-tight font-black text-white tracking-tight line-clamp-2 w-36 ${isCollapsed ? 'lg:w-0 lg:opacity-0 lg:hidden' : ''}`}>{branding?.school_name}</span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white/50 hover:text-white"><X size={20}/></button>
         </div>
@@ -149,13 +154,13 @@ const StudentLayout = () => {
             <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Student Portal</p>
           </div>
           {studentMenu.map((item, index) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname.includes(item.path);
             return (
               <Link 
                 key={index} 
                 to={item.path} 
-                className={`flex items-center p-3 rounded-2xl transition-all ${isActive ? 'text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800'} ${isCollapsed ? 'lg:justify-center' : 'gap-4'}`} 
-                style={isActive ? { backgroundColor: branding.theme_color || '#2563eb' } : {}}
+                className={`flex items-center p-3 rounded-2xl transition-all ${isActive ? 'text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${isCollapsed ? 'lg:justify-center' : 'gap-4'}`} 
+                style={isActive ? { backgroundColor: branding?.theme_color || '#4f46e5' } : {}}
               >
                 {item.icon}
                 {!isCollapsed && <span className="font-bold text-sm">{item.label}</span>}
@@ -195,7 +200,7 @@ const StudentLayout = () => {
             {/* NOTIFICATION BELL */}
             <div className="flex items-center space-x-2 mr-6 pr-6 border-r border-slate-200 relative">
               <div className="relative">
-                <button onClick={() => setIsNotifOpen(!isNotifOpen)} className={`p-2.5 rounded-full transition-all relative ${isNotifOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}>
+                <button onClick={() => setIsNotifOpen(!isNotifOpen)} className={`p-2.5 rounded-full transition-all relative ${isNotifOpen ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}`}>
                   <Bell size={20} />
                   {unreadCount > 0 && (
                     <span className="absolute top-2 right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white animate-bounce">
@@ -207,7 +212,7 @@ const StudentLayout = () => {
                   <div className="absolute top-full right-0 mt-3 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50">
                     <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                       <h3 className="font-bold text-slate-800 text-sm">Notifications</h3>
-                      <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-bold">{unreadCount} New</span>
+                      <span className="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full font-bold">{unreadCount} New</span>
                     </div>
                     <div className="max-h-[60vh] overflow-y-auto p-2">
                       {notifications.length === 0 ? (
@@ -217,9 +222,9 @@ const StudentLayout = () => {
                         </div>
                       ) : (
                         notifications.map((notif) => (
-                          <div key={notif.id} onClick={() => handleNotifClick(notif)} className={`flex gap-3 p-3 rounded-2xl cursor-pointer transition-all ${notif.is_read === 0 ? 'bg-blue-50/50' : 'opacity-60'}`}>
+                          <div key={notif.id} onClick={() => handleNotifClick(notif)} className={`flex gap-3 p-3 rounded-2xl cursor-pointer transition-all ${notif.is_read === 0 ? 'bg-indigo-50/50' : 'opacity-60'}`}>
                             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                               <Bell size={16} className="text-blue-500" />
+                               <Bell size={16} className="text-indigo-500" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-bold text-slate-900 truncate">{notif.title}</p>
@@ -244,8 +249,8 @@ const StudentLayout = () => {
                   const paid = Number(studentData?.paid_amount || 0);
                   const isPaid = paid > 0 && balance <= 0;
                   return (
-                    <p className={`text-[10px] font-bold uppercase tracking-widest ${isPaid ? 'text-green-600' : 'text-red-500'}`}>
-                      {isPaid ? 'Fully Paid' : (paid > 0 ? 'Partial' : 'Unpaid')}
+                    <p className={`text-[10px] font-bold uppercase tracking-widest ${isPaid ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {isPaid ? 'Fully Settled' : (paid > 0 ? 'Partial Payment' : 'Unpaid')}
                     </p>
                   );
                 })()}
@@ -255,7 +260,7 @@ const StudentLayout = () => {
                   <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center font-black text-slate-400 bg-slate-100">
-                    {studentData?.first_name?.charAt(0)}
+                    {studentData?.first_name?.charAt(0) || <User size={20}/>}
                   </div>
                 )}
               </div>
@@ -265,7 +270,7 @@ const StudentLayout = () => {
 
         {/* DYNAMIC CONTENT AREA */}
         <div className="p-6 lg:p-10">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-[1600px] mx-auto">
             <Outlet />
           </div>
         </div>

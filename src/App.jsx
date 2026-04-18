@@ -11,25 +11,36 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 
 // ==========================================
-// REGISTRAR PAGES (Na-update para sa bagong flow)
+// REGISTRAR PAGES
 // ==========================================
-import RegistrarDashboard from './pages/registrar/RegistrarDashboard'; // Placeholder/Gagawin pa
-import StudentManagement from './pages/registrar/StudentManagement'; // Dito ang Profile & Print Profile
-import EnrollmentModule from './pages/registrar/EnrollmentModule';   // Dito ang Fees, Pending/Enrolled, Print COR
-import TeacherAssignments from './pages/registrar/ClassAssignments'; // Dito ang pag-assign ng Teacher sa Subjects
-import StudentRequests from './pages/registrar/StudentRequests'; // <--- Ito yung bagong page
-import AcademicPrograms from './pages/registrar/AcademicPrograms'; // <--- BAGONG DAGDAG
+import RegistrarDashboard from './pages/registrar/RegistrarDashboard';
+import StudentManagement from './pages/registrar/StudentManagement';
+import EnrollmentModule from './pages/registrar/EnrollmentModule';   
+import TeacherAssignments from './pages/registrar/ClassAssignments';
+import StudentRequests from './pages/registrar/StudentRequests';
+import AcademicPrograms from './pages/registrar/AcademicPrograms';
 import ScholarshipApplications from './pages/registrar/ScholarshipApplications';
 import RegistrarSubjects from './pages/registrar/RegistrarSubjects';
 import SectionManagement from './pages/registrar/SectionManagement';
-import StudentGrades from './pages/registrar/StudentGradesView';// <--- BAGONG DAGDAG
-// Student Pages
+import StudentGradesView from './pages/registrar/StudentGradesView';
+
+// ==========================================
+// STUDENT PAGES
+// ==========================================
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentAccounting from './pages/student/StudentAccounting';
 import StudentLms from './pages/student/StudentLms';
 import StudentScholarship from './pages/student/StudentScholarship';
 
-// Cashier Pages
+// ==========================================
+// LMS PAGES (BAGO)
+// ==========================================
+import LmsDashboard from './pages/lms/LmsDashboard';
+import StudentGrades from './pages/student/StudentGrades';
+
+// ==========================================
+// CASHIER PAGES
+// ==========================================
 import PaymentDashboard from './pages/cashier/PaymentDashboard';
 import CashierDashboard from './pages/cashier/CashierDashboard';
 import StudentBilling from './pages/cashier/StudentBilling';
@@ -39,29 +50,37 @@ import CollectionReports from './pages/cashier/CollectionReports';
 import ScholarshipCatalog from './pages/cashier/ScholarshipCatalog';
 import Payroll from './pages/cashier/Payroll';
 
-// Teacher Pages
+// ==========================================
+// TEACHER PAGES
+// ==========================================
 import TeacherDashboard from './pages/teacher/teacherdashboard';
 import TeacherNotify from './pages/teacher/TeacherNotify'; 
 import TeacherProfile from './pages/teacher/TeacherProfile';
 import TeacherClasses from './pages/teacher/TeacherClasses';
 import GradeManagement from './pages/teacher/GradeManagement';
-import TeacherSubjects from './pages/teacher/TeacherSubjects';
+import TeacherDTR from './pages/teacher/TeacherDTR';
 import TeacherActivities from './pages/teacher/TeacherActivities';
 import TeacherActivityGrading from './pages/teacher/TeacherActivityGrading';
-import CreateExam from './pages/teacher/CreateExam';
+import CreateExam from './components/shared/CreateExam';
 
-// Layouts
+// ==========================================
+// LAYOUTS (Pansinin: Idinagdag ko rito ang LmsLayout)
+// ==========================================
 import AdminLayout from './layouts/AdminLayout';
 import StudentLayout from './layouts/StudentLayout';
 import TeacherLayout from './layouts/TeacherLayout';
+import LmsLayout from './layouts/LmsLayout'; // <--- ETO ANG NAWAWALA KANINA
 
 // Pages
 import LandingPage from './pages/landingpage'; 
 import Login from './pages/auth/Login';
+
+// Admin Pages
 import UserManagement from './pages/admin/UserManagement';
 import BrandingSettings from './pages/admin/BrandingSettings';
 import RoomManagement from './pages/admin/RoomManagement';
 import CashierLayout from './layouts/CashierLayout';
+import LandingPromotions from './pages/admin/LandingPromotions';
 
 
 // Placeholder Components
@@ -80,6 +99,7 @@ const Unauthorized = () => (
     <a href="/" className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-blue-200">Balik sa Home</a>
   </div>
 );
+
 
 function App() {
   return (
@@ -112,6 +132,7 @@ function App() {
             <Route path="users" element={<UserManagement />} />
             <Route path="branding" element={<BrandingSettings />} />
             <Route path="rooms" element={<RoomManagement />} />
+            <Route path="promotions" element={<LandingPromotions />} />
           </Route>
 
           {/* 4. CASHIER ROUTES */}
@@ -122,7 +143,7 @@ function App() {
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<CashierDashboard />} />
-            <Route path="billing" element={<StudentBilling />} />     
+            <Route path="billing" element={<StudentBilling />} />    
             <Route path="payments" element={<PaymentDashboard />} />
             <Route path="fees" element={<FeeCatalog />} />
             <Route path="scholarships" element={<Scholarships />} />  
@@ -141,7 +162,7 @@ function App() {
             <Route path="dashboard" element={<TeacherDashboard />} />
             <Route path="announcements" element={<TeacherNotify />} />
             <Route path="classes" element={<TeacherClasses />} />
-            <Route path="subjects" element={<TeacherSubjects />} />
+            <Route path="dtr" element={<TeacherDTR />} />
             <Route path="profile" element={<TeacherProfile />} />
             <Route path="/teacher/sections/:classId" element={<GradeManagement />} />
             <Route path="/teacher/grades/:classId" element={<GradeManagement />} />
@@ -151,61 +172,59 @@ function App() {
           <Route path="activities/:activityId/grading" element={<TeacherActivityGrading />} />
           </Route>
 
-          {/* 6. LMS / STUDENTS ROUTES */}
-<Route path="/student" element={
-  <ProtectedRoute allowedRoles={['student']}>
-    <StudentLayout/>
-  </ProtectedRoute>
-}>
-  <Route index element={<Navigate to="dashboard" replace />} />
-  <Route path="dashboard" element={<StudentDashboard />} />
-  <Route path="lms" element={<StudentLms />} />
-  <Route path="accounting" element={<StudentAccounting />} />
-  <Route path="scholarship" element={<StudentScholarship />} /> {/* <--- BAGONG DAGDAG */}
-</Route>
+          {/* =======================================================
+              6. STUDENT PORTAL ROUTES (Lobby)
+              ======================================================= */}
+          <Route path="/student" element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <StudentLayout/>
+            </ProtectedRoute>
+          }>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<StudentDashboard />} />
+            <Route path="lms" element={<StudentLms />} />
+            <Route path="accounting" element={<StudentAccounting />} />
+            <Route path="scholarship" element={<StudentScholarship />} />
+            <Route path="grades" element={<StudentGrades />} /> 
+          </Route>
 
-          {/* ============================================================== */}
-          {/* 7. REGISTRAR ROUTES (NEW FLOW IMPLEMENTED) */}
-          {/* ============================================================== */}
+
+          {/* =======================================================
+              7. REGISTRAR ROUTES
+              ======================================================= */}
           <Route path="/registrar" element={
             <ProtectedRoute allowedRoles={['registrar']}>
               <AdminLayout />
             </ProtectedRoute>
           }>
-            {/* Kapag nag-type ng /registrar, ire-redirect agad sa dashboard */}
             <Route index element={<Navigate to="dashboard" replace />} />
-            
-            {/* Sidenav Item 1: Dashboard */}
             <Route path="dashboard" element={<RegistrarDashboard />} />
-            
-            {/* Sidenav Item 2: Masterlist & Profiles */}
             <Route path="students" element={<StudentManagement />} />
-            
-            {/* BAGONG DAGDAG - Sidenav Item 3: Student Requests */}
             <Route path="requests" element={<StudentRequests />} />
-
-            {/* Sidenav Item 4: Enrollment Module */}
             <Route path="enrollment" element={<EnrollmentModule />} />
-
-            {/* Sidenav Item 5: Academic Programs */}
             <Route path="programs" element={<AcademicPrograms />} />
-            
-            {/* Sidenav Item 6: Teacher & Class Assignments */}
             <Route path="assignments" element={<TeacherAssignments />} />
-
-            {/* Sidenav Item 7: Scholarship Applications */}
             <Route path="scholarships" element={<ScholarshipApplications />} />
-
-            {/* FIX: Inalis ang "/registrar/" para maging relative path tulad ng iba */}
             <Route path="subjects" element={<RegistrarSubjects />} />
-
             <Route path="sections" element={<SectionManagement />} />
-            <Route path="grades" element={<StudentGrades />} />
-            
+            <Route path="grades" element={<StudentGradesView />} />
           </Route>
 
-          {/* 8. FALLBACK */}
+          {/* =======================================================
+              8. DIGITAL CLASSROOM (LMS) ROUTES
+              ======================================================= */}
+          <Route path="/lms" element={
+            // ARCHITECT FIX: Ginawa ko itong lowercase 'student' para match sa ibang routes mo
+            <ProtectedRoute allowedRoles={['student']}>
+              <LmsLayout />
+            </ProtectedRoute>
+          }>
+            <Route path="dashboard" element={<LmsDashboard />} />
+          </Route>
+
+          {/* 9. FALLBACK */}
           <Route path="*" element={<Navigate to="/" replace />} />
+          
         </Routes>
       </Router>
     </AuthProvider>

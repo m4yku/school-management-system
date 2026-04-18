@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  BookOpen, Video, FileText, GraduationCap, 
-  Lock, Unlock, Loader2, ArrowLeft, PlayCircle, 
-  ClipboardList, MessageSquare, Info, MoreVertical,
-  HelpCircle, CheckCircle2, ShieldCheck, BarChart3
+  Lock, Unlock, Loader2, ArrowRight, 
+  ClipboardList, CheckCircle2, 
+  Calendar, Clock, Wallet, Activity, ArrowUpRight,
+  MonitorPlay, Timer, GraduationCap, Info, FileText
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -14,56 +14,38 @@ const StudentLms = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
-  const [viewMode, setViewMode] = useState('grid'); 
-  const [modules, setModules] = useState([]); 
 
-  const getStudentDetails = (data) => {
-    const grade = (data.grade_level || "").toString().toUpperCase();
-    const gNum = parseInt(grade.replace(/\D/g, ''));
-    const isCollege = grade.includes('YEAR') || gNum > 12 || grade.includes('COLLEGE');
-    const isSHS = gNum === 11 || gNum === 12;
-
-    let dept = data.department_name || "Basic Education";
-    let displayMain = data.section || "TBA"; 
-    let majorDisplay = data.major || "N/A";
-
-    if (isCollege) {
-        dept = data.department_name || "College";
-        displayMain = data.program_code || "N/A"; 
-    } else if (isSHS) {
-        dept = data.department_name || "Senior High School";
-        displayMain = data.program_code ? `${data.program_code} - ${data.section}` : data.section;
-    } else {
-        if (grade.includes('KINDER') || (gNum >= 1 && gNum <= 6)) dept = "Elementary";
-        if (gNum >= 7 && gNum <= 10) dept = "Junior High School";
-        displayMain = data.section || "TBA";
-    }
-
-    return { 
-        dept, 
-        displayMain, 
-        major: majorDisplay, 
-        isCollege,
-        programDesc: data.program_description || "" 
-    };
-  };
+  // --- REAL DATABASE STATES ---
+  const [scheduleToday, setScheduleToday] = useState([]);
+  const [pendingTasks, setPendingTasks] = useState([]);
+  const [recentGrades, setRecentGrades] = useState([]);
+  
+  // Mixed State (GWA is real, Hours/Sessions are mock for now until we have tracking tables)
+  const [lmsAnalytics, setLmsAnalytics] = useState({
+    totalHours: 28.5,
+    sessions: 42,
+    completionRate: 85,
+    currentGwa: "0.00"
+  });
 
   const fetchData = async () => {
     try {
+      // 1. FETCH STUDENT & BILLING
       const response = await axios.get(`${API_BASE_URL}/student/get_students.php`);
       const studentList = response.data.students || [];
       const billingItems = response.data.billing_items || []; 
       const myData = studentList.find(s => s.email === user.email);
       
       if (myData) {
-        // --- 1. CALCULATE OVERALL PAYMENT STATUS ---
+        // --- GATEKEEPER LOGIC ---
         const totalAmount = parseFloat(myData.total_amount || 0);
         const totalPaidOverall = parseFloat(myData.paid_amount || 0);
         const isPaidFull = totalPaidOverall >= (totalAmount - 1); 
         const isPartial = totalPaidOverall > 0 && totalPaidOverall < totalAmount;
+        
         myData.computedPaymentStatus = isPaidFull ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid';
+        myData.remainingBalance = Math.max(0, totalAmount - totalPaidOverall);
 
-        // --- 2. IMPROVED TUITION SEARCH (Flexible names like "Tuition SHS") ---
         const tuitionItem = billingItems.find(item => 
             item.billing_id === myData.billing_id && 
             (item.item_name.toLowerCase().includes("tuition") || item.item_name.toLowerCase().includes("tf"))
@@ -73,47 +55,67 @@ const StudentLms = () => {
         const actualTuitionPaid = tuitionItem ? parseFloat(tuitionItem.paid_amount) : totalPaidOverall;
         const tuitionThreshold = totalTuitionPrice * 0.5; 
 
-        // --- 3. THE SMART GATEKEEPER ---
-        // Tanggapin ang "Enrolled" OR "Assessed" para hindi ma-stuck ang student
         const isValidStatus = ["Enrolled", "Assessed"].includes((myData.enrollment_status || "").trim());
-        
-        // Unlock if threshold is met OR if the overall status is already Partial/Paid
         const hasPaidThreshold = actualTuitionPaid >= (tuitionThreshold - 1);
         const isOfficiallyPaid = myData.computedPaymentStatus === 'Partial Payment' || myData.computedPaymentStatus === 'Fully Paid';
 
         if (isValidStatus && (hasPaidThreshold || isOfficiallyPaid)) {
           myData.isLmsLocked = false;
           myData.neededForUnlock = 0;
-
-          // Fetch LMS Content
-          try {
-              const moduleResponse = await axios.get(`${API_BASE_URL}/student/get_lms_content.php`, {
-                  params: { section_id: myData.section_id }
-              });
-              setModules(moduleResponse.data.modules || []);
-          } catch (modErr) {
-              console.error("Error loading modules:", modErr);
-          }
         } else {
           myData.isLmsLocked = true;
           myData.neededForUnlock = Math.max(0, tuitionThreshold - actualTuitionPaid);
         }
 
-        // Dashboard display values
         myData.displayTuition = totalTuitionPrice; 
         myData.actualTuitionPaid = actualTuitionPaid;
-
-        const details = getStudentDetails(myData);
-        myData.dynamicDept = details.dept;
-        myData.formattedMain = details.displayMain; 
-        myData.major = details.major;
-        myData.isCollege = details.isCollege;
-        myData.programDesc = details.programDesc;
-        
         setStudentData(myData);
+
+// 2. FETCH REAL SCHEDULE & TASKS
+        try {
+          const acadRes = await axios.get(`${API_BASE_URL}/student/get_student_dashboard_data.php?student_id=${myData.student_id}`);
+          if (acadRes.data.success) {
+            setScheduleToday(acadRes.data.scheduleToday || []);
+            setPendingTasks(acadRes.data.pendingTasks || []);
+            
+            // 📌 IDAGDAG ITO PARA MASALO ANG BAGONG STATS MULA SA PHP
+            if (acadRes.data.analytics) {
+              setLmsAnalytics(prev => ({
+                 ...prev,
+                 totalHours: acadRes.data.analytics.totalHours,
+                 sessions: acadRes.data.analytics.sessions,
+                 completionRate: acadRes.data.analytics.completionRate
+              }));
+            }
+          }
+        } catch (e) { console.error("Academic Data Error:", e); }
+
+        // 3. FETCH REAL GRADES FOR GWA & RECENT SUBJECTS
+        try {
+          const currentSy = myData.school_year || '2023-2024';
+          const gradeRes = await axios.get(`${API_BASE_URL}/student/get_student_grades.php?email=${user.email}&sy=${currentSy}`);
+          if (gradeRes.data.status === 'success') {
+             const gradesData = gradeRes.data.data || [];
+             
+             // Get top 3 subjects
+             setRecentGrades(gradesData.slice(0, 3).map(g => ({
+                subject: g.code,
+                grade: g.final || 'Pending',
+                status: g.remarks || 'Ongoing'
+             })));
+
+             // Compute Real GWA
+             if (gradesData.length > 0) {
+                 const total = gradesData.reduce((acc, curr) => acc + parseFloat(curr.final || 0), 0);
+                 const gwa = (total / gradesData.length).toFixed(2);
+                 setLmsAnalytics(prev => ({ ...prev, currentGwa: gwa }));
+             }
+          }
+        } catch (e) { console.error("Grades Data Error:", e); }
+
       }
     } catch (err) {
-      console.error("Critical Error fetching LMS data:", err);
+      console.error("Error fetching LMS status:", err);
     } finally {
       setLoading(false);
     }
@@ -123,215 +125,225 @@ const StudentLms = () => {
     if (user?.email) fetchData();
   }, [user.email]);
 
+  const safeThemeColor = branding?.theme_color?.startsWith('#') ? branding.theme_color : '#6366f1';
+
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center font-sans font-black animate-pulse text-slate-400 uppercase tracking-widest gap-4">
-      <Loader2 className="animate-spin text-blue-600" size={40} />
-      Verifying Credentials...
+    <div className="h-screen flex flex-col items-center justify-center font-sans font-black animate-pulse text-slate-400 uppercase tracking-widest gap-4 bg-slate-50/50">
+      <Loader2 className="animate-spin text-indigo-500" size={40} />
+      Checking LMS Access...
     </div>
   );
 
-  if (studentData?.isLmsLocked) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center p-6 bg-slate-50 font-sans">
-        <div className="max-w-md w-full bg-white p-10 rounded-[3rem] shadow-2xl border-2 border-red-100 text-center animate-in zoom-in duration-300">
-          <div className="w-24 h-24 bg-red-500 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-8 shadow-lg shadow-red-200">
-            <Lock size={48} />
-          </div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tighter mb-4 uppercase leading-none">LMS Locked</h2>
-          <div className="text-slate-500 font-medium leading-relaxed mb-8 text-sm">
-            Paumanhin, <span className="font-black text-slate-800">{studentData?.first_name}</span>. 
-            Naka-lock ang iyong access. Mahalagang <strong className="font-bold text-slate-900">bayaran ang 50% ng Tuition Fee</strong>.
-            <br/><br/>
-            <div className="bg-red-50 p-6 rounded-[1.5rem] text-[11px] space-y-2 border border-red-100 shadow-inner">
-                <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
-                  Tuition Fee (Basis): 
-                  <span className="font-black text-slate-900 bg-white px-2 py-1 rounded shadow-sm">₱{studentData?.displayTuition?.toLocaleString()}</span>
-                </p>
-                <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
-                  Total Paid: 
-                  <span className="font-black text-emerald-600 bg-white px-2 py-1 rounded shadow-sm">₱{studentData?.actualTuitionPaid?.toLocaleString()}</span>
-                </p>
-                <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
-                  Payment Status: 
-                  <span className="font-black text-blue-600 bg-white px-2 py-1 rounded shadow-sm italic">{studentData?.computedPaymentStatus}</span>
-                </p>
-                <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider">
-                  Enrollment: 
-                  <span className="font-black text-red-600 bg-white px-2 py-1 rounded shadow-sm italic">{studentData?.enrollment_status || 'Assessed'}</span>
-                </p>
-                {studentData?.neededForUnlock > 0 && (
-                   <p className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider pt-2 border-t border-red-100">
-                   Kulang para ma-unlock: 
-                   <span className="font-black text-red-600 animate-pulse">₱{studentData.neededForUnlock.toLocaleString()}</span>
-                 </p>
-                )}
-            </div>
-          </div>
-          <button onClick={() => navigate('/student/dashboard')} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95">
-            <ArrowLeft size={14} /> Back to Dashboard
-          </button>
+  return (
+    <div className="max-w-[1600px] mx-auto p-4 md:p-8 w-full space-y-6 animate-in fade-in duration-500 font-sans bg-slate-50/50 min-h-screen">
+      
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+             <MonitorPlay className="text-indigo-600" size={32}/> Learning Hub Overview
+          </h1>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+             Classroom Gateway & Academic Summary
+          </p>
+        </div>
+        <div className="flex gap-2 items-center bg-white px-4 py-2 border border-slate-200 rounded-xl shadow-sm">
+           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+           <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Status: Active</span>
         </div>
       </div>
-    );
-  }
 
-  const renderClassroomView = (title, icon, color, category, typeIcon) => {
-    const filteredModules = modules.filter(m => m.type === category);
-    return (
-      <div className="max-w-7xl mx-auto p-4 md:p-8 animate-in slide-in-from-right duration-500 font-sans">
-        <button onClick={() => setViewMode('grid')} className="flex items-center gap-2 text-slate-500 font-black uppercase text-[11px] tracking-widest mb-6 hover:text-slate-900 transition-colors">
-          <ArrowLeft size={16} /> Back to Dashboard
-        </button>
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
-          <div style={{ backgroundColor: color }} className="h-48 relative p-8 flex flex-col justify-end text-white">
-            <div className="absolute top-0 right-0 p-8 opacity-20">{icon}</div>
-            <div className="z-10">
-              <span className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 inline-block shadow-sm">{studentData?.dynamicDept}</span>
-              <h2 className="text-4xl font-black tracking-tighter leading-none">{title}</h2>
-              <p className="text-white/90 font-bold text-sm mt-1">
-                  {studentData?.grade_level} - {studentData?.formattedMain} {studentData?.isCollege && `(${studentData?.major})`} | SY {studentData?.school_year}
-              </p>
+      {/* KPI ROW (LMS Analytics & Balance) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
+            <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-[1.2rem] flex items-center justify-center shrink-0">
+               <Timer size={24}/>
             </div>
+            <div>
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Study Time</p>
+               <h3 className="text-2xl font-black text-slate-800 leading-none mt-1">{lmsAnalytics.totalHours} <span className="text-sm text-slate-400">hrs</span></h3>
+            </div>
+         </div>
+
+         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
+            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-[1.2rem] flex items-center justify-center shrink-0">
+               <Activity size={24}/>
+            </div>
+            <div>
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">LMS Logins</p>
+               <h3 className="text-2xl font-black text-slate-800 leading-none mt-1">{lmsAnalytics.sessions} <span className="text-sm text-slate-400">sessions</span></h3>
+            </div>
+         </div>
+
+         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
+            <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-[1.2rem] flex items-center justify-center shrink-0">
+               <CheckCircle2 size={24}/>
+            </div>
+            <div>
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Task Completion</p>
+               <h3 className="text-2xl font-black text-slate-800 leading-none mt-1">{lmsAnalytics.completionRate}%</h3>
+            </div>
+         </div>
+
+         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between group cursor-pointer hover:border-slate-200 transition-colors" onClick={() => navigate('/student/accounting')}>
+            <div>
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1"><Wallet size={12}/> Balance</p>
+               <h3 className="text-xl font-black text-slate-800 leading-none mt-1 tracking-tight">₱{studentData?.remainingBalance?.toLocaleString()}</h3>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
+               <ArrowRight size={14}/>
+            </div>
+         </div>
+      </div>
+
+      {/* MAIN CONTENT GRID */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        
+        {/* LEFT COLUMN: The Gatekeeper & Academic Summary */}
+        <div className="xl:col-span-8 space-y-6">
+          
+          {/* THE LMS GATEWAY CARD (Dynamically Locked/Unlocked) */}
+          {studentData?.isLmsLocked ? (
+             <div className="bg-white border-2 border-red-100 p-8 md:p-12 rounded-[2.5rem] shadow-sm relative overflow-hidden flex flex-col md:flex-row items-center md:items-start gap-8">
+               <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none -mt-10 -mr-10">
+                  <Lock size={250}/>
+               </div>
+               <div className="w-24 h-24 bg-red-50 text-red-500 rounded-[2rem] flex items-center justify-center shrink-0 border border-red-100 shadow-inner z-10">
+                  <Lock size={40} />
+               </div>
+               <div className="relative z-10 flex-1 text-center md:text-left">
+                  <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight mb-2">LMS Access is Locked</h2>
+                  <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed">
+                    To access your digital classroom, modules, and quizzes, you must settle the required tuition milestone.
+                  </p>
+                  <div className="bg-red-50 p-5 rounded-2xl border border-red-100 inline-block w-full text-left mb-6">
+                     <p className="text-[10px] font-black uppercase text-red-500 tracking-widest mb-1 flex items-center gap-1"><Info size={14}/> Minimum Requirement</p>
+                     <p className="text-sm font-bold text-slate-700">Pay at least <span className="font-black text-red-600">₱{studentData?.neededForUnlock?.toLocaleString()}</span> (50% of Tuition Basis) to unlock.</p>
+                  </div>
+                  <button onClick={() => navigate('/student/accounting')} className="w-full md:w-auto px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95">
+                    Proceed to Accounting <ArrowRight size={16} />
+                  </button>
+               </div>
+             </div>
+          ) : (
+             <div style={{ backgroundColor: safeThemeColor }} className="p-8 md:p-12 rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center md:items-start gap-8 text-white group">
+               <div className="absolute top-0 right-0 opacity-[0.05] pointer-events-none transition-transform duration-700 group-hover:scale-110 group-hover:rotate-12">
+                  <MonitorPlay size={250}/>
+               </div>
+               <div className="w-24 h-24 bg-white/10 backdrop-blur-md text-white rounded-[2rem] flex items-center justify-center shrink-0 border border-white/20 shadow-inner z-10">
+                  <Unlock size={40} />
+               </div>
+               <div className="relative z-10 flex-1 text-center md:text-left">
+                  <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-2 drop-shadow-md">Ready to Learn!</h2>
+                  <p className="text-sm font-medium text-white/80 mb-8 leading-relaxed max-w-lg mx-auto md:mx-0">
+                    Your LMS account is fully unlocked. You can now access your learning modules, video lectures, discussions, and take your quizzes.
+                  </p>
+                  <button onClick={() => navigate('/lms/dashboard')} className="w-full md:w-auto px-10 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2 shadow-xl hover:-translate-y-1 active:scale-95">
+                    Continue to LMS <ArrowUpRight size={16} />
+                  </button>
+               </div>
+             </div>
+          )}
+
+          {/* RECENT GRADES / ACADEMIC SUMMARY WIDGET */}
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+             <div className="flex justify-between items-center mb-6">
+                <h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
+                   <GraduationCap size={20} className="text-indigo-500"/> Academic Standing
+                </h3>
+                <button onClick={() => navigate('/student/grades')} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">View All Grades</button>
+             </div>
+             
+             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+                <div className="p-5 bg-slate-50 rounded-[1.5rem] border border-slate-100 text-center">
+                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Current GWA</p>
+                   <p className="text-3xl font-black text-slate-800">{lmsAnalytics.currentGwa}</p>
+                </div>
+                <div className="p-5 bg-slate-50 rounded-[1.5rem] border border-slate-100 text-center sm:col-span-2 flex flex-col justify-center">
+                   <p className="text-xs font-bold text-slate-500 italic">"Consistent effort yields consistent results. Keep up the good work!"</p>
+                </div>
+             </div>
+
+             <div className="space-y-3">
+               {recentGrades.length > 0 ? recentGrades.map((grade, idx) => (
+                 <div key={idx} className="flex justify-between items-center p-4 border border-slate-100 rounded-2xl hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                       <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center"><FileText size={16}/></div>
+                       <p className="font-black text-sm text-slate-800 uppercase">{grade.subject}</p>
+                    </div>
+                    <div className="text-right flex items-center gap-4">
+                       <span className="font-black text-lg text-slate-800 w-12 text-center">{grade.grade}</span>
+                       <span className={`w-20 text-center px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${grade.status === 'Passed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {grade.status}
+                       </span>
+                    </div>
+                 </div>
+               )) : (
+                 <div className="text-center py-4 text-slate-400 font-bold text-xs">No grades encoded yet.</div>
+               )}
+             </div>
           </div>
-          <div className="p-8">
+        </div>
+
+        {/* RIGHT COLUMN: Sidebar (Schedule & Tasks) */}
+        <div className="xl:col-span-4 space-y-6">
+          
+          {/* Today's Schedule */}
+          <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <h3 className="font-black text-slate-800 mb-6 flex items-center gap-2 text-sm">
+               <Calendar size={18} className="text-indigo-500"/> Schedule Today
+            </h3>
             <div className="space-y-4">
-              {filteredModules.length > 0 ? (
-                filteredModules.map((mod) => (
-                  <div key={mod.id} className="flex items-start gap-5 p-6 border border-slate-100 rounded-2xl hover:shadow-xl hover:border-transparent cursor-pointer transition-all bg-white group">
-                    <div style={{ backgroundColor: color }} className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform shadow-lg">{typeIcon}</div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-lg font-black text-slate-900 tracking-tight leading-tight">{mod.title}</p>
-                          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-1 italic">
-                              Subject: {mod.subject_name} | Posted: {new Date(mod.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <MoreVertical size={20} className="text-slate-300 group-hover:text-slate-900 transition-colors" />
-                      </div>
+              {scheduleToday.length > 0 ? (
+                scheduleToday.map((sched, idx) => (
+                  <div key={idx} className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex flex-col items-center justify-center shrink-0 border border-slate-100">
+                       <Clock size={16} className="text-slate-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-800 uppercase leading-tight">{sched.subject}</h4>
+                      <p className="text-[11px] font-bold text-slate-500 mt-1">{sched.time}</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-0.5">{sched.room || 'TBA'}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-20 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
-                   No {title} available for your section yet.
-                </div>
+                <div className="text-center py-6 text-slate-400 font-bold text-xs">No classes scheduled today.</div>
               )}
             </div>
           </div>
-        </div>
-      </div>
-    );
-  };
 
-  if (viewMode === 'modules') return renderClassroomView("Learning Modules", <BookOpen size={120}/>, branding.theme_color, "Module", <FileText size={24}/>);
-  if (viewMode === 'lectures') return renderClassroomView("Video Lectures", <Video size={120}/>, "#6366f1", "Video", <PlayCircle size={24}/>);
-  if (viewMode === 'quizzes') return renderClassroomView("Quizzes & Exams", <ClipboardList size={120}/>, "#f43f5e", "Quiz", <CheckCircle2 size={24}/>);
-  if (viewMode === 'discussion') return renderClassroomView("Class Discussion", <MessageSquare size={120}/>, "#0ea5e9", "Discussion", <HelpCircle size={24}/>);
-
-  return (
-    <div className="max-w-6xl mx-auto p-6 md:p-12 w-full space-y-10 animate-in fade-in duration-500 font-sans">
-      <header className="flex justify-between items-end">
-        <div>
-          <div className="flex flex-wrap gap-3 mb-5">
-            <span className="bg-yellow-400 text-[#001f3f] px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md italic">
-              {studentData?.grade_level} - {studentData?.formattedMain}
-            </span>
-            <span className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md italic ${studentData?.computedPaymentStatus === 'Unpaid' ? 'bg-red-500 text-white' : studentData?.computedPaymentStatus === 'Partial Payment' ? 'bg-yellow-500 text-[#001f3f]' : 'bg-emerald-500 text-white'}`}>
-              Status: {studentData?.computedPaymentStatus}
-            </span>
-          </div>
-          <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter mb-3 leading-none">
-            Classroom <span style={{ color: branding.theme_color }}>Modules</span>
-          </h1>
-          <p className="text-slate-400 font-black uppercase text-[11px] tracking-[0.4em]">
-            SY {studentData?.school_year} | {studentData?.dynamicDept}
-          </p>
-        </div>
-      </header>
-
-      <div style={{ backgroundColor: branding.theme_color }} className="text-white p-8 rounded-[3rem] flex items-center gap-8 shadow-2xl relative overflow-hidden group">
-        <div className="bg-white/20 p-5 rounded-[1.5rem] shadow-inner backdrop-blur-sm group-hover:rotate-12 transition-transform duration-500">
-          <Unlock size={28} className="text-yellow-400 animate-pulse" />
-        </div>
-        <div>
-          <p className="font-black text-[11px] uppercase tracking-[0.2em] opacity-80">Portal Active</p>
-          <p className="font-black text-2xl tracking-tight">Welcome back, {studentData?.first_name}!</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div onClick={() => setViewMode('modules')}><LMSCard icon={<BookOpen size={36} />} title="Learning Modules" desc={`${studentData?.grade_level} materials.`} count={`${modules.filter(m => m.type === 'Module').length} Items`} color={branding.theme_color} /></div>
-          <div onClick={() => setViewMode('lectures')}><LMSCard icon={<PlayCircle size={36} />} title="Video Lectures" desc="Watch recorded lessons." count={`${modules.filter(m => m.type === 'Video').length} Clips`} color="#6366f1" /></div>
-          <div onClick={() => setViewMode('quizzes')}><LMSCard icon={<ClipboardList size={36} />} title="Quizzes & Exams" desc="Grade assessments." count={`${modules.filter(m => m.type === 'Quiz').length} Tasks`} color="#f43f5e" /></div>
-          <div onClick={() => setViewMode('discussion')}><LMSCard icon={<MessageSquare size={36} />} title="Class Discussion" desc="Interact with class." count="Active" color="#0ea5e9" /></div>
-        </div>
-
-        <div className="space-y-8">
-          <div className="bg-white border-2 border-slate-50 p-10 rounded-[3rem] shadow-xl">
-            <h3 className="font-black text-slate-900 mb-8 uppercase text-[11px] tracking-[0.2em] flex items-center gap-3">
-              <GraduationCap size={20} className="text-emerald-500"/> Academic Profile
-            </h3>
-            <div className="space-y-5">
-              <StatusItem label="Department" value={studentData?.dynamicDept} />
-              <StatusItem label={studentData?.isCollege ? "Program" : "Grade Level"} value={studentData?.isCollege ? studentData?.formattedMain : studentData?.grade_level} />
-              {studentData?.isCollege ? (
-                  <StatusItem label="Major" value={studentData?.major} />
-              ) : (
-                  <StatusItem label="Section" value={studentData?.formattedMain} />
-              )}
-              <StatusItem label="Scholarship" value={studentData?.scholarship_type || 'None'} />
-              <StatusItem label="Payment Status" value={studentData?.computedPaymentStatus} />
+          {/* Pending Tasks */}
+          <div className="bg-slate-900 p-8 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
+               <ClipboardList size={80}/>
+            </div>
+            <div className="relative z-10">
+               <h3 className="font-black text-white/90 mb-6 flex items-center gap-2 text-sm">
+                  <CheckCircle2 size={18} className="text-yellow-400"/> Pending Tasks
+               </h3>
+               <div className="space-y-4">
+                  {pendingTasks.length > 0 ? pendingTasks.map((task, i) => (
+                    <div key={i} className="p-5 rounded-[1.5rem] bg-white/10 border border-white/5 hover:bg-white/20 transition-colors cursor-pointer">
+                       <div className="flex justify-between items-start mb-2">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded-md">{task.subject}</span>
+                       </div>
+                       <h4 className="font-bold text-sm leading-tight mb-3">{task.title}</h4>
+                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black/40 rounded-lg text-[9px] font-bold text-white/80 uppercase tracking-widest">
+                         <Clock size={10}/> Due: {task.due}
+                       </span>
+                    </div>
+                  )) : (
+                     <div className="text-center py-6 text-white/50 font-bold text-xs">No pending tasks!</div>
+                  )}
+               </div>
             </div>
           </div>
-          <div className="bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
-            <h3 className="font-black text-white/40 mb-8 uppercase text-[11px] tracking-[0.2em] flex items-center gap-3">
-              <BarChart3 size={20} className="text-yellow-400"/> Overall Progress
-            </h3>
-            <div className="space-y-6">
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-[11px] font-black text-white/30 uppercase tracking-widest mb-1">Academic GPA</p>
-                  <p className="text-4xl font-black tracking-tighter text-yellow-400">1.25</p>
-                </div>
-                <span className="text-[10px] font-black bg-white/10 px-4 py-1.5 rounded-full uppercase tracking-widest text-emerald-400 border border-emerald-400/20">Excellent</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                   <span className="text-white/40">Attendance</span>
-                   <span className="text-emerald-400">98%</span>
-                </div>
-                <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: '98%' }}></div>
-                </div>
-              </div>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>
   );
 };
-
-const LMSCard = ({ icon, title, desc, count, color }) => (
-  <div className="bg-white p-10 rounded-[3rem] border-2 border-slate-50 shadow-sm hover:shadow-2xl hover:-translate-y-3 transition-all cursor-pointer group h-full flex flex-col justify-between">
-    <div>
-      <div style={{ color: color }} className="mb-8 group-hover:scale-125 transition-transform duration-500">{icon}</div>
-      <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-tight mb-4">{title}</h3>
-      <p className="text-slate-400 text-sm font-bold leading-relaxed">{desc}</p>
-    </div>
-    <div className="mt-8">
-       <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg uppercase tracking-widest group-hover:bg-slate-900 group-hover:text-white transition-colors">{count}</span>
-    </div>
-  </div>
-);
-
-const StatusItem = ({ label, value }) => (
-  <div className="flex justify-between items-center border-b border-slate-50 pb-4">
-    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
-    <span className="font-black text-slate-900 tracking-tight">{value}</span>
-  </div>
-);
 
 export default StudentLms;

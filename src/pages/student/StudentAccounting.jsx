@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   CreditCard, CheckCircle2, Megaphone, Wallet, 
-  Receipt, Calendar, Lock, Loader2, Info, Eye, X, Printer, Image as ImageIcon 
+  Receipt, Calendar, Lock, Loader2, Info, Eye, X, Printer, 
+  ArrowRight, Download, History, Filter, Landmark, FileText, CheckCircle,
+  ChevronLeft, ChevronRight, CalendarDays, BookOpen, User, LogOut, Menu,
+  AlertCircle, Activity, Bell, BellOff
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -10,304 +13,391 @@ import { useNavigate } from 'react-router-dom';
 const StudentAccounting = () => {
   const { user, branding, API_BASE_URL } = useAuth();
   const navigate = useNavigate();
+  
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState(null);
-  const [billingItems, setBillingItems] = useState([]); 
+  const [allBillingItems, setAllBillingItems] = useState([]); 
+  
+  // UI States
+  const [activeTab, setActiveTab] = useState('statement'); // 'statement' | 'history'
+  const [filter, setFilter] = useState('All'); // 'All' | 'Unpaid' | 'Paid'
   const [viewModal, setViewModal] = useState({ open: false, type: '' });
 
   const fetchData = async () => {
-  try {
-    const res = await axios.get(`${API_BASE_URL}/student/get_students.php`);
-    const allStudents = res.data.students; 
-    const allItems = res.data.billing_items;
-    const myData = allStudents.find(s => s.email === user.email);
-    
-    if (myData) {
-      // 1. Kunin lahat ng items para sa billing na ito
-      const rawItems = allItems.filter(item => 
-        parseInt(item.billing_id) === parseInt(myData.billing_id)
-      );
+    try {
+      const res = await axios.get(`${API_BASE_URL}/student/get_students.php`);
+      const allStudents = res.data.students || []; 
+      const allItems = res.data.billing_items || [];
+      const myData = allStudents.find(s => s.email === user.email);
+      
+      if (myData) {
+        // Kunin lahat ng items (kahit paid na) para sa detailed breakdown
+        const rawItems = allItems.filter(item => parseInt(item.billing_id) === parseInt(myData.billing_id));
 
-      // 2. Filter logic: Ipakita lang ang items na may utang pa (Amount > Paid Amount)
-      const remainingItems = rawItems.map(item => {
-        const amount = parseFloat(item.amount || 0);
-        const paid = parseFloat(item.paid_amount || 0); // Gamitin ang actual paid per item
-        const itemBalance = amount - paid;
+        const processedItems = rawItems.map(item => {
+          const originalAmount = parseFloat(item.amount || 0);
+          const paid = parseFloat(item.paid_amount || 0);
+          const balance = originalAmount - paid;
+          return { 
+             ...item, 
+             originalAmount, 
+             paidAmount: paid, 
+             balance: balance > 0 ? balance : 0,
+             status: balance <= 0 ? 'Paid' : (paid > 0 ? 'Partial' : 'Unpaid')
+          };
+        });
 
-        // Kung bayad na ang item na ito (balance is 0), wag na isama sa listahan
-        if (itemBalance <= 0) return null;
+        // Compute overall real balances
+        const totalAssessment = processedItems.reduce((acc, item) => acc + item.originalAmount, 0);
+        const totalPaid = processedItems.reduce((acc, item) => acc + item.paidAmount, 0);
+        const totalBalance = processedItems.reduce((acc, item) => acc + item.balance, 0);
 
-        return { ...item, amount: itemBalance }; // Ipakita ang natitirang babayaran
-      }).filter(item => item !== null);
+        myData.totalAssessment = totalAssessment;
+        myData.totalPaid = totalPaid;
+        myData.computedBalance = totalBalance;
+        myData.paymentProgress = totalAssessment > 0 ? Math.round((totalPaid / totalAssessment) * 100) : 0;
 
-      // 3. I-calculate ang overall balance base sa natitirang items
-      const totalBalance = remainingItems.reduce((acc, item) => acc + item.amount, 0);
-      myData.balance = totalBalance.toFixed(2);
-
-      setStudentData(myData);
-      setBillingItems(remainingItems);
+        setStudentData(myData);
+        setAllBillingItems(processedItems);
+      }
+    } catch (err) {
+      console.error("Error fetching accounting data:", err);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Error fetching accounting data:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     if (user?.email) fetchData();
   }, [user.email]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
-  const totalAmt = parseFloat(studentData?.total_amount || 0);
-  const paidAmt = parseFloat(studentData?.paid_amount || 0);
-  const isPaid = paidAmt >= totalAmt && totalAmt > 0;
-  const isPartial = paidAmt > 0 && paidAmt < totalAmt;
-  const isUnpaid = paidAmt <= 0;
-  const safeThemeColor = branding?.theme_color?.startsWith('#') ? branding.theme_color : '#3b82f6';
+  // Filter Logic for Statement Table
+  const filteredItems = allBillingItems.filter(item => {
+     if (filter === 'All') return true;
+     if (filter === 'Paid') return item.status === 'Paid';
+     if (filter === 'Unpaid') return item.status !== 'Paid';
+     return true;
+  });
+
+  // Derived Statuses
+  const isPaid = studentData?.computedBalance <= 0 && studentData?.totalAssessment > 0;
+  const isPartial = studentData?.totalPaid > 0 && studentData?.computedBalance > 0;
+  const isUnpaid = studentData?.totalPaid <= 0;
+  const safeThemeColor = branding?.theme_color?.startsWith('#') ? branding.theme_color : '#6366f1';
+
+  // MOCK PAYMENT HISTORY (Since backend doesn't have a dedicated array yet, we generate a mock one based on paid amount to show the UI)
+  const mockHistory = studentData?.totalPaid > 0 ? [
+     { id: "OR-10293", date: studentData?.last_payment_date || "Recent", amount: studentData?.totalPaid, method: "Cash / Over-the-counter", status: "Verified" }
+  ] : [];
 
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center font-black animate-pulse text-slate-400 uppercase tracking-widest gap-4 p-6 text-center">
-      <Loader2 className="animate-spin text-blue-600" size={40} />
+    <div className="h-screen flex flex-col items-center justify-center font-black animate-pulse text-slate-400 uppercase tracking-widest gap-4 bg-slate-50/50">
+      <Loader2 className="animate-spin text-indigo-500" size={40} />
       Loading Finance Records...
     </div>
   );
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 md:p-12 w-full space-y-6 md:space-y-8 animate-in fade-in duration-500 font-sans print:p-0 print:m-0 print:max-w-none">
+    <div className="max-w-[1600px] mx-auto p-4 md:p-8 w-full space-y-6 animate-in fade-in duration-500 font-sans bg-slate-50/50 min-h-screen print:p-0 print:m-0 print:bg-white">
       
-      {/* MAIN CONTENT (HIDDEN ON PRINT) */}
-      <div className="print:hidden space-y-6 md:space-y-8">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-          <div>
-            <div className="flex flex-wrap gap-2 mb-3">
-              <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest shadow-md">Finance Portal</span>
-              <span className="bg-yellow-500 text-[#001f3f] px-3 py-1 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest shadow-md italic">S.Y. {studentData?.school_year}</span>
-              <span className={`px-3 py-1 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest shadow-md ${isUnpaid ? 'bg-red-500 text-white' : isPartial ? 'bg-yellow-500 text-[#001f3f]' : 'bg-emerald-500 text-white'}`}>
-                {isPaid ? 'Fully Paid' : isPartial ? 'Partial Payment' : 'Unpaid'}
-              </span>
-            </div>
-            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter mb-1">
-              Accounting <span style={{ color: safeThemeColor }}>Records</span>
-            </h1>
-            <p className="text-slate-400 font-bold uppercase text-[9px] tracking-[0.2em]">Student ID: {studentData?.student_id}</p>
+      {/* ========================================================
+          1. HEADER SECTION
+          ======================================================== */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 print:hidden mb-2">
+        <div>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">Finance Portal</span>
+            <span className="bg-white border border-slate-200 text-slate-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">S.Y. {studentData?.school_year}</span>
+            <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm ${isUnpaid ? 'bg-red-500 text-white' : isPartial ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'}`}>
+              {isPaid ? 'Fully Settled' : isPartial ? 'Partially Paid' : 'Pending Payment'}
+            </span>
           </div>
-        </header>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+             <Wallet className="text-indigo-600" size={32}/> Accounting & Billing
+          </h1>
+        </div>
+        <button onClick={() => setViewModal({ open: true, type: 'SOA' })} className="px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-bold rounded-xl flex items-center gap-2 shadow-lg active:scale-95">
+          <Download size={16} /> Download SOA
+        </button>
+      </div>
 
-        {(isUnpaid || isPartial) && (
-          <div className={`${isUnpaid ? 'bg-red-50 border-red-100' : 'bg-yellow-50 border-yellow-100'} border-2 p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] flex flex-row items-center gap-4 md:gap-5`}>
-            <div className={`${isUnpaid ? 'bg-red-500' : 'bg-yellow-500'} text-white p-2.5 md:p-3 rounded-xl md:rounded-2xl shadow-lg shrink-0`}>
-                <Info size={20} className="md:w-6 md:h-6" />
-            </div>
-            <div>
-              <p className={`text-[10px] md:text-[11px] font-black uppercase tracking-widest leading-none ${isUnpaid ? 'text-red-900' : 'text-yellow-900'}`}>
-                {isUnpaid ? 'Account Pending' : 'Balance Remaining'}
-              </p>
-              <p className={`text-[9px] md:text-[10px] font-bold mt-1 uppercase ${isUnpaid ? 'text-red-600/70' : 'text-yellow-600/70'}`}>
-                {isUnpaid ? 'Settle balance to activate features.' : `₱${parseFloat(studentData?.balance).toLocaleString()} outstanding.`}
-              </p>
-            </div>
+      {/* ========================================================
+          2. KPI CARDS ROW (Fintech Style)
+          ======================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
+        
+        {/* TOTAL BALANCE CARD (Accent Color) */}
+        <div style={{ backgroundColor: safeThemeColor }} className="p-8 rounded-[2.5rem] text-white shadow-[0_8px_30px_rgb(0,0,0,0.1)] relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
+             <Wallet size={150} />
           </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-          <div className="lg:col-span-2 space-y-6 md:space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div style={{ backgroundColor: safeThemeColor }} className="p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
-                <Wallet size={32} className="md:w-10 md:h-10 mb-4 md:mb-6 text-yellow-500" />
-                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Remaining Balance</p>
-                <h2 className="text-3xl md:text-4xl font-black mt-1">₱ {parseFloat(studentData?.balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</h2>
-              </div>
-
-              <div className="bg-white border-2 border-slate-100 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm relative overflow-hidden">
-                <div className="flex justify-between items-start mb-4 md:mb-6">
-                  <div className={`p-3 md:p-4 rounded-xl md:rounded-2xl ${isUnpaid ? 'bg-red-50' : isPartial ? 'bg-yellow-50' : 'bg-emerald-50'}`}>
-                    {isUnpaid ? <Lock size={20} className="text-red-500 md:w-6 md:h-6" /> : <CheckCircle2 size={20} className={`${isPartial ? 'text-yellow-600' : 'text-emerald-600'} md:w-6 md:h-6`} />}
-                  </div>
-                  <span className={`text-[8px] md:text-[9px] font-black px-2.5 py-1 rounded-full uppercase ${isUnpaid ? 'bg-red-100 text-red-700' : isPartial ? 'bg-yellow-100 text-yellow-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                     {isPaid ? 'Paid' : isPartial ? 'Partial' : 'Unpaid'}
-                  </span>
+          <div className="relative z-10 flex flex-col h-full justify-between">
+             <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2 flex items-center gap-2"><AlertCircle size={14}/> Outstanding Balance</p>
+                <h2 className="text-4xl md:text-5xl font-black tracking-tight drop-shadow-sm">
+                   ₱{studentData?.computedBalance?.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                </h2>
+             </div>
+             
+             <div className="mt-8">
+                <div className="flex justify-between items-end mb-2">
+                   <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">Payment Progress</p>
+                   <p className="text-sm font-black">{studentData?.paymentProgress}%</p>
                 </div>
-                <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Latest Payment</p>
-                <h2 className="text-xl md:text-2xl font-black text-slate-900 mt-1">₱ {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2})}</h2>
-                <p className="text-[8px] md:text-[9px] font-bold text-slate-400 mt-2 uppercase italic flex items-center gap-2">
-                  <Calendar size={10}/> {studentData?.last_payment_date || 'N/A'}
-                </p>
+                <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden backdrop-blur-sm">
+                   <div className="bg-white h-2 rounded-full transition-all duration-1000" style={{ width: `${studentData?.paymentProgress}%` }}></div>
+                </div>
+             </div>
+          </div>
+        </div>
+
+        {/* TOTAL ASSESSED CARD */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between">
+           <div>
+              <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-[1.2rem] flex items-center justify-center mb-4">
+                 <Receipt size={24} />
               </div>
-            </div>
-
-            <div 
-  style={{ backgroundColor: safeThemeColor }} 
-  className="text-white p-4 md:p-5 rounded-2xl md:rounded-3xl flex items-center gap-4 md:gap-5 shadow-xl overflow-hidden relative"
->
-  {/* Custom CSS para sa scrolling animation */}
-  <style>
-    {`
-      @keyframes scroll-text {
-        0% { transform: translateX(100%); }
-        100% { transform: translateX(-100%); }
-      }
-      .animate-marquee {
-        display: inline-block;
-        white-space: nowrap;
-        animation: scroll-text 15s linear infinite;
-      }
-    `}
-  </style>
-
-  {/* Megaphone Icon - Naka-z-index para laging nasa ibabaw */}
-  <div className="z-10 bg-inherit pr-2">
-    <Megaphone 
-      size={20} 
-      className="shrink-0 animate-bounce text-yellow-500 md:w-6 md:h-6" 
-    />
-  </div>
-
-  {/* Moving Text Container */}
-  <div className="flex-1 overflow-hidden">
-    <p className="animate-marquee font-black text-[10px] md:text-xs uppercase tracking-widest italic">
-      Important: Please settle any outstanding balance to avoid late enrollment penalties. &nbsp;&nbsp;&nbsp;&nbsp; 
-      Important: Please settle any outstanding balance to avoid late enrollment penalties.
-    </p>
-  </div>
-</div>
-            <section className="bg-white border border-slate-200 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-10 shadow-sm overflow-hidden">
-              <h3 className="font-black text-slate-800 mb-6 md:mb-8 uppercase text-[9px] md:text-[10px] tracking-[0.2em] flex items-center gap-2">
-                <Receipt size={16} className="text-blue-500"/> Assessment Details
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Assessment</p>
+              <h3 className="text-3xl font-black text-slate-800 tracking-tight mt-1">
+                 ₱{studentData?.totalAssessment?.toLocaleString(undefined, {minimumFractionDigits: 2})}
               </h3>
-              <div className="overflow-x-auto -mx-5 px-5">
-                <table className="w-full text-left border-collapse min-w-[300px]">
-                  <thead className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                    <tr>
-                      <th className="pb-4">Description</th>
-                      <th className="pb-4 text-right">Amount Due</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs md:text-sm font-bold text-slate-700">
-                    {billingItems.length > 0 ? (
-                      billingItems.map((item, index) => (
-                        <tr key={index} className="border-b border-slate-50">
-                          <td className="py-4 text-slate-600 font-medium uppercase">{item.item_name}</td>
-                          <td className="py-4 text-right font-black text-slate-900 whitespace-nowrap">₱ {parseFloat(item.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr className="border-b border-slate-50">
-                        <td className="py-5 text-emerald-600 italic font-medium">All items settled.</td>
-                        <td className="py-5 text-right font-black text-slate-400">₱ 0.00</td>
-                      </tr>
-                    )}
-                    <tr className="border-b border-slate-50 text-emerald-600">
-                      <td className="py-5 italic font-medium">Total Paid</td>
-                      <td className="py-5 text-right font-black text-base md:text-lg">- ₱ {paidAmt.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                    </tr>
-                    <tr className={`${isUnpaid ? 'text-red-600' : isPartial ? 'text-yellow-600' : 'text-slate-900'}`}>
-                      <td className="py-5 uppercase tracking-widest text-[9px] font-black">Balance Due</td>
-                      <td className="py-5 text-right font-black text-xl md:text-2xl underline decoration-double">₱ {parseFloat(studentData?.balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
+           </div>
+           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-6 border-t border-slate-50 pt-4">Total fees for the current school year.</p>
+        </div>
 
-          <div className="space-y-6 md:space-y-8">
-            <div className={`p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border-4 ${isUnpaid ? 'bg-red-50 border-red-100' : isPartial ? 'bg-yellow-50 border-yellow-100' : 'bg-emerald-50 border-emerald-100'}`}>
-              <div className="flex items-center gap-4">
-                <div style={{ backgroundColor: isUnpaid ? '#ef4444' : isPartial ? '#eab308' : '#10b981' }} className="text-white p-3 md:p-4 rounded-xl md:rounded-2xl shadow-lg shrink-0">
-                   {isUnpaid ? <CreditCard size={20}/> : <CheckCircle2 size={20}/>}
-                </div>
-                <div>
-                  <p className={`font-black text-lg md:text-xl leading-none ${isUnpaid ? 'text-red-700' : isPartial ? 'text-yellow-700' : 'text-emerald-700'}`}>
-                    {isPaid ? 'FULLY PAID' : isPartial ? 'PARTIAL' : 'UNPAID'}
-                  </p>
-                  <p className="text-[8px] font-bold uppercase mt-1 opacity-70">Status: {isUnpaid ? 'Inactive' : 'Active'}</p>
-                </div>
+        {/* LAST PAYMENT CARD */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between">
+           <div className="flex justify-between items-start">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-[1.2rem] flex items-center justify-center mb-4">
+                 <Landmark size={24} />
               </div>
-            </div>
-            
-            <div className="bg-slate-900 text-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl">
-              <h3 className="font-black text-[8px] md:text-[9px] uppercase tracking-widest mb-5 md:mb-6 text-slate-500 italic underline decoration-yellow-500">Document Hub</h3>
-              <div className="space-y-2 md:space-y-3">
-                <ViewBtn label="Billing Statement" onClick={() => setViewModal({ open: true, type: 'Billing Statement' })} />
-                <ViewBtn label="Official Receipt" onClick={() => setViewModal({ open: true, type: 'Official Receipt' })} />
-                <ViewBtn label="Payment Voucher" onClick={() => setViewModal({ open: true, type: 'Payment Voucher' })} />
-              </div>
-            </div>
-          </div>
+              <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${isUnpaid ? 'bg-slate-100 text-slate-400' : 'bg-emerald-100 text-emerald-700'}`}>
+                 {isUnpaid ? 'No Records' : 'Verified'}
+              </span>
+           </div>
+           <div>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Amount Paid</p>
+              <h3 className="text-3xl font-black text-slate-800 tracking-tight mt-1">
+                 ₱{studentData?.totalPaid?.toLocaleString(undefined, {minimumFractionDigits: 2})}
+              </h3>
+           </div>
+           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-6 border-t border-slate-50 pt-4 flex items-center gap-1">
+             <Calendar size={12}/> Last active: {studentData?.last_payment_date || 'N/A'}
+           </p>
         </div>
       </div>
 
-      {/* DOCUMENT PREVIEW MODAL */}
+      {/* ========================================================
+          3. MAIN TABS & DATA CONTENT
+          ======================================================== */}
+      <div className="bg-white border border-slate-100 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden print:hidden">
+        
+        {/* TAB NAVIGATION */}
+        <div className="flex border-b border-slate-100 px-6 pt-6 gap-6 overflow-x-auto no-scrollbar">
+           <button 
+             onClick={() => setActiveTab('statement')}
+             className={`pb-4 text-sm font-black uppercase tracking-widest transition-colors whitespace-nowrap border-b-4 ${activeTab === 'statement' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+           >
+             <div className="flex items-center gap-2"><FileText size={16}/> Statement of Account</div>
+           </button>
+           <button 
+             onClick={() => setActiveTab('history')}
+             className={`pb-4 text-sm font-black uppercase tracking-widest transition-colors whitespace-nowrap border-b-4 ${activeTab === 'history' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+           >
+             <div className="flex items-center gap-2"><History size={16}/> Payment History</div>
+           </button>
+        </div>
+
+        <div className="p-6 md:p-10">
+           
+           {/* CONTENT: STATEMENT OF ACCOUNT */}
+           {activeTab === 'statement' && (
+             <div className="animate-in fade-in duration-300">
+               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                 <h3 className="font-black text-slate-800 text-lg">Fee Breakdown</h3>
+                 <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                    <Filter size={14} className="text-slate-400 ml-2" />
+                    <select value={filter} onChange={(e) => setFilter(e.target.value)} className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer pr-2">
+                       <option value="All">All Fees</option>
+                       <option value="Unpaid">Unpaid / Balances</option>
+                       <option value="Paid">Fully Paid</option>
+                    </select>
+                 </div>
+               </div>
+
+               <div className="overflow-x-auto rounded-3xl border border-slate-100">
+                 <table className="w-full text-left border-collapse min-w-[600px]">
+                   <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                     <tr>
+                       <th className="p-5 pl-6 border-b border-slate-100">Particulars / Fee Name</th>
+                       <th className="p-5 text-right border-b border-slate-100">Assessed Amt</th>
+                       <th className="p-5 text-right border-b border-slate-100">Paid</th>
+                       <th className="p-5 text-right border-b border-slate-100">Balance</th>
+                       <th className="p-5 text-center border-b border-slate-100">Status</th>
+                     </tr>
+                   </thead>
+                   <tbody className="text-sm font-bold text-slate-700 divide-y divide-slate-50">
+                     {filteredItems.length > 0 ? (
+                       filteredItems.map((item, index) => (
+                         <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                           <td className="p-5 pl-6 text-slate-800 uppercase">{item.item_name}</td>
+                           <td className="p-5 text-right font-medium text-slate-500">₱{item.originalAmount.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                           <td className="p-5 text-right font-medium text-emerald-600">₱{item.paidAmount.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                           <td className="p-5 text-right font-black text-slate-900">₱{item.balance.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                           <td className="p-5 text-center">
+                              <span className={`inline-block px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                                item.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' :
+                                item.status === 'Partial' ? 'bg-amber-100 text-amber-700' :
+                                'bg-red-50 text-red-600 border border-red-100'
+                              }`}>
+                                {item.status}
+                              </span>
+                           </td>
+                         </tr>
+                       ))
+                     ) : (
+                       <tr>
+                         <td colSpan="5" className="p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs italic">
+                            No records found for this filter.
+                         </td>
+                       </tr>
+                     )}
+                   </tbody>
+                 </table>
+               </div>
+             </div>
+           )}
+
+           {/* CONTENT: PAYMENT HISTORY */}
+           {activeTab === 'history' && (
+             <div className="animate-in fade-in duration-300">
+               <h3 className="font-black text-slate-800 text-lg mb-6">Recent Transactions</h3>
+               
+               <div className="space-y-4">
+                 {mockHistory.length > 0 ? (
+                   mockHistory.map((hist, idx) => (
+                     <div key={idx} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 border border-slate-100 rounded-3xl bg-slate-50/50 hover:bg-white hover:shadow-sm transition-all gap-4">
+                        <div className="flex items-center gap-5">
+                           <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                              <CheckCircle size={20}/>
+                           </div>
+                           <div>
+                              <h4 className="font-black text-slate-800 tracking-tight">{hist.id}</h4>
+                              <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">{hist.date} • {hist.method}</p>
+                           </div>
+                        </div>
+                        <div className="text-right w-full sm:w-auto">
+                           <p className="text-xl font-black text-emerald-600">₱{hist.amount.toLocaleString(undefined, {minimumFractionDigits:2})}</p>
+                           <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{hist.status}</span>
+                        </div>
+                     </div>
+                   ))
+                 ) : (
+                   <div className="text-center py-16 border-2 border-dashed border-slate-100 rounded-[2rem]">
+                      <History size={40} className="mx-auto text-slate-300 mb-4"/>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">No payment history available yet.</p>
+                   </div>
+                 )}
+               </div>
+               
+               <div className="mt-6 p-5 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-start gap-4">
+                  <Info size={20} className="text-indigo-600 shrink-0 mt-0.5"/>
+                  <p className="text-xs font-medium text-indigo-800 leading-relaxed">
+                    <strong>Note:</strong> Payments made through bank transfers or over-the-counter channels may take 1 to 2 business days to reflect in your portal. Please keep your deposit slips for verification.
+                  </p>
+               </div>
+             </div>
+           )}
+
+        </div>
+      </div>
+
+      {/* ========================================================
+          SOA PRINT MODAL (Polished Print View)
+          ======================================================== */}
       {viewModal.open && studentData && (
         <div className="fixed inset-0 bg-slate-900/60 z-[100] flex items-start justify-center p-4 pt-10 backdrop-blur-sm print:p-0 print:bg-white">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden print:shadow-none print:max-h-full print:rounded-none animate-in slide-in-from-top-4 duration-300">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden print:shadow-none print:max-h-full print:rounded-none animate-in zoom-in-95 duration-200">
             
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white print:hidden">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><Receipt size={24}/></div>
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl"><Receipt size={24}/></div>
                 <h3 className="font-black text-slate-800 tracking-tight">Statement of Account</h3>
               </div>
               <div className="flex gap-2">
-                <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition-all shadow-lg">
-                   <Printer size={18} /> Print to PDF
+                <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-900 transition-all shadow-lg active:scale-95">
+                   <Printer size={18} /> Print Document
                 </button>
                 <button onClick={() => setViewModal({ open: false, type: '' })} className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 rounded-xl transition-colors"><X size={20}/></button>
               </div>
             </div>
 
-            <div className="p-8 overflow-y-auto flex-1 print:overflow-visible font-sans">
-              <div className="flex items-start justify-between mb-8 border-b-4 border-slate-900 pb-6">
+            <div className="p-8 md:p-12 overflow-y-auto flex-1 print:overflow-visible font-sans">
+              <div className="flex items-start justify-between mb-10 border-b-4 border-slate-900 pb-8">
                 <div className="flex items-center gap-6">
-                  <div className="w-24 h-24 rounded-2xl bg-slate-100 overflow-hidden border-2 border-slate-200 shadow-md">
-                    {studentData.profile_image ? (
-                      <img src={`${API_BASE_URL}/uploads/profiles/${studentData.profile_image}`} className="w-full h-full object-cover" alt="Profile" />
-                    ) : (
-                      <div className="flex items-center justify-center w-full h-full text-slate-400 font-black text-4xl">{studentData.first_name?.charAt(0)}</div>
-                    )}
-                  </div>
+                  {branding.school_logo && (
+                    <img 
+                      src={`${API_BASE_URL}/uploads/branding/${branding?.school_logo}`} 
+                      className="w-24 h-24 object-contain" 
+                      alt="Logo" 
+                    />
+                  )}
                   <div>
-                    <h1 className="text-xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
-                    <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-2">Office of the Finance & Accounting</p>
+                    <h1 className="text-2xl font-black text-slate-900 uppercase leading-tight">{branding.school_name}</h1>
+                    <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-4">Office of Finance & Accounting</p>
                     <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-none mb-2">{studentData.first_name} {studentData.last_name}</h2>
-                    <p className="font-mono text-sm font-bold text-slate-500">ID: {studentData.student_id} • ₱ {parseFloat(studentData.balance).toLocaleString()} Balance</p>
+                    <p className="font-mono text-sm font-bold text-slate-600">LRN/ID: {studentData.student_id} • S.Y. {studentData.school_year}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  {branding.school_logo &&  <img 
-                    src={`${API_BASE_URL}/uploads/branding/${branding?.school_logo}`} 
-                    className="w-16 h-16 object-cover ml-auto mb-1" 
-                    alt="Logo" 
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />}
-                  <p className="text-[8px] font-bold text-slate-400 italic">SOA Date: {new Date().toLocaleDateString()}</p>
+                  <p className="text-2xl font-black uppercase text-slate-300 tracking-tighter mb-1">Statement</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date: {new Date().toLocaleDateString()}</p>
                 </div>
               </div>
 
               <div className="space-y-6">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-slate-200">
-                      <th className="py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Particulars</th>
-                      <th className="py-4 text-right text-[10px] font-black uppercase text-slate-400 tracking-widest">Amount Due</th>
+                    <tr className="border-b-2 border-slate-800">
+                      <th className="py-4 text-xs font-black uppercase text-slate-800 tracking-widest">Description</th>
+                      <th className="py-4 text-right text-xs font-black uppercase text-slate-800 tracking-widest">Assessment</th>
+                      <th className="py-4 text-right text-xs font-black uppercase text-slate-800 tracking-widest">Paid</th>
+                      <th className="py-4 text-right text-xs font-black uppercase text-slate-800 tracking-widest">Balance</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {billingItems.map((item, i) => (
-                      <tr key={i} className="border-b border-slate-50">
+                    {allBillingItems.map((item, i) => (
+                      <tr key={i} className="border-b border-slate-100">
                         <td className="py-4 font-bold text-slate-700 uppercase text-xs">{item.item_name}</td>
-                        <td className="py-4 text-right font-black text-slate-900">₱ {parseFloat(item.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="py-4 text-right font-medium text-slate-500">₱ {item.originalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="py-4 text-right font-medium text-emerald-600">₱ {item.paidAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td className="py-4 text-right font-black text-slate-900">₱ {item.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
 
-                <div className="bg-slate-900 text-white p-6 rounded-3xl flex justify-between items-center mt-4 print:bg-slate-100 print:text-slate-900">
-                   <p className="font-black uppercase text-[10px] tracking-widest opacity-70">Grand Total Balance</p>
-                   <p className="text-3xl font-black">₱ {parseFloat(studentData.balance).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                <div className="flex justify-end pt-6">
+                   <div className="w-full max-w-sm space-y-4">
+                      <div className="flex justify-between text-sm font-bold text-slate-500">
+                         <span>Total Assessment:</span>
+                         <span>₱ {studentData.totalAssessment?.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-bold text-emerald-600">
+                         <span>Less: Payments Made:</span>
+                         <span>- ₱ {studentData.totalPaid?.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                      </div>
+                      <div className="flex justify-between text-xl font-black text-slate-900 pt-4 border-t-2 border-slate-900">
+                         <span className="uppercase tracking-widest text-sm self-end">Total Due</span>
+                         <span>₱ {studentData.computedBalance?.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                      </div>
+                   </div>
+                </div>
+                
+                <div className="mt-16 pt-8 border-t border-slate-200 text-center print:block">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">This is a system-generated document. Not valid for claiming tax exemptions.</p>
                 </div>
               </div>
             </div>
@@ -317,11 +407,5 @@ const StudentAccounting = () => {
     </div>
   );
 };
-
-const ViewBtn = ({ label, onClick }) => (
-  <button onClick={onClick} className="w-full flex items-center justify-between p-3 md:p-4 bg-white/5 border border-white/10 rounded-xl md:rounded-2xl hover:bg-white/10 transition-all text-[9px] md:text-[10px] font-bold uppercase tracking-widest group">
-    {label} <Eye size={14} className="text-blue-400 group-hover:scale-125 transition-transform" />
-  </button>
-);
 
 export default StudentAccounting;
