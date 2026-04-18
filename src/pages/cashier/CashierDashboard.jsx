@@ -1,213 +1,356 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Wallet, Banknote, History, CreditCard, Activity, X } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import {
+  Wallet,
+  History,
+  CreditCard,
+  Activity,
+  TrendingUp,
+  Users,
+  Clock,
+  Calendar,
+  X,
+} from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import {
+  StatCard,
+  SectionHeader,
+  RevenueAnalytics,
+  MonthlyBarChart,
+} from "../../components/cashier/CashierComponents";
+
 const CashierDashboard = () => {
-  const { API_BASE_URL } = useAuth();
+  const { API_BASE_URL, branding } = useAuth();
   const [isAllTxModalOpen, setIsAllTxModalOpen] = useState(false);
-  const [allTransactions, setAllTransactions] = useState([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [stats, setStats] = useState({
     totalCollections: "₱0.00",
     todayTransactions: 0,
     pendingPayments: 0,
     recentTransactions: [],
-    breakdown: { Cash: 0, GCash: 0, Card: 0 }
+    breakdown: { Cash: 0, GCash: 0, Card: 0 },
   });
+
+  // Timpla ng kulay: 12% opacity para hindi masyadong maputi pero hindi rin masakit sa mata
+  const getLightVariant = (hexColor) => {
+    if (!hexColor) return "#f8fafc";
+    return `${hexColor}1F`; // 1F is ~12% opacity
+  };
+
+  const getMediumVariant = (hexColor) => {
+    if (!hexColor) return "#f1f5f9";
+    return `${hexColor}33`; // 20% opacity
+  };
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDate = (date) =>
+    date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  const formatTime = (date) =>
+    date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
 
   const fetchData = async () => {
     try {
       const [statsRes, paymentsRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/cashier/get_dashboard_stats.php`),
-        axios.get(`${API_BASE_URL}/cashier/get_payments.php`)
+        axios.get(`${API_BASE_URL}/cashier/get_payments.php`),
       ]);
       setStats({
-        totalCollections: statsRes.data.totalCollections,
-        todayTransactions: statsRes.data.todayTransactions,
-        pendingPayments: statsRes.data.pendingPayments,
+        totalCollections: statsRes.data.totalCollections || "₱0.00",
+        todayTransactions: statsRes.data.todayTransactions || 0,
+        pendingPayments: statsRes.data.pendingPayments || 0,
         recentTransactions: paymentsRes.data || [],
-        breakdown: statsRes.data.breakdown
+        breakdown: statsRes.data.breakdown || {},
       });
     } catch (error) {
-      console.error("Dashboard Fetch Error:", error);
+      console.error("Fetch error:", error);
     }
   };
-
-const fetchAllTransactions = async () => {
-  try {
-    // FIX: Ginawang dynamic ang URL para future-proof ang system mo
-    const response = await axios.get(`${API_BASE_URL}/cashier/get_all_payments.php`);
-    
-    // Siguraduhin nating array ang data bago i-set para hindi mag-error ang .map()
-    setAllTransactions(Array.isArray(response.data) ? response.data : []);
-    setIsAllTxModalOpen(true);
-  } catch (error) {
-    console.error("Error fetching all transactions:", error);
-    alert("Hindi makuha ang lahat ng records. Check PHP connection.");
-  }
-};
 
   useEffect(() => {
     fetchData();
   }, []);
 
   return (
-    <div className="p-6 space-y-8 bg-slate-50 min-h-screen text-left">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-          <Activity className="text-blue-600" size={24} /> Cashier Overview
-        </h1>
-        <p className="text-slate-500 text-sm font-medium italic">Monitor today's financial data with precision.</p>
-      </div>
+    /* FIX: Inalis ang 'fixed inset-0' para hindi mag-overlap sa Sidebar. 
+       Ginamit ang 'flex-1' at 'min-h-0' para sumunod sa main container. */
+    <div className="p-4 md:p-8 space-y-6">
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
 
-      {/* Floating Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { label: "Total Collections", val: stats.totalCollections, color: "text-emerald-600", border: "border-emerald-100" },
-          { label: "Today's Transactions", val: stats.todayTransactions, color: "text-blue-600", border: "border-blue-100" },
-          { label: "Pending Issues", val: stats.pendingPayments, color: "text-orange-600", border: "border-orange-100" }
-        ].map((card, i) => (
-          <div key={i} className={`bg-white p-6 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.04)] border-2 ${card.border} hover:shadow-[0_25px_50px_rgba(0,0,0,0.08)] hover:-translate-y-2 transition-all duration-300 cursor-default`}>
-            <p className="text-slate-400 text-[10px] font-black uppercase mb-1 tracking-widest">{card.label}</p>
-            <h3 className={`text-3xl font-black ${card.color}`}>{card.val}</h3>
+      <div className="max-w-[1600px] mx-auto space-y-6">
+        {/* STAT CARDS SECTION */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 md:gap-4 shrink-0">
+          {/* 1. Total Collections */}
+          <StatCard
+            title="Total Collections"
+            value={stats.totalCollections}
+            icon={Wallet}
+            colorClass="bg-slate-900"
+          />
+
+          {/* 2. Today's Count */}
+          <StatCard
+            title="Today's Count"
+            value={stats.todayTransactions}
+            icon={Activity}
+            colorClass="bg-indigo-600"
+          />
+
+          {/* 3. Pending */}
+          <StatCard
+            title="Pending"
+            value={stats.pendingPayments}
+            icon={Clock}
+            colorClass="bg-rose-500"
+          />
+
+          {/* 4. Active Users */}
+          <StatCard
+            title="Active Users"
+            value="1,240"
+            icon={Users}
+            colorClass="bg-emerald-500"
+          />
+
+          {/* 5. Time Card (Glass Effect) */}
+          <div className="bg-white/60 backdrop-blur-md px-3 py-2 md:px-4 md:py-3 rounded-[1.2rem] md:rounded-[1.5rem] border border-white shadow-sm flex items-center gap-3 h-[75px] md:h-[85px] group transition-all duration-300 hover:bg-white/80">
+            <div className="p-2 md:p-2 rounded-xl bg-slate-800 text-white shrink-0 shadow-md transition-all duration-300 group-hover:scale-0 group-hover:w-0 group-hover:opacity-0 group-hover:p-0">
+              <Clock size={16} className="md:w-[18px]" />
+            </div>
+            <div className="min-w-0 flex flex-col justify-center transition-all duration-300 group-hover:pl-2">
+              <p className="text-[7px] md:text-[9px] font-black text-slate-400 uppercase leading-none mb-1 transition-all duration-300 group-hover:text-slate-600">
+                Time
+              </p>
+              <h3 className="text-[11px] md:text-base font-black text-slate-800 italic leading-none whitespace-nowrap transition-all duration-300 group-hover:scale-110 origin-left">
+                {currentTime.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </h3>
+            </div>
           </div>
-        ))}
 
-        {/* Dark Breakdown Card */}
-        <div className="bg-slate-900 p-6 rounded-[2rem] shadow-[0_20px_50px_rgba(15,23,42,0.3)] hover:-translate-y-2 transition-all duration-300 text-white border-2 border-slate-700">
-          <p className="text-slate-500 text-[10px] font-black uppercase mb-3 tracking-widest text-center">Method Breakdown</p>
-          <div className="flex justify-between items-center px-2 text-center">
-            <div className="flex-1">
-              <p className="text-[9px] text-emerald-400 font-black">CASH</p>
-              <p className="font-black text-sm">₱{Number(stats.breakdown?.Cash || 0).toLocaleString()}</p>
+          {/* 6. Date Card (Glass Effect) */}
+          <div className="bg-white/60 backdrop-blur-md px-3 py-2 md:px-4 md:py-3 rounded-[1.2rem] md:rounded-[1.5rem] border border-white shadow-sm flex items-center gap-3 h-[75px] md:h-[85px] group transition-all duration-300 hover:bg-white/80">
+            <div className="p-2 md:p-2 rounded-xl bg-slate-800 text-white shrink-0 shadow-md transition-all duration-300 group-hover:scale-0 group-hover:w-0 group-hover:opacity-0 group-hover:p-0">
+              <Calendar size={16} className="md:w-[18px]" />
             </div>
-            <div className="w-[1px] h-6 bg-slate-700 mx-2"></div>
-            <div className="flex-1">
-              <p className="text-[9px] text-blue-400 font-black">GCASH</p>
-              <p className="font-black text-sm">₱{Number(stats.breakdown?.GCash || 0).toLocaleString()}</p>
+            <div className="min-w-0 flex flex-col justify-center transition-all duration-300 group-hover:pl-2">
+              <p className="text-[7px] md:text-[9px] font-black text-slate-400 uppercase leading-none mb-1 transition-all duration-300 group-hover:text-slate-600">
+                Date
+              </p>
+              <h3 className="text-[11px] md:text-base font-black text-slate-800 italic leading-none whitespace-nowrap transition-all duration-300 group-hover:scale-110 origin-left">
+                {formatDate(currentTime)}
+              </h3>
             </div>
-            <div className="w-[1px] h-6 bg-slate-700 mx-2"></div>
-            <div className="flex-1">
-              <p className="text-[9px] text-orange-400 font-black">CARD</p>
-              <p className="font-black text-sm">₱{Number(stats.breakdown?.Card || 0).toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* CHART SECTION */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 shrink-0">
+          <div className="lg:col-span-2">
+            <RevenueAnalytics />
+          </div>
+          <div className="lg:col-span-1">
+            <MonthlyBarChart branding={branding} />
+          </div>
+        </div>
+
+        {/* DATA SECTION */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-10">
+          <div className="lg:col-span-2 flex flex-col bg-white p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-200 shadow-sm">
+            <SectionHeader
+              title="Recent Activity"
+              icon={History}
+              action={
+                <button
+                  onClick={() => setIsAllTxModalOpen(true)}
+                  style={{
+                    color: branding?.theme_color,
+                    backgroundColor: getMediumVariant(branding?.theme_color),
+                  }}
+                  className="text-[9px] md:text-[10px] font-black uppercase px-3 py-2 md:px-5 md:py-2.5 rounded-xl md:rounded-2xl transition-all shadow-sm active:scale-95"
+                >
+                  Full History
+                </button>
+              }
+            />
+
+            <div className="space-y-2 md:space-y-3 mt-4">
+              {stats.recentTransactions.slice(0, 5).map((tx, i) => (
+                <div
+                  key={i}
+                  className="bg-slate-50/50 p-3 md:p-4 rounded-[1.5rem] md:rounded-[1.8rem] border border-slate-100 flex justify-between items-center hover:bg-white hover:shadow-md transition-all group"
+                >
+                  <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                    {/* ICON - Pinaliit para sa mobile */}
+                    <div
+                      className="w-10 h-10 md:w-11 md:h-11 rounded-xl md:rounded-2xl flex items-center justify-center text-xs md:text-sm font-black italic shrink-0"
+                      style={{
+                        backgroundColor: getMediumVariant(
+                          branding?.theme_color,
+                        ),
+                        color: branding?.theme_color,
+                      }}
+                    >
+                      {tx.method?.[0] || "C"}
+                    </div>
+
+                    {/* TEXT - May truncate para hindi sumabog */}
+                    <div className="min-w-0">
+                      <p className="text-[11px] md:text-sm font-black text-slate-800 uppercase italic leading-tight truncate">
+                        {tx.full_name || "Student Payer"}
+                      </p>
+                      <p className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                        {tx.student_id || "Cash Transaction"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* AMOUNT & METHOD */}
+                  <div className="text-right shrink-0 ml-2">
+                    <p className="text-[13px] md:text-base font-black text-slate-900 italic leading-none">
+                      ₱{Number(tx.amount || 0).toLocaleString()}
+                    </p>
+                    <span
+                      className="text-[7px] md:text-[8px] font-black uppercase px-2 py-0.5 rounded-full mt-1 inline-block border border-current"
+                      style={{ color: branding?.theme_color }}
+                    >
+                      {tx.method}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col">
+            <SectionHeader title="Channels" icon={CreditCard} />
+            <div className="bg-slate-900 p-8 rounded-[2.5rem] border-4 border-white/5 shadow-2xl space-y-8 relative overflow-hidden">
+              <div
+                className="absolute top-0 right-0 w-40 h-40 blur-[80px] opacity-20 rounded-full"
+                style={{ backgroundColor: branding?.theme_color }}
+              ></div>
+              {Object.entries(stats.breakdown).map(([method, amount]) => (
+                <div
+                  key={method}
+                  className="flex justify-between items-center border-b border-white/5 pb-5 last:border-0 last:pb-0 relative z-10"
+                >
+                  <div>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                      {method}
+                    </p>
+                    <p className="text-2xl font-black italic text-white leading-none">
+                      ₱{Number(amount).toLocaleString()}
+                    </p>
+                  </div>
+                  <TrendingUp size={18} className="text-emerald-500" />
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Floating Table with Hover Rows */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-end">
-          <div>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-              <History size={14} /> Live Transaction Log
-            </p>
-            <p className="text-[10px] text-slate-400 italic font-medium">Hover over rows to highlight details</p>
-          </div>
-          <button
-            onClick={fetchAllTransactions}
-            className="text-[10px] font-black uppercase tracking-widest text-blue-700 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-100 px-4 py-2 rounded-xl transition-all duration-300 shadow-sm active:scale-95"
-          >
-            View All Records
-          </button>
-        </div>
-
-        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.03)] border-2 border-slate-100 overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50/80 border-b-2 border-slate-100">
-              <tr>
-                <th className="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Student ID</th>
-                <th className="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Name</th>
-                <th className="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Amount</th>
-                <th className="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Fee Type</th>
-                <th className="p-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Method</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {stats.recentTransactions.length > 0 ? (
-                stats.recentTransactions.slice(0, 5).map((tx) => (
-                  <tr
-                    key={tx.id}
-                    className="group transition-all duration-200 hover:bg-slate-100/80 cursor-default"
-                  >
-                    {/* Student ID */}
-                    <td className="p-5 text-xs font-mono font-bold text-slate-400 group-hover:text-slate-600 transition-colors">
-                      {tx.student}
-                    </td>
-
-                    {/* Name */}
-                    <td className="p-5 text-sm font-bold text-slate-700">
-                      Student Name
-                    </td>
-
-                    {/* Amount */}
-                    <td className="p-5 text-sm font-black text-blue-600">
-                      ₱{Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </td>
-
-                    {/* Fee Type */}
-                    <td className="p-5 text-[11px] font-bold text-slate-500 uppercase tracking-tight">
-                      {tx.type}
-                    </td>
-
-                    {/* Method */}
-                    <td className="p-5 text-right">
-                      <span className={`text-[10px] font-black px-3 py-1.5 rounded-lg uppercase border ${tx.method === 'Cash' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                          tx.method === 'GCash' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                            'bg-orange-50 text-orange-600 border-orange-100'
-                        }`}>
-                        {tx.method}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr><td colSpan="5" className="p-20 text-center text-slate-300 italic font-medium">No records today.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+      {/* MODAL FOR FULL HISTORY */}
       {isAllTxModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[60] flex items-center justify-center p-6 text-left">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border-4 border-white">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-white">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setIsAllTxModalOpen(false)}
+          ></div>
+          <div className="relative bg-white w-full max-w-4xl max-h-[85vh] rounded-[3rem] shadow-2xl overflow-hidden flex flex-col border-4 border-slate-50">
+            <div className="p-8 border-b flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
-                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Full Transaction History</h2>
-                <p className="text-sm text-slate-400 font-medium italic">Complete log of student payments.</p>
+                <h2 className="text-xl font-black italic text-slate-800 uppercase leading-none mb-1">
+                  Transaction History
+                </h2>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Complete record of collections
+                </p>
               </div>
-              <button onClick={() => setIsAllTxModalOpen(false)} className="p-4 bg-slate-50 text-slate-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">
+              <button
+                onClick={() => setIsAllTxModalOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+              >
                 <X size={24} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-              <table className="w-full text-left">
-                <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b-2 border-slate-50">
-                  <tr>
-                    <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
-                    <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Name</th>
-                    <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</th>
-                    <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fee Type</th>
-                    <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Method & Time</th>
+            <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
+              <table className="w-full text-left border-separate border-spacing-y-3">
+                <thead>
+                  <tr className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                    <th className="px-4 pb-2">Reference / Student</th>
+                    <th className="px-4 pb-2 text-center">Amount</th>
+                    <th className="px-4 pb-2 text-center">Method</th>
+                    <th className="px-4 pb-2 text-right">Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {allTransactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-4 text-xs font-mono text-slate-400">{tx.student}</td>
-                      <td className="p-4 font-bold text-slate-700 text-sm">Student Name</td>
-                      <td className="p-4 font-black text-blue-600 text-sm">₱{Number(tx.amount).toLocaleString()}</td>
-                      <td className="p-4 text-[10px] font-bold text-slate-400 uppercase">{tx.type}</td>
-                      <td className="p-4 text-right">
-                        <div className="flex flex-col items-end">
-                          <span className="text-[9px] font-black px-2 py-0.5 bg-slate-100 rounded text-slate-500 uppercase mb-1">{tx.method}</span>
-                          <span className="text-[10px] font-bold text-slate-300 uppercase italic">{tx.date}</span>
-                        </div>
+                <tbody>
+                  {stats.recentTransactions.length > 0 ? (
+                    stats.recentTransactions.map((tx, i) => (
+                      <tr key={i} className="group transition-all">
+                        <td className="bg-slate-50 group-hover:bg-slate-100 p-4 rounded-l-2xl border-y border-l">
+                          <p className="font-black text-slate-700 uppercase italic text-sm leading-none mb-1">
+                            {tx.student_id || "Walk-in"}
+                          </p>
+                          <p className="text-[9px] font-bold text-slate-400">
+                            REF: {tx.id || "N/A"}
+                          </p>
+                        </td>
+                        <td className="bg-slate-50 group-hover:bg-slate-100 p-4 border-y text-center">
+                          <span className="font-black text-slate-900 italic">
+                            ₱{Number(tx.amount || 0).toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="bg-slate-50 group-hover:bg-slate-100 p-4 border-y text-center">
+                          <span
+                            className="text-[9px] font-black uppercase px-3 py-1 rounded-full"
+                            style={{
+                              backgroundColor: getMediumVariant(
+                                branding?.theme_color,
+                              ),
+                              color: branding?.theme_color,
+                            }}
+                          >
+                            {tx.method}
+                          </span>
+                        </td>
+                        <td className="bg-slate-50 group-hover:bg-slate-100 p-4 rounded-r-2xl border-y border-r text-right">
+                          <p className="text-xs font-bold text-slate-500 uppercase">
+                            {new Date(
+                              tx.created_at || Date.now(),
+                            ).toLocaleDateString()}
+                          </p>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="4"
+                        className="py-20 text-center font-black text-slate-300 italic uppercase"
+                      >
+                        No transactions recorded
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
