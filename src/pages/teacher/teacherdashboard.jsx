@@ -9,6 +9,8 @@ import { STAT_CARD_COLORS } from '../../components/shared/teacherConstants';
 import ReadNotificationModal from '../../components/shared/ReadNotificationModal';
 import OfflineBanner from '../../utils/offlinebanner';
 
+
+
 const TeacherDashboard = () => {
   const { syStart, syEnd, semester } = getActiveSchoolYear();
   const { user, API_BASE_URL, branding } = useAuth();
@@ -40,7 +42,7 @@ const TeacherDashboard = () => {
         axios.get(`${API_BASE_URL}/teacher/get_sections.php?teacher_id=${user.id}`, { headers }),
         axios.get(`${API_BASE_URL}/teacher/get_announcements.php`, {
           params: { user_id: user.id, role: user.role || 'teacher', fetch_type: 'specific' },
-          headers
+          headers: headers
         })
       ]);
 
