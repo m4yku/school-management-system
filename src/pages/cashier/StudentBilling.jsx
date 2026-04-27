@@ -12,6 +12,7 @@ import {
   History,
   TrendingUp,
   CreditCard,
+  X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -33,6 +34,9 @@ const StudentBilling = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [receiptInfo, setReceiptInfo] = useState(null);
   const [markAsEnrolled, setMarkAsEnrolled] = useState(true);
+
+  const [selectedGrant, setSelectedGrant] = useState(null); // Para sa modal data
+  const [processing, setProcessing] = useState(false); // Loading state ng modal button
 
   // --- LOGIC FUNCTIONS (Retained from your code) ---
   const handleSearch = async () => {
@@ -430,39 +434,36 @@ const StudentBilling = () => {
                 <div className="flex items-center gap-2 mb-4">
                   <Award size={18} className="text-indigo-600" />
                   <h3 className="text-[11px] font-black text-indigo-900 uppercase italic">
-                    Applied Grants
+                    Available Grants
                   </h3>
                 </div>
                 <div className="space-y-3">
-                  {availableScholarships.length > 0 ? (
-                    availableScholarships.map((sch, i) => (
-                      <div
-                        key={i}
-                        className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-sm group"
-                      >
-                        <p className="text-[10px] font-black text-slate-800 uppercase leading-tight mb-1">
-                          {sch.scholarship_name}
-                        </p>
-                        <p className="text-[10px] font-bold text-indigo-600 italic">
-                          {sch.discount_type === "Percentage"
-                            ? `${sch.value}% Tuition Discount`
-                            : `₱${Number(sch.value).toLocaleString()} Grant`}
-                        </p>
-                        <button
-                          onClick={() => setSelectedSch(sch)}
-                          className="w-full mt-3 py-2 bg-slate-900 text-white rounded-xl font-black uppercase text-[9px] hover:bg-indigo-600 transition-all opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0"
-                        >
-                          Use Grant
-                        </button>
+                  {availableScholarships.map((sch, i) => (
+                    <div
+                      key={i}
+                      className="bg-white p-4 rounded-2xl border border-indigo-100 shadow-sm flex items-center justify-between group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                          <Award size={18} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-800 uppercase leading-tight">
+                            {sch.scholarship_name}
+                          </p>
+                          <p className="text-[9px] font-bold text-indigo-600 italic mt-1">
+                            Grant: ₱{Number(sch.value).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="py-4 text-center">
-                      <p className="text-[9px] font-black text-slate-300 uppercase italic tracking-widest">
-                        No grants found
-                      </p>
+                      <button
+                        onClick={() => setSelectedGrant(sch)} // Dito lalabas yung modal
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                      >
+                        Apply
+                      </button>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
@@ -577,6 +578,88 @@ const StudentBilling = () => {
               >
                 Return to Dashboard
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: APPLY GRANT CONFIRMATION (Kopyang-kopya sa Scholarship Tab) */}
+      {selectedGrant && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => !processing && setSelectedGrant(null)}
+          ></div>
+          <div className="relative bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden border-4 border-indigo-50">
+            <div className="bg-indigo-600 p-8 text-white relative">
+              <button
+                onClick={() => setSelectedGrant(null)}
+                className="absolute top-6 right-6 text-indigo-200 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4">
+                <Award size={32} className="text-white" />
+              </div>
+              <h2 className="text-2xl font-black italic uppercase leading-none">
+                Confirm Application
+              </h2>
+              <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest mt-2">
+                Scholarship & Grants Unit
+              </p>
+            </div>
+
+            <div className="p-8">
+              <div className="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200 mb-6">
+                <div className="flex justify-between mb-4 pb-4 border-b border-slate-200">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">
+                    Student Name
+                  </span>
+                  <span className="text-[10px] font-black text-slate-800 uppercase italic">
+                    {billingData.first_name} {billingData.last_name}
+                  </span>
+                </div>
+                <div className="flex justify-between mb-4 pb-4 border-b border-slate-200">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">
+                    Grant Name
+                  </span>
+                  <span className="text-[10px] font-black text-indigo-600 uppercase italic">
+                    {selectedGrant.scholarship_name}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">
+                    Amount to Deduct
+                  </span>
+                  <span className="text-xl font-black text-slate-900 italic">
+                    ₱{Number(selectedGrant.value).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                disabled={processing}
+                onClick={async () => {
+                  setProcessing(true);
+                  try {
+                    // Dito mo tatawagin yung logic mo para i-apply sa database
+                    await handleApplyScholarship(selectedGrant);
+                    setSelectedGrant(null);
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setProcessing(false);
+                  }
+                }}
+                className="w-full bg-indigo-600 text-white py-5 rounded-[2rem] font-black uppercase text-[11px] tracking-widest shadow-xl hover:bg-slate-900 transition-all flex items-center justify-center gap-3"
+              >
+                {processing ? "Processing..." : "Confirm & Apply Grant"}
+                <CheckCircle2 size={18} />
+              </button>
+
+              <p className="text-center mt-4 text-[9px] font-bold text-slate-400 uppercase italic">
+                This action will reflect instantly on the student's balance.
+              </p>
             </div>
           </div>
         </div>
