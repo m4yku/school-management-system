@@ -191,51 +191,64 @@ const CashierDashboard = () => {
               }
             />
 
-            <div className="space-y-2 md:space-y-3 mt-4">
-              {stats.recentTransactions.slice(0, 5).map((tx, i) => (
-                <div
-                  key={i}
-                  className="bg-slate-50/50 p-3 md:p-4 rounded-[1.5rem] md:rounded-[1.8rem] border border-slate-100 flex justify-between items-center hover:bg-white hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                    {/* ICON - Pinaliit para sa mobile */}
+            {/* RECENT ACTIVITY LIST (DASHBOARD) */}
+            <div className="space-y-4">
+              {Array.isArray(stats.recentTransactions) &&
+              stats.recentTransactions.length > 0 ? (
+                stats.recentTransactions.slice(0, 5).map((tx, idx) => {
+                  // Fallback logic para sa properties
+                  const name =
+                    tx.name ||
+                    tx.student_name ||
+                    tx.STUDENT_NAME ||
+                    "Unknown Student";
+                  const amount =
+                    tx.amount || tx.amount_paid || tx.AMOUNT_PAID || 0;
+                  const displayDate =
+                    tx.date || tx.transaction_date || tx.TRANSACTION_DATE;
+
+                  return (
                     <div
-                      className="w-10 h-10 md:w-11 md:h-11 rounded-xl md:rounded-2xl flex items-center justify-center text-xs md:text-sm font-black italic shrink-0"
-                      style={{
-                        backgroundColor: getMediumVariant(
-                          branding?.theme_color,
-                        ),
-                        color: branding?.theme_color,
-                      }}
+                      key={idx}
+                      className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-blue-500 transition-all"
                     >
-                      {tx.method?.[0] || "C"}
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm text-[10px] font-black uppercase"
+                          style={{
+                            backgroundColor: getLightVariant(
+                              branding?.theme_color,
+                            ),
+                            color: branding?.theme_color,
+                          }}
+                        >
+                          {name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-800 uppercase italic leading-none">
+                            {name}
+                          </p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                            {tx.type || tx.fee_category || "Payment"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-blue-600 leading-none">
+                          ₱{parseFloat(amount).toLocaleString()}
+                        </p>
+                        <p className="text-[8px] font-black text-slate-400 uppercase mt-1">
+                          {displayDate}
+                        </p>
+                      </div>
                     </div>
-
-                    {/* TEXT - May truncate para hindi sumabog */}
-                    <div className="min-w-0">
-                      <p className="text-[11px] md:text-sm font-black text-slate-800 uppercase italic leading-tight truncate">
-                        {tx.full_name || "Student Payer"}
-                      </p>
-                      <p className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">
-                        {tx.student_id || "Cash Transaction"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* AMOUNT & METHOD */}
-                  <div className="text-right shrink-0 ml-2">
-                    <p className="text-[13px] md:text-base font-black text-slate-900 italic leading-none">
-                      ₱{Number(tx.amount || 0).toLocaleString()}
-                    </p>
-                    <span
-                      className="text-[7px] md:text-[8px] font-black uppercase px-2 py-0.5 rounded-full mt-1 inline-block border border-current"
-                      style={{ color: branding?.theme_color }}
-                    >
-                      {tx.method}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+              ) : (
+                <p className="text-center py-10 text-slate-400 font-bold italic uppercase text-xs">
+                  No recent activity
+                </p>
+              )}
             </div>
           </div>
 
@@ -275,6 +288,7 @@ const CashierDashboard = () => {
             onClick={() => setIsAllTxModalOpen(false)}
           ></div>
           <div className="relative bg-white w-full max-w-4xl max-h-[85vh] rounded-[3rem] shadow-2xl overflow-hidden flex flex-col border-4 border-slate-50">
+            {/* HEADER - STICKY */}
             <div className="p-8 border-b flex justify-between items-center bg-white sticky top-0 z-10">
               <div>
                 <h2 className="text-xl font-black italic text-slate-800 uppercase leading-none mb-1">
@@ -292,7 +306,8 @@ const CashierDashboard = () => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
+            {/* TABLE CONTAINER - DITO TANGGAL ANG MIN-H PARA WALANG SPACE */}
+            <div className="flex-1 overflow-y-auto p-8 no-scrollbar bg-white">
               <table className="w-full text-left border-separate border-spacing-y-3">
                 <thead>
                   <tr className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
@@ -302,45 +317,67 @@ const CashierDashboard = () => {
                     <th className="px-4 pb-2 text-right">Date</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {stats.recentTransactions.length > 0 ? (
-                    stats.recentTransactions.map((tx, i) => (
-                      <tr key={i} className="group transition-all">
-                        <td className="bg-slate-50 group-hover:bg-slate-100 p-4 rounded-l-2xl border-y border-l">
-                          <p className="font-black text-slate-700 uppercase italic text-sm leading-none mb-1">
-                            {tx.student_id || "Walk-in"}
-                          </p>
-                          <p className="text-[9px] font-bold text-slate-400">
-                            REF: {tx.id || "N/A"}
-                          </p>
-                        </td>
-                        <td className="bg-slate-50 group-hover:bg-slate-100 p-4 border-y text-center">
-                          <span className="font-black text-slate-900 italic">
-                            ₱{Number(tx.amount || 0).toLocaleString()}
-                          </span>
-                        </td>
-                        <td className="bg-slate-50 group-hover:bg-slate-100 p-4 border-y text-center">
-                          <span
-                            className="text-[9px] font-black uppercase px-3 py-1 rounded-full"
-                            style={{
-                              backgroundColor: getMediumVariant(
-                                branding?.theme_color,
-                              ),
-                              color: branding?.theme_color,
-                            }}
-                          >
-                            {tx.method}
-                          </span>
-                        </td>
-                        <td className="bg-slate-50 group-hover:bg-slate-100 p-4 rounded-r-2xl border-y border-r text-right">
-                          <p className="text-xs font-bold text-slate-500 uppercase">
-                            {new Date(
-                              tx.created_at || Date.now(),
-                            ).toLocaleDateString()}
-                          </p>
-                        </td>
-                      </tr>
-                    ))
+
+                <tbody className="divide-y divide-slate-100">
+                  {Array.isArray(stats.recentTransactions) &&
+                  stats.recentTransactions.length > 0 ? (
+                    stats.recentTransactions.map((tx, idx) => {
+                      const name =
+                        tx.name ||
+                        tx.student_name ||
+                        tx.STUDENT_NAME ||
+                        "Unknown Student";
+                      const studentId =
+                        tx.student || tx.student_id || tx.STUDENT_ID || "---";
+                      const amount =
+                        tx.amount || tx.amount_paid || tx.AMOUNT_PAID || 0;
+                      const method =
+                        tx.method ||
+                        tx.payment_method ||
+                        tx.PAYMENT_METHOD ||
+                        "---";
+                      const type =
+                        tx.type || tx.fee_category || tx.FEE_CATEGORY || "---";
+                      const displayDate =
+                        tx.date || tx.transaction_date || tx.TRANSACTION_DATE;
+
+                      return (
+                        <tr key={idx} className="group transition-colors">
+                          <td className="p-3 bg-slate-50 group-hover:bg-slate-100 rounded-l-2xl border-y border-l">
+                            <p className="text-xs font-black text-slate-800 uppercase italic leading-none">
+                              {name}
+                            </p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
+                              ID: {studentId}
+                            </p>
+                          </td>
+                          <td className="p-3 bg-slate-50 group-hover:bg-slate-100 border-y">
+                            <p className="text-xs font-black text-emerald-600 leading-none text-center">
+                              ₱{parseFloat(amount).toLocaleString()}
+                            </p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 text-center">
+                              {type}
+                            </p>
+                          </td>
+                          <td className="p-3 bg-slate-50 group-hover:bg-slate-100 border-y text-center">
+                            <span
+                              className="text-[9px] font-black uppercase px-2 py-1 rounded-md bg-white border inline-block"
+                              style={{ color: branding?.theme_color }}
+                            >
+                              {method}
+                            </span>
+                          </td>
+                          <td className="p-3 bg-slate-50 group-hover:bg-slate-100 rounded-r-2xl border-y border-r text-right">
+                            <p className="text-[10px] font-bold text-slate-800 uppercase leading-none">
+                              {displayDate}
+                            </p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">
+                              Confirmed
+                            </p>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td
