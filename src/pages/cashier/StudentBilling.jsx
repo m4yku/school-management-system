@@ -13,6 +13,8 @@ import {
   TrendingUp,
   CreditCard,
   X,
+  Info,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -111,34 +113,32 @@ const StudentBilling = () => {
     }
   };
 
-  const handleApplyScholarship = async () => {
-    setLoading(true);
+  const handleFinalApply = async () => {
+    if (!selectedGrant) return;
+    setProcessing(true);
     try {
       const res = await axios.post(
         `${API_BASE_URL}/cashier/apply_scholarship_to_billing.php`,
         {
-          application_id: selectedSch.id,
-          student_id: billingData.summary.student_id,
-          discount_value: selectedSch.value,
-          discount_type: selectedSch.discount_type,
-          scholarship_name: selectedSch.scholarship_name,
+          application_id: selectedGrant.id,
+          student_id: billingData.summary.student_id, // Siguraduhing galing ito sa summary
+          discount_value: selectedGrant.value,
+          discount_type: selectedGrant.discount_type,
+          scholarship_name: selectedGrant.scholarship_name,
         },
       );
+
       if (res.data.status === "success") {
-        setReceiptInfo({
-          type: "Scholarship",
-          total_deduction: res.data.total_deduction || res.data.deduction,
-          applied_items: res.data.applied_items || [],
-        });
-        setSelectedSch(null);
+        setReceiptInfo(res.data);
         setShowSuccess(true);
+        // fetchGrants(); // Kung may fetchGrants function ka rin dito para sa sidebar
       } else {
         alert(res.data.message);
       }
     } catch (err) {
-      alert("Error applying scholarship.");
+      alert("System error. Please contact admin.");
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   };
 
@@ -583,83 +583,177 @@ const StudentBilling = () => {
         </div>
       )}
 
-      {/* MODAL: APPLY GRANT CONFIRMATION (Kopyang-kopya sa Scholarship Tab) */}
-      {selectedGrant && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            onClick={() => !processing && setSelectedGrant(null)}
-          ></div>
-          <div className="relative bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden border-4 border-indigo-50">
-            <div className="bg-indigo-600 p-8 text-white relative">
-              <button
-                onClick={() => setSelectedGrant(null)}
-                className="absolute top-6 right-6 text-indigo-200 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-4">
-                <Award size={32} className="text-white" />
+      {selectedGrant &&
+        (() => {
+          const itemsList = billingData?.items || [];
+
+          // 2. Hanapin ang Tuition item sa 'itemsList'
+          const tuitionItem = itemsList.find((i) =>
+            i.item_name?.toLowerCase().includes("tuition"),
+          );
+
+          // 3. Compute Tuition Balance (Amount - Paid)
+          const tuitionBal = tuitionItem
+            ? parseFloat(tuitionItem.amount || 0) -
+              parseFloat(tuitionItem.paid_amount || 0)
+            : 0;
+
+          // 4. Overall Balance para sa display
+          const overallBal = parseFloat(billingData?.summary?.balance || 0);
+
+          // 5. Compute Discount (Tuition base)
+          const grantVal = parseFloat(selectedGrant.value || 0);
+          const discount =
+            selectedGrant.discount_type === "Percentage"
+              ? tuitionBal * (grantVal / 100)
+              : grantVal;
+
+          const fullName = `${billingData?.summary?.first_name || ""} ${billingData?.summary?.last_name || ""}`;
+
+          return (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[150] flex items-center justify-center p-4">
+              <div className="bg-white rounded-[3rem] w-full max-w-md p-10 shadow-2xl text-left border-4 border-indigo-50">
+                <h2 className="text-xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2">
+                  <Info className="text-indigo-600" /> Preview Deduction
+                </h2>
+
+                <div className="space-y-4 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                  <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase border-b pb-2">
+                    <span>Student</span>
+                    <span className="text-slate-700 italic">{fullName}</span>
+                  </div>
+
+                  {/* TUITION BALANCE (Dito nakabase ang discount) */}
+                  <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase">
+                    <span>Tuition Balance</span>
+                    <span className="text-indigo-600">
+                      ₱{tuitionBal.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* OVERALL BALANCE (Para sa info) */}
+                  <div className="flex justify-between text-[9px] font-bold text-slate-300 uppercase italic">
+                    <span>Overall Student Balance</span>
+                    <span>₱{overallBal.toLocaleString()}</span>
+                  </div>
+
+                  <div className="flex justify-between text-xs font-black text-emerald-600 uppercase italic border-t pt-4">
+                    <div className="max-w-[150px]">
+                      <span>Less: {selectedGrant.scholarship_name}</span>
+                      <p className="text-[8px] opacity-70">
+                        {selectedGrant.discount_type === "Percentage"
+                          ? `${grantVal}% of Tuition Fee`
+                          : "Fixed Amount Grant"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span>- ₱{discount.toLocaleString()}</span>
+                      {tuitionBal === 0 &&
+                        selectedGrant.discount_type === "Percentage" && (
+                          <p className="text-[7px] text-red-400 normal-case font-bold">
+                            No tuition balance found!
+                          </p>
+                        )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-8">
+                  <button
+                    onClick={() => setSelectedGrant(null)}
+                    className="py-4 text-[10px] font-black uppercase text-slate-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleFinalApply}
+                    disabled={
+                      processing ||
+                      (tuitionBal === 0 &&
+                        selectedGrant.discount_type === "Percentage")
+                    }
+                    className="bg-indigo-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase shadow-lg hover:bg-black transition-all disabled:bg-slate-200"
+                  >
+                    {processing ? "Processing..." : "Confirm Apply"}
+                  </button>
+                </div>
               </div>
-              <h2 className="text-2xl font-black italic uppercase leading-none">
-                Confirm Application
-              </h2>
-              <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest mt-2">
-                Scholarship & Grants Unit
-              </p>
+            </div>
+          );
+        })()}
+
+      {/* SUCCESS MODAL / RECEIPT (Kopyang-kopya sa Scholarships Tab) */}
+      {showSuccess && receiptInfo && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[600] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[3rem] w-full max-w-sm p-10 shadow-2xl border-t-8 border-indigo-600">
+            <div id="printable-receipt" className="p-4">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 size={32} />
+                </div>
+                <h2 className="text-xl font-black text-slate-800 uppercase italic">
+                  Scholarship Posting
+                </h2>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                  Official Acknowledgment
+                </p>
+              </div>
+
+              <div className="space-y-3 bg-slate-50 p-6 rounded-[2rem] border border-slate-100 text-sm">
+                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase">
+                  <span>Old Balance:</span>
+                  <span className="text-slate-700">
+                    ₱{receiptInfo.old_balance?.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-dashed border-slate-300">
+                  <p className="text-[9px] font-black text-indigo-500 uppercase mb-2">
+                    Applied Deductions:
+                  </p>
+                  {receiptInfo.applied_items?.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between text-[11px] font-bold py-1"
+                    >
+                      <span className="text-slate-600">{item.item_name}</span>
+                      <span className="text-emerald-600">
+                        -₱{item.discount.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between pt-3 border-t-2 border-slate-300 font-black text-indigo-600 italic">
+                  <span>Remaining Balance:</span>
+                  <span className="text-lg text-slate-900">
+                    ₱{receiptInfo.new_balance?.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 text-[8px] text-center text-slate-400 uppercase font-bold">
+                Date Processed: {new Date().toLocaleString()}
+              </div>
             </div>
 
-            <div className="p-8">
-              <div className="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200 mb-6">
-                <div className="flex justify-between mb-4 pb-4 border-b border-slate-200">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">
-                    Student Name
-                  </span>
-                  <span className="text-[10px] font-black text-slate-800 uppercase italic">
-                    {billingData.first_name} {billingData.last_name}
-                  </span>
-                </div>
-                <div className="flex justify-between mb-4 pb-4 border-b border-slate-200">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">
-                    Grant Name
-                  </span>
-                  <span className="text-[10px] font-black text-indigo-600 uppercase italic">
-                    {selectedGrant.scholarship_name}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">
-                    Amount to Deduct
-                  </span>
-                  <span className="text-xl font-black text-slate-900 italic">
-                    ₱{Number(selectedGrant.value).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
+            <div className="mt-8 space-y-3">
               <button
-                disabled={processing}
-                onClick={async () => {
-                  setProcessing(true);
-                  try {
-                    // Dito mo tatawagin yung logic mo para i-apply sa database
-                    await handleApplyScholarship(selectedGrant);
-                    setSelectedGrant(null);
-                  } catch (e) {
-                    console.error(e);
-                  } finally {
-                    setProcessing(false);
-                  }
-                }}
-                className="w-full bg-indigo-600 text-white py-5 rounded-[2rem] font-black uppercase text-[11px] tracking-widest shadow-xl hover:bg-slate-900 transition-all flex items-center justify-center gap-3"
+                onClick={handlePrintReceipt}
+                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-2 hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100"
               >
-                {processing ? "Processing..." : "Confirm & Apply Grant"}
-                <CheckCircle2 size={18} />
+                <Printer size={16} /> Print Official Receipt
               </button>
-
-              <p className="text-center mt-4 text-[9px] font-bold text-slate-400 uppercase italic">
-                This action will reflect instantly on the student's balance.
-              </p>
+              <button
+                onClick={() => {
+                  setShowSuccess(false);
+                  setSelectedGrant(null);
+                  handleSearch(); // Refresh billing data para updated ang balance sa screen
+                }}
+                className="w-full py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
