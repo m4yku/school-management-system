@@ -8,13 +8,17 @@ const StandardDashboard = ({ courses, nextLessons }) => {
       {/* COURSES SECTION */}
       <div className="mb-10">
         <div className="flex justify-between items-center mb-6">
-           <h2 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-              <LayoutGrid className="text-indigo-600" /> My Enrolled Courses
-           </h2>
-           <div className="flex gap-2">
-              <button className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full shadow-md">All courses</button>
-           </div>
-        </div>
+            <h2 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
+               <Sparkles className="text-amber-500 animate-pulse" /> Recently Accessed
+            </h2>
+            {/* Ang 'All courses' button ay magiging gateway sa 'LmsCourses.jsx' */}
+            <button 
+               onClick={() => navigate('/lms/courses')} 
+               className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest rounded-full shadow-lg transition-all active:scale-95"
+            >
+               View All Courses
+            </button>
+         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course, index) => (

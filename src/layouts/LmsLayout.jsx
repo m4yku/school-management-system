@@ -4,12 +4,10 @@ import {
   Home, Calendar, Bell, User, Power, BookMarked, 
   MessageSquare, Settings, Info, GraduationCap, ChevronUp, X,
   Layers, FileText, Video, CheckSquare, Award, PieChart, Users,
-  Library
+  Library, Microscope, BookOpen
 } from 'lucide-react';
-import axios from 'axios'; // <--- Import natin ang axios
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-
-
 
 const LmsLayout = () => {
   const { user, branding, API_BASE_URL } = useAuth();
@@ -18,31 +16,48 @@ const LmsLayout = () => {
   const [searchParams] = useSearchParams();
   
   // ==========================================
-  // STATE MANAGEMENT
+  // [ SECTION 1: STATE MANAGEMENT ]
   // ==========================================
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isMobileStackOpen, setIsMobileStackOpen] = useState(false);
-  const [isMobileCourseTabsOpen, setIsMobileCourseTabsOpen] = useState(false); 
+  const [isMobileSubMenuOpen, setIsMobileSubMenuOpen] = useState(false); 
   
-  // SCROLL & GLASS STATE
+  const [courses, setCourses] = useState([]);
+  const [studentLevel, setStudentLevel] = useState('unknown'); 
+  const [activeCategory, setActiveCategory] = useState('all'); 
+  
   const [isNavVisible, setIsNavVisible] = useState(true);
-  const [isScrolled, setIsScrolled] = useState(false); // <--- BAGONG STATE PARA SA GLASS EFFECT
+  const [isScrolled, setIsScrolled] = useState(false); 
   const lastScrollY = useRef(0);
 
   // ==========================================
-  // STATIC MOCK DATA
+  // [ SECTION 2: CENTRALIZED COURSE FETCHING ]
+  // ==========================================
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      const studentId = user?.id || user?.username;
+      if (!studentId) return;
+
+      try {
+        const res = await axios.get(`${API_BASE_URL}/lms/get_all_courses.php?student_id=${studentId}`);
+        if (res.data.status === 'success' && res.data.courses.length > 0) {
+          setCourses(res.data.courses);
+          setStudentLevel(res.data.courses[0].level_category); 
+        }
+      } catch (err) {
+        console.error("Layout Fetch Error:", err);
+      }
+    };
+    if(user) fetchCatalog();
+  }, [user, API_BASE_URL]);
+
+  // ==========================================
+  // [ SECTION 3: STATIC MENUS & TABS ]
   // ==========================================
   const navItems = [
     { id: 'dashboard', icon: <Home size={22} />, path: '/lms/dashboard' },
     { id: 'schedule', icon: <Calendar size={22} />, path: '/lms/calendar' },
     { id: 'courses', icon: <Library size={22} />, path: '/lms/courses' },
     { id: 'profile', icon: <User size={22} />, path: '/lms/profile' },
-  ];
-
-  const mySubjects = [
-    { id: 1, code: 'MATH', name: 'Gen Math', color: 'bg-blue-500' },
-    { id: 2, code: 'SCI', name: 'Earth Sci', color: 'bg-emerald-500' },
-    { id: 3, code: 'ECON', name: 'Applied Econ', color: 'bg-orange-500' },
   ];
 
   const courseTabs = [
@@ -55,124 +70,124 @@ const LmsLayout = () => {
     { id: 'people', icon: <Users size={18} />, label: 'Classmates' },
   ];
 
-  const categoryFilters = [
-    { id: 'all', label: 'All Subjects', color: 'bg-slate-800' },
-    { id: 'core', label: 'Core Subjects', color: 'bg-blue-500' },
-    { id: 'applied', label: 'Applied', color: 'bg-orange-500' },
-    { id: 'specialized', label: 'Specialized', color: 'bg-emerald-500' },
-  ];
+  // ==========================================
+  // [ SECTION 4: DYNAMIC CATEGORY GENERATOR ]
+  // ==========================================
+  const getDynamicCategories = () => {
+    const level = String(studentLevel).trim().toLowerCase();
+    const baseCategories = [
+      { id: 'all', label: 'All Subjects', icon: <Layers size={20} />, color: 'bg-slate-800' }
+    ];
+
+    if (level === 'college') {
+      return [
+        ...baseCategories,
+        { id: 'ge', label: 'General Ed', icon: <BookOpen size={20} />, color: 'bg-blue-600' },
+        { id: 'major', label: 'Major Subjects', icon: <Microscope size={20} />, color: 'bg-indigo-600' }
+      ];
+    }
+
+    if (level === 'shs') {
+      return [
+        ...baseCategories,
+        { id: 'core', label: 'Core Subjects', icon: <BookOpen size={20} />, color: 'bg-blue-600' },
+        { id: 'applied', label: 'Applied Subjects', icon: <GraduationCap size={20} />, color: 'bg-orange-500' },
+        { id: 'major', label: 'Specialized', icon: <Microscope size={20} />, color: 'bg-emerald-600' }
+      ];
+    }
+    return baseCategories;
+  };
+
+  const categoryFilters = getDynamicCategories();
 
   // ==========================================
-  // CONTEXT LOGIC
+  // [ SECTION 5: ROUTE CONTEXT & LOGIC ]
   // ==========================================
   const currentPath = location.pathname;
   const isHome = currentPath.includes('dashboard');
   const isProfile = currentPath.includes('profile');
   const isCoursesList = currentPath.endsWith('/courses');
   const isCourseDetail = currentPath.includes('/course/'); 
-  const showSubjectsNav = !isHome && !isProfile && !isCourseDetail && !isCoursesList; 
-
+  const isSchedule = currentPath.includes('calendar');
+  
   const currentCourseTabId = searchParams.get('tab') || 'all';
   const activeCourseTab = courseTabs.find(t => t.id === currentCourseTabId) || courseTabs[0];
 
-// ==========================================
-  // HEARTBEAT LOGIC (Time Tracking & Login Count)
-  // ==========================================
+  // ARCHITECT FIX: I-reset ang category sa 'all' tuwing lilipat ng page!
   useEffect(() => {
-    // Kunin ang tamang ID (student_id o student_number depende sa AuthContext mo)
-    // Kunin ang ID gamit ang totoong property names mula sa AuthContext mo
-      const studentIdentifier = user?.id || user?.username;
+    setActiveCategory('all');
+    setIsMobileSubMenuOpen(false); // Isara na rin natin ang mobile drawer para sure
+  }, [location.pathname]);
 
-    if (!studentIdentifier) return; // Wag i-run kung walang nahanap na ID
-
-    // 1. I-record ang login kapag bumukas ang LMS
-    axios.post(`${API_BASE_URL}/lms/track_activity.php`, {
-      student_id: studentIdentifier, // <--- ITO ANG SUSI! Pinalitan natin from user_id
-      type: 'login'
-    })
-    .then(res => console.log("LMS Tracker (Login):", res.data))
-    .catch(err => console.error("Tracker Error:", err));
-
-    // 2. Set Interval para mag "Ping" kada 60 seconds (1 minute)
-    const interval = setInterval(() => {
-      axios.post(`${API_BASE_URL}/lms/track_activity.php`, {
-        student_id: studentIdentifier, // <--- Pinalitan din natin dito
-        type: 'ping'
-      })
-      .then(res => console.log("LMS Tracker (Ping):", res.data))
-      .catch(err => console.error("Ping Error:", err));
-    }, 60000); // 60000 ms = 1 minute
-
-    // Cleanup: Patayin ang interval kapag umalis sa LMS o nag-logout
-    return () => clearInterval(interval);
-  }, [user, API_BASE_URL]);
-  // ==========================================
-  // SCROLL "LIQUID GLASS" LOGIC
-  // ==========================================
   const handleScroll = (e) => {
     const currentScrollY = e.target.scrollTop;
-    
-    // Trigger Frosted Glass Effect if scrolled down even a bit
     setIsScrolled(currentScrollY > 20);
-
-    // Hide/Show Dock smoothly
+    // Hide nav dock on scroll down, show on scroll up (Applies to both Desktop and Mobile!)
     if (currentScrollY > lastScrollY.current + 15) {
       setIsNavVisible(false); 
-      setIsMobileStackOpen(false); 
-      setIsMobileCourseTabsOpen(false); 
+      setIsMobileSubMenuOpen(false); 
     } else if (currentScrollY < lastScrollY.current - 15) {
       setIsNavVisible(true); 
     }
     lastScrollY.current = currentScrollY;
   };
 
+  const handleNavClick = (path) => {
+    navigate(path);
+    setIsMobileSubMenuOpen(false);
+  };
+
+  // ==========================================
+  // [ SECTION 6: UI RENDER ]
+  // ==========================================
   return (
     <div className="flex h-screen bg-[#f8fafc] font-sans overflow-hidden relative">
       
-      {/* ========================================================
-          1. DYNAMIC DESKTOP SIDE NAV (FROSTED GLASS)
-          ======================================================== */}
+      {/* -------------------------------------------
+          [ DESKTOP SIDEBAR CONTEXT MENUS ]
+          Fixed on desktop, never hides on scroll.
+          Nandito na yung Filters at Categories para sa Desktop.
+      --------------------------------------------- */}
       {!isHome && (
-        <aside className={`hidden md:flex w-24 bg-white/70 backdrop-blur-2xl border-r border-white/50 flex-col items-center py-6 z-40 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-transform duration-500 ease-out ${isNavVisible ? 'translate-x-0' : '-translate-x-full'}`}>
+        <aside className="hidden md:flex w-24 bg-white/70 backdrop-blur-2xl border-r border-white/50 flex-col items-center py-6 z-40 shadow-[4px_0_24px_rgba(0,0,0,0.02)] shrink-0">
            
-           {/* CONTEXT A: Subject Filter */}
-           {showSubjectsNav && (
-             <div className="flex flex-col gap-5 w-full px-2 mt-4">
-                <p className="text-[8px] font-black uppercase text-slate-400 text-center tracking-widest mb-2">Filter</p>
-                {mySubjects.map((sub) => (
-                  <div key={sub.id} className="group relative flex justify-center cursor-pointer">
-                     <div className={`w-12 h-12 ${sub.color} rounded-[1.2rem] text-white font-black text-[10px] shadow-md flex items-center justify-center transition-all duration-500 ease-out group-hover:scale-110 group-hover:rounded-xl`}>{sub.code}</div>
-                     <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-50 shadow-xl transition-all duration-300">
-                        {sub.name}
-                     </span>
-                  </div>
-                ))}
-             </div>
-           )}
-
-           {/* CONTEXT B: Category Filter */}
            {isCoursesList && (
              <div className="flex flex-col gap-5 w-full px-2 mt-4">
                 <p className="text-[8px] font-black uppercase text-slate-400 text-center tracking-widest mb-2">Category</p>
                 {categoryFilters.map((cat) => (
-                  <div key={cat.id} className="group relative flex justify-center cursor-pointer">
-                     <div className={`w-12 h-12 ${cat.color} rounded-[1.2rem] text-white shadow-md flex items-center justify-center transition-all duration-500 ease-out group-hover:scale-110 group-hover:rounded-xl`}><Layers size={20} /></div>
+                  <div key={cat.id} onClick={() => setActiveCategory(cat.id)} className="group relative flex justify-center cursor-pointer">
+                     <div className={`w-12 h-12 ${cat.color} rounded-[1.2rem] text-white shadow-md flex items-center justify-center transition-all duration-500 ease-out ${activeCategory === cat.id ? 'scale-110 ring-4 ring-white/30 opacity-100' : 'opacity-40 hover:opacity-100 hover:scale-105'}`}>
+                        {cat.icon}
+                     </div>
                      <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-50 shadow-xl transition-all duration-300">{cat.label}</span>
                   </div>
                 ))}
              </div>
            )}
 
-           {/* CONTEXT C: Classroom Tabs */}
+           {isSchedule && (
+             <div className="flex flex-col gap-4 w-full px-2 mt-4">
+                <p className="text-[8px] font-black uppercase text-slate-400 text-center tracking-widest mb-2 border-b border-slate-200 pb-2">Subjects</p>
+                {courses.map((course, index) => {
+                  const bgColors = ['bg-blue-500', 'bg-emerald-500', 'bg-orange-500', 'bg-purple-500', 'bg-pink-500'];
+                  const themeColor = bgColors[index % bgColors.length];
+                  return (
+                    <div key={course.class_id} className="group relative flex justify-center cursor-pointer">
+                       <div className={`w-11 h-11 ${themeColor} rounded-[1rem] shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-110 hover:ring-2 hover:ring-offset-2 hover:ring-${themeColor.split('-')[1]}-400`}>
+                          <span className="text-white text-[9px] font-black tracking-tighter uppercase">{course.tag.substring(0, 4)}</span>
+                       </div>
+                       <span className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-50 shadow-xl transition-all duration-300">{course.title}</span>
+                    </div>
+                  )
+                })}
+             </div>
+           )}
+
            {isCourseDetail && (
              <div className="flex flex-col gap-4 w-full px-2 mt-4">
                 <p className="text-[8px] font-black uppercase text-indigo-400 text-center tracking-widest mb-2">Classroom</p>
                 {courseTabs.map((tab) => (
-                  <div 
-                    key={tab.id} 
-                    onClick={() => navigate(`${location.pathname}?tab=${tab.id}`)}
-                    className="group relative flex justify-center cursor-pointer"
-                  >
+                  <div key={tab.id} onClick={() => navigate(`${location.pathname}?tab=${tab.id}`)} className="group relative flex justify-center cursor-pointer">
                      <div className={`w-12 h-12 rounded-[1.2rem] shadow-sm flex items-center justify-center transition-all duration-500 ease-out ${currentCourseTabId === tab.id ? 'bg-indigo-600 shadow-[0_0_15px_rgba(79,70,229,0.4)] text-white scale-110' : 'bg-slate-100/50 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600'}`}>
                         {tab.icon}
                      </div>
@@ -181,155 +196,175 @@ const LmsLayout = () => {
                 ))}
              </div>
            )}
-
-           {/* CONTEXT D: Profile Options */}
-           {isProfile && (
-             <div className="flex flex-col gap-4 w-full px-2 mt-4">
-                <p className="text-[8px] font-black uppercase text-slate-400 text-center tracking-widest mb-2">Options</p>
-                <button className="w-12 h-12 bg-slate-100/50 rounded-[1.2rem] text-slate-600 flex items-center justify-center hover:bg-white hover:shadow-md hover:text-indigo-600 transition-all duration-300"><MessageSquare size={18} /></button>
-                <button className="w-12 h-12 bg-slate-100/50 rounded-[1.2rem] text-slate-600 flex items-center justify-center hover:bg-white hover:shadow-md hover:text-indigo-600 transition-all duration-300"><Settings size={18} /></button>
-                <button className="w-12 h-12 bg-slate-100/50 rounded-[1.2rem] text-slate-600 flex items-center justify-center hover:bg-white hover:shadow-md hover:text-indigo-600 transition-all duration-300"><Info size={18} /></button>
-             </div>
-           )}
         </aside>
       )}
 
-{/* ========================================================
-          2. MAIN CONTENT AREA & HEADER (SCROLL GLASS EFFECT)
-          ======================================================== */}
+      {/* -------------------------------------------
+          [ MAIN CONTENT AREA ]
+      --------------------------------------------- */}
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
-         
-         {/* THE IOS 26 HEADER: Pinalitan ng 'absolute' imbes na 'sticky' para pumatong sa content */}
-         <header className={`absolute top-0 left-0 right-0 h-20 px-6 flex justify-between items-center z-50 transition-all duration-500 ease-out ${isNavVisible ? 'translate-y-0' : '-translate-y-full'} ${isScrolled ? 'bg-white/80 backdrop-blur-[20px] saturate-150 border-b border-white/50 shadow-sm' : 'bg-transparent border-b-transparent'}`}>
+         <header className={`absolute top-0 left-0 right-0 h-20 px-6 flex justify-between items-center z-50 transition-all duration-500 ease-out ${isNavVisible ? 'translate-y-0' : '-translate-y-full'} ${isScrolled ? 'bg-white/80 backdrop-blur-[20px] shadow-sm' : 'bg-transparent'}`}>
             <div className="flex items-center gap-3">
-               {branding?.school_logo && <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} className="w-10 h-10 object-contain drop-shadow-sm" alt="Logo" />}
-               <h2 className="font-black text-slate-800 tracking-tight hidden sm:block">LMS HUB</h2>
+               {branding?.school_logo && <img src={`${API_BASE_URL}/uploads/branding/${branding.school_logo}`} className="w-10 h-10 object-contain" alt="Logo" />}
+               <h2 className="font-black text-slate-800 tracking-tight hidden sm:block uppercase">LMS Hub</h2>
             </div>
-            
             <div className="flex items-center gap-4">
-               <button className="p-2.5 text-slate-500 hover:text-indigo-600 transition-colors"><Bell size={20} /></button>
-               <div className="relative">
-                  <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="w-10 h-10 rounded-full bg-indigo-50 border-2 border-white shadow-sm flex items-center justify-center text-indigo-600 font-black ring-2 ring-indigo-100 transition-all hover:scale-105"><User size={18} /></button>
-                  {isProfileMenuOpen && (
-                    <div className="absolute top-full right-0 mt-3 w-56 bg-white/90 backdrop-blur-2xl rounded-[1.5rem] shadow-[0_20px_40px_rgba(0,0,0,0.1)] border border-white/50 p-2 z-[110] animate-in fade-in zoom-in-95 duration-300">
-                       <div className="p-3 border-b border-slate-100 mb-1"><p className="text-xs font-black text-slate-800">{user?.first_name} {user?.last_name}</p></div>
-                       <button onClick={() => navigate('/student/dashboard')} className="w-full flex items-center gap-3 p-3 text-red-500 hover:bg-red-50 rounded-xl text-xs font-black transition-colors mt-1"><Power size={16} /> EXIT LMS PORTAL</button>
-                    </div>
-                  )}
-               </div>
+               <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="w-10 h-10 rounded-full bg-indigo-50 border-2 border-white shadow-sm flex items-center justify-center text-indigo-600 font-black transition-transform hover:scale-105"><User size={18} /></button>
+               {isProfileMenuOpen && (
+                 <div className="absolute top-full right-0 mt-3 w-56 bg-white/90 backdrop-blur-2xl rounded-[1.5rem] shadow-2xl border border-white/50 p-2 z-[110]">
+                    <button onClick={() => navigate('/student/dashboard')} className="w-full flex items-center gap-3 p-3 text-red-500 hover:bg-red-50 rounded-xl font-black text-xs uppercase transition-colors"><Power size={16} /> Exit LMS</button>
+                 </div>
+               )}
             </div>
          </header>
 
-         {/* MAIN SCROLL AREA */}
-         <main className="flex-1 overflow-y-auto px-4 md:px-8 pb-40 scroll-smooth" onScroll={handleScroll}>
-            {/* DITO ANG MAGIC: Nilagyan natin ng 'pt-24' (padding-top). 
-                Dahil nasa loob siya ng main, sasama itong space pataas kapag nag-scroll ka! */}
+         <main className="flex-1 overflow-y-auto px-4 md:px-8 pb-40 scroll-smooth relative" onScroll={handleScroll}>
             <div className="max-w-[1400px] mx-auto pt-24 pb-6">
-               <Outlet />
+               <Outlet context={{ activeCategory, courses }} /> 
             </div>
          </main>
       </div>
 
-      {/* ========================================================
-          3. "LIQUID GLASS" MOBILE DOCK (iOS 26 Style)
-          ======================================================== */}
-      <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-sm flex flex-col items-center transition-transform duration-[600ms] ease-[cubic-bezier(0.23,1,0.32,1)] ${isNavVisible ? 'translate-y-0 scale-100' : 'translate-y-[150%] scale-95 opacity-50'}`}>
+      {/* -------------------------------------------
+          [ UNIVERSAL BOTTOM DOCK (MOBILE & DESKTOP) ]
+          Visible on both, hides on scroll for both.
+      --------------------------------------------- */}
+      <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] w-[95%] max-w-[420px] transition-transform duration-500 ${isNavVisible ? 'translate-y-0' : 'translate-y-[150%]'}`}>
         
-        {/* THE LIQUID BUBBLE */}
-        <div className="bg-[#0f172a]/70 backdrop-blur-[40px] saturate-[1.5] p-2 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col border border-white/10 w-full transition-all duration-500 ease-out overflow-hidden">
+        {/* Main Wrapper with Liquid Glass Background */}
+        <div className="bg-[#475569]/90 backdrop-blur-[40px] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10 flex flex-col overflow-hidden">
            
-           {/* CONTEXT A: Expanded Subject Filter Stack */}
-           {isMobileStackOpen && showSubjectsNav && (
-              <div className="flex flex-col p-4 bg-white/10 rounded-[2rem] mx-1 mt-1 mb-2 animate-in fade-in zoom-in-95 duration-300">
-                 <div className="flex justify-between items-center mb-4 px-1">
-                    <p className="text-[10px] font-black uppercase text-slate-300 tracking-widest">Select Subject Filter</p>
-                    <X size={18} className="text-slate-400 cursor-pointer hover:text-white transition-colors" onClick={() => setIsMobileStackOpen(false)} />
-                 </div>
-                 <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 px-1">
-                    <button className="flex flex-col items-center gap-2 shrink-0 group">
-                       <div className="w-14 h-14 bg-white/5 group-hover:bg-white/20 border border-white/10 rounded-[1.2rem] flex items-center justify-center text-white font-black text-xs shadow-sm transition-all duration-300 ease-out">ALL</div>
-                       <span className="text-[9px] font-bold text-slate-400 text-center group-hover:text-white transition-colors">Reset</span>
-                    </button>
-                    {mySubjects.map((sub) => (
-                      <button key={sub.id} className="flex flex-col items-center gap-2 shrink-0 group" onClick={() => setIsMobileStackOpen(false)}>
-                        <div className={`w-14 h-14 ${sub.color} rounded-[1.2rem] flex items-center justify-center text-white font-black text-xs shadow-lg group-hover:scale-105 transition-all duration-300 ease-out`}>{sub.code}</div>
-                        <span className="text-[9px] font-bold text-slate-400 text-center w-14 truncate group-hover:text-white transition-colors">{sub.name}</span>
-                      </button>
-                    ))}
-                 </div>
-              </div>
-           )}
-
-           {/* COMPACT TRIGGER */}
-           {showSubjectsNav && !isMobileStackOpen && (
-              <button 
-                onClick={() => setIsMobileStackOpen(true)}
-                className="md:hidden flex items-center justify-center gap-2 px-4 py-3 bg-white/5 border border-white/5 text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest w-[96%] mx-auto mb-2 hover:bg-white/10 transition-all duration-300"
-              >
-                 Tap to Filter Subjects <ChevronUp size={14} />
-              </button>
-           )}
-
-           {/* CONTEXT B: Category Tabs */}
-           {isCoursesList && (
-              <div className="md:hidden flex gap-2 overflow-x-auto scrollbar-hide px-2 mb-2 w-full snap-x pt-1">
-                 {categoryFilters.map(cat => (
-                    <button key={cat.id} className={`flex items-center gap-1.5 px-5 py-2.5 ${cat.color} text-white transition-colors rounded-[1.2rem] text-[10px] font-bold whitespace-nowrap snap-center shadow-lg border border-white/20`}>
-                       <Layers size={14} /> {cat.label}
-                    </button>
-                 ))}
-              </div>
-           )}
-
-           {/* CONTEXT C: DROPDOWN STACK SELECTOR */}
-           {isCourseDetail && (
-              <div className="md:hidden w-full px-2 mb-2 mt-1 relative z-50">
-                 {isMobileCourseTabsOpen ? (
-                    <div className="flex flex-col bg-white/10 rounded-[1.5rem] border border-white/10 animate-in fade-in zoom-in-95 duration-300 overflow-hidden shadow-2xl backdrop-blur-xl">
-                       <div className="flex justify-between items-center px-4 py-3 border-b border-white/5 bg-black/20">
-                          <p className="text-[10px] font-black uppercase text-slate-300 tracking-widest">Select View</p>
-                          <X size={16} className="text-slate-400 cursor-pointer hover:text-white transition-colors" onClick={() => setIsMobileCourseTabsOpen(false)} />
-                       </div>
-                       <div className="max-h-56 overflow-y-auto scrollbar-hide flex flex-col p-2 gap-1">
-                          {courseTabs.map(tab => (
-                             <button 
-                               key={tab.id}
-                               onClick={() => { navigate(`${location.pathname}?tab=${tab.id}`); setIsMobileCourseTabsOpen(false); }}
-                               className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-xs font-bold transition-all duration-300 ease-out ${currentCourseTabId === tab.id ? 'bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.5)] text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
-                             >
-                                {tab.icon} <span className="uppercase tracking-wider">{tab.label}</span>
-                             </button>
-                          ))}
-                       </div>
-                    </div>
-                 ) : (
-                    <button 
-                      onClick={() => setIsMobileCourseTabsOpen(true)}
-                      className="flex items-center justify-between w-full px-5 py-3.5 bg-white/5 border border-white/5 hover:bg-white/10 transition-all duration-300 text-slate-200 rounded-[1.2rem] shadow-sm group"
-                    >
-                       <div className="flex items-center gap-3 text-xs font-black">
-                          <span className="text-indigo-400 drop-shadow-md">{activeCourseTab.icon}</span> 
-                          <span className="uppercase tracking-widest group-hover:text-white transition-colors">{activeCourseTab.label}</span>
-                       </div>
-                       <ChevronUp size={16} className="text-slate-400 group-hover:text-white transition-colors" />
-                    </button>
+           {/* =========================================
+               [ MOBILE ONLY: EXPANDING DRAWER ]
+               Nilagyan ng "md:hidden" para HINDI lumabas sa desktop!
+           =========================================== */}
+           <div className="md:hidden flex flex-col w-full">
+             {(isCoursesList || isSchedule || isCourseDetail) && (
+               <>
+                 {/* COLLAPSED STATE: Trigger Button */}
+                 {!isMobileSubMenuOpen && (
+                   <button 
+                     onClick={() => setIsMobileSubMenuOpen(true)}
+                     className="w-full flex justify-center items-center gap-2 py-3.5 px-6 bg-white/5 hover:bg-white/10 border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-colors"
+                   >
+                     {/* DYNAMIC MIDDLE TEXT BASED ON ACTIVE ROUTE */}
+                     {isCoursesList && (
+                       <span className="flex items-center gap-2 text-slate-200">
+                         <span className="text-indigo-400">{categoryFilters.find(c => c.id === activeCategory)?.icon}</span>
+                         {categoryFilters.find(c => c.id === activeCategory)?.label.toUpperCase()}
+                       </span>
+                     )}
+                     {isSchedule && (
+                       <span className="flex items-center gap-2 text-slate-200">
+                         {activeCategory === 'all' ? (
+                           <><span className="text-indigo-400"><Layers size={14}/></span> ALL SUBJECTS</>
+                         ) : (
+                           <><span className="text-indigo-400"><BookMarked size={14}/></span> {courses.find(c => c.class_id === activeCategory)?.tag || 'FILTER SUBJECTS'}</>
+                         )}
+                       </span>
+                     )}
+                     {isCourseDetail && (
+                       <span className="flex items-center gap-2 text-slate-200">
+                         <span className="text-indigo-400">{activeCourseTab?.icon}</span>
+                         {activeCourseTab?.label.toUpperCase()}
+                       </span>
+                     )}
+                     <ChevronUp size={14} className="text-slate-400 ml-1" />
+                   </button>
                  )}
-              </div>
-           )}
 
-           {/* MAIN DOCK ICONS (Liquid Style) */}
-           <div className="flex justify-around w-full px-2 py-1 relative">
+                 {/* EXPANDED STATE: The Dark Drawer Container */}
+                 <div className={`transition-all duration-300 ease-in-out ${isMobileSubMenuOpen ? 'max-h-[50vh] opacity-100' : 'max-h-0 opacity-0'} overflow-y-auto scrollbar-hide`}>
+                    <div className="p-5">
+                       
+                       {/* Drawer Header */}
+                       <div className="flex justify-between items-center mb-5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                             {isSchedule ? 'Filter Calendar' : isCoursesList ? 'Filter Categories' : 'Select View'}
+                          </span>
+                          <button onClick={() => setIsMobileSubMenuOpen(false)} className="text-slate-400 hover:text-white transition-colors"><X size={16}/></button>
+                       </div>
+
+                       {/* Content A: Course Category Vertical List */}
+                       {isCoursesList && (
+                         <div className="flex flex-col gap-1">
+                            {categoryFilters.map(cat => (
+                              <button 
+                                key={cat.id} 
+                                onClick={() => { setActiveCategory(cat.id); setIsMobileSubMenuOpen(false); }}
+                                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-black tracking-wide transition-all ${activeCategory === cat.id ? 'bg-white/10 text-white' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+                              >
+                                 <span className={activeCategory === cat.id ? 'text-indigo-400' : 'text-slate-400'}>{cat.icon}</span>
+                                 {cat.label.toUpperCase()}
+                              </button>
+                            ))}
+                         </div>
+                       )}
+
+                       {/* Content B: Calendar Subjects Vertical List */}
+                       {isSchedule && (
+                         <div className="flex flex-col gap-1">
+                            <button 
+                              onClick={() => { setActiveCategory('all'); setIsMobileSubMenuOpen(false); }}
+                              className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-black tracking-wide transition-all ${activeCategory === 'all' ? 'bg-white/10 text-white' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+                            >
+                               <span className={activeCategory === 'all' ? 'text-indigo-400' : 'text-slate-400'}><Layers size={16}/></span>
+                               ALL SUBJECTS
+                           </button>
+                            
+                            {courses.map((course, index) => {
+                              const iconColors = ['text-blue-400', 'text-emerald-400', 'text-orange-400', 'text-purple-400', 'text-pink-400'];
+                              const colorClass = iconColors[index % iconColors.length];
+                              return (
+                                <button 
+                                  key={course.class_id} 
+                                  onClick={() => { setActiveCategory(course.class_id); setIsMobileSubMenuOpen(false); }}
+                                  className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-black tracking-wide text-left transition-all ${activeCategory === course.class_id ? 'bg-white/10 text-white' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+                                >
+                                   <span className={colorClass}><BookMarked size={16}/></span>
+                                   <span className="truncate">{course.title.toUpperCase()}</span>
+                                </button>
+                              )
+                            })}
+                         </div>
+                       )}
+
+                       {/* Content C: Classroom Vertical List */}
+                       {isCourseDetail && (
+                         <div className="flex flex-col gap-1">
+                            {courseTabs.map(tab => (
+                              <button 
+                                key={tab.id} 
+                                onClick={() => { navigate(`${location.pathname}?tab=${tab.id}`); setIsMobileSubMenuOpen(false); }}
+                                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-black tracking-wide transition-all ${currentCourseTabId === tab.id ? 'bg-white/10 text-white' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+                              >
+                                 <span className={currentCourseTabId === tab.id ? 'text-indigo-400' : 'text-slate-400'}>{tab.icon}</span>
+                                 {tab.label.toUpperCase()}
+                              </button>
+                            ))}
+                         </div>
+                       )}
+                    </div>
+                 </div>
+               </>
+             )}
+           </div>
+
+           {/* =========================================
+               [ UNIVERSAL: MAIN ICONS ]
+               Ito lang ang matitira kapag naka-desktop view.
+           =========================================== */}
+           <div className="flex justify-around w-full px-2 py-3 bg-[#475569]/40 border-t border-slate-600/50 md:border-t-0 md:bg-transparent relative">
               {navItems.map((item) => {
                  const isActive = location.pathname.includes(item.path);
                  return (
                    <button 
-                     key={item.id}
-                     onClick={() => navigate(item.path)}
-                     className={`p-3.5 rounded-[1.2rem] transition-all duration-500 ease-out relative group flex items-center justify-center ${isActive ? 'bg-indigo-500/90 shadow-[0_0_20px_rgba(99,102,241,0.4)] text-white scale-[1.05]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                     key={item.id} 
+                     onClick={() => handleNavClick(item.path)} 
+                     className={`p-3 rounded-2xl transition-all relative flex flex-col items-center justify-center ${isActive ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] scale-110' : 'text-slate-400 hover:text-white'}`}
                    >
-                     <div className={`transition-transform duration-500 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>{item.icon}</div>
-                     {/* Glowing dot underneath */}
-                     {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,1)]"></span>}
+                      {item.icon}
+                      {isActive && <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,1)]"></span>}
                    </button>
                  )
               })}
@@ -337,7 +372,7 @@ const LmsLayout = () => {
 
         </div>
       </div>
-
+      
     </div>
   );
 };
