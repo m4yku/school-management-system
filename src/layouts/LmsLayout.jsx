@@ -4,7 +4,7 @@ import {
   Home, Calendar, Bell, User, Power, BookMarked, 
   MessageSquare, Settings, Info, GraduationCap, ChevronUp, X,
   Layers, FileText, Video, CheckSquare, Award, PieChart, Users,
-  Library, Microscope, BookOpen
+  Library, Microscope, BookOpen, BarChart3
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -60,6 +60,14 @@ const LmsLayout = () => {
     { id: 'profile', icon: <User size={22} />, path: '/lms/profile' },
   ];
 
+  // ARCHITECT ADDITION: Profile-specific Rail Items
+  const profileRailItems = [
+    { id: 'overview', icon: <User size={20} />, path: '/lms/profile/overview', label: 'Overview' },
+    { id: 'messages', icon: <MessageSquare size={20} />, path: '/lms/profile/messages', label: 'Messages' },
+    { id: 'performance', icon: <BarChart3 size={20} />, path: '/lms/profile/performance', label: 'Performance' },
+    { id: 'settings', icon: <Settings size={20} />, path: '/lms/profile/settings', label: 'Account' },
+  ];
+
   const courseTabs = [
     { id: 'all', icon: <Layers size={18} />, label: 'Stream / All' },
     { id: 'lectures', icon: <FileText size={18} />, label: 'Written Lectures' },
@@ -106,6 +114,7 @@ const LmsLayout = () => {
   const currentPath = location.pathname;
   const isHome = currentPath.includes('dashboard');
   const isProfile = currentPath.includes('profile');
+  const isProfileArea = currentPath.includes('/lms/profile');
   const isCoursesList = currentPath.endsWith('/courses');
   const isCourseDetail = currentPath.includes('/course/'); 
   const isSchedule = currentPath.includes('calendar');
@@ -167,7 +176,32 @@ const LmsLayout = () => {
       --------------------------------------------- */}
       {!isHome && (
         <aside className="hidden md:flex w-24 bg-white/70 backdrop-blur-2xl border-r border-white/50 flex-col items-center py-6 z-40 shadow-[4px_0_24px_rgba(0,0,0,0.02)] shrink-0">
-           
+           {/* CASE: PROFILE SIDE RAIL */}
+           {isProfileArea && (
+             <div className="flex flex-col gap-6 w-full px-2 items-center animate-in slide-in-from-left duration-300">
+                <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-2">My Account</p>
+                {profileRailItems.map((item) => {
+                  {/* Mobile Profile Navigation */}
+                      {isProfileArea && profileRailItems.map(item => (
+                        <button 
+                          key={item.id} 
+                          onClick={() => { navigate(item.path); setIsMobileSubMenuOpen(false); }} 
+                          className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-black tracking-wide ${currentPath.includes(item.id) ? 'bg-white/10 text-white' : 'text-slate-300'}`}
+                        >
+                          {item.icon} {item.label.toUpperCase()}
+                        </button>
+                      ))}
+                  // Chinecheck kung sakto ang path para mag-active color
+                  const isActive = currentPath === item.path || (item.id === 'overview' && currentPath === '/lms/profile');
+                  return (
+                    <button key={item.id} onClick={() => navigate(item.path)} className={`group relative p-4 rounded-2xl transition-all duration-300 ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-110' : 'text-slate-300 hover:bg-slate-50 hover:text-slate-600'}`}>
+                      {item.icon}
+                      <span className="absolute left-full ml-4 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black rounded-lg opacity-0 group-hover:opacity-100 whitespace-nowrap z-50 pointer-events-none transition-all uppercase tracking-widest shadow-xl">{item.label}</span>
+                    </button>
+                  );
+                })}
+             </div>
+           )}
            {isCoursesList && (
              <div className="flex flex-col gap-5 w-full px-2 mt-4">
                 <p className="text-[8px] font-black uppercase text-slate-400 text-center tracking-widest mb-2">Category</p>
@@ -251,121 +285,116 @@ const LmsLayout = () => {
         {/* Main Wrapper with Liquid Glass Background */}
         <div className="bg-[#475569]/90 backdrop-blur-[40px] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10 flex flex-col overflow-hidden">
            
-           {/* =========================================
-               [ MOBILE ONLY: EXPANDING DRAWER ]
-               Nilagyan ng "md:hidden" para HINDI lumabas sa desktop!
-           =========================================== */}
-           <div className="md:hidden flex flex-col w-full">
-             {(isCoursesList || isSchedule || isCourseDetail) && (
-               <>
-                 {/* COLLAPSED STATE: Trigger Button */}
-                 {!isMobileSubMenuOpen && (
-                   <button 
-                     onClick={() => setIsMobileSubMenuOpen(true)}
-                     className="w-full flex justify-center items-center gap-2 py-3.5 px-6 bg-white/5 hover:bg-white/10 border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-300 transition-colors"
-                   >
-                     {/* DYNAMIC MIDDLE TEXT BASED ON ACTIVE ROUTE */}
-                     {isCoursesList && (
-                       <span className="flex items-center gap-2 text-slate-200">
-                         <span className="text-indigo-400">{categoryFilters.find(c => c.id === activeCategory)?.icon}</span>
-                         {categoryFilters.find(c => c.id === activeCategory)?.label.toUpperCase()}
-                       </span>
-                     )}
-                     {isSchedule && (
-                       <span className="flex items-center gap-2 text-slate-200">
-                         {activeCategory === 'all' ? (
-                           <><span className="text-indigo-400"><Layers size={14}/></span> ALL SUBJECTS</>
-                         ) : (
-                           <><span className="text-indigo-400"><BookMarked size={14}/></span> {courses.find(c => c.class_id === activeCategory)?.tag || 'FILTER SUBJECTS'}</>
-                         )}
-                       </span>
-                     )}
-                     {isCourseDetail && (
-                       <span className="flex items-center gap-2 text-slate-200">
-                         <span className="text-indigo-400">{activeCourseTab?.icon}</span>
-                         {activeCourseTab?.label.toUpperCase()}
-                       </span>
-                     )}
-                     <ChevronUp size={14} className="text-slate-400 ml-1" />
-                   </button>
-                 )}
+{/* =========================================
+    [ MOBILE ONLY: CONTEXTUAL DRAWER ]
+    Architect Note: This block handles dynamic 
+    navigation for Profile, Courses, and Classroom.
+=========================================== */}
+<div className="md:hidden flex flex-col w-full">
+  {(isCoursesList || isSchedule || isCourseDetail || isProfileArea) && (
+    <>
+      {/* 1. THE TRIGGER BUTTON (Collapsed State) */}
+      {!isMobileSubMenuOpen && (
+        <button 
+          onClick={() => setIsMobileSubMenuOpen(true)}
+          className="w-full flex justify-between items-center py-4 px-6 bg-white/5 border-b border-white/5 group"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-indigo-400">
+              {isProfileArea && (profileRailItems.find(i => currentPath.includes(i.id))?.icon || <User size={18}/>)}
+              {isCoursesList && <Layers size={18}/>}
+              {isCourseDetail && activeCourseTab?.icon}
+              {isSchedule && <Calendar size={18}/>}
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">
+              {isProfileArea ? (profileRailItems.find(i => currentPath.includes(i.id))?.label || "Profile Menu") : "Select View"}
+            </span>
+          </div>
+          <ChevronUp size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+        </button>
+      )}
 
-                 {/* EXPANDED STATE: The Dark Drawer Container */}
-                 <div className={`transition-all duration-300 ease-in-out ${isMobileSubMenuOpen ? 'max-h-[50vh] opacity-100' : 'max-h-0 opacity-0'} overflow-y-auto scrollbar-hide`}>
-                    <div className="p-5">
-                       
-                       {/* Drawer Header */}
-                       <div className="flex justify-between items-center mb-5">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                             {isSchedule ? 'Filter Calendar' : isCoursesList ? 'Filter Categories' : 'Select View'}
-                          </span>
-                          <button onClick={() => setIsMobileSubMenuOpen(false)} className="text-slate-400 hover:text-white transition-colors"><X size={16}/></button>
-                       </div>
+      {/* 2. THE EXPANDED DRAWER (Context-Aware List) */}
+      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMobileSubMenuOpen ? 'max-h-[60vh] opacity-100' : 'max-h-0 opacity-0'}`}>
+        {/* Drawer Header (Yung may X button sa screenshot) */}
+        <div className="flex justify-between items-center px-6 py-4 bg-slate-800/50 border-b border-white/5">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+             {isProfileArea ? 'Profile Navigation' : 'Select View'}
+          </span>
+          <button onClick={() => setIsMobileSubMenuOpen(false)} className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white">
+            <X size={18}/>
+          </button>
+        </div>
 
-                       {/* Content A: Course Category Vertical List */}
-                       {isCoursesList && (
-                         <div className="flex flex-col gap-1">
-                            {categoryFilters.map(cat => (
-                              <button 
-                                key={cat.id} 
-                                onClick={() => { setActiveCategory(cat.id); setIsMobileSubMenuOpen(false); }}
-                                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-black tracking-wide transition-all ${activeCategory === cat.id ? 'bg-white/10 text-white' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
-                              >
-                                 <span className={activeCategory === cat.id ? 'text-indigo-400' : 'text-slate-400'}>{cat.icon}</span>
-                                 {cat.label.toUpperCase()}
-                              </button>
-                            ))}
-                         </div>
-                       )}
+        {/* List of Options Container */}
+        <div className="p-4 flex flex-col gap-1 overflow-y-auto max-h-[40vh] custom-scrollbar">
+          
+          {/* OPTION SET A: Profile Navigation */}
+          {isProfileArea && profileRailItems.map(item => {
+             const isActive = currentPath === item.path || (item.id === 'overview' && currentPath === '/lms/profile');
+             return (
+               <button 
+                 key={item.id} 
+                 onClick={() => { navigate(item.path); setIsMobileSubMenuOpen(false); }}
+                 className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+               >
+                 <span className={isActive ? 'text-white' : 'text-indigo-400'}>{item.icon}</span>
+                 {item.label.toUpperCase()}
+               </button>
+             );
+          })}
 
-                       {/* Content B: Calendar Subjects Vertical List */}
-                       {isSchedule && (
-                         <div className="flex flex-col gap-1">
-                            <button 
-                              onClick={() => { setActiveCategory('all'); setIsMobileSubMenuOpen(false); }}
-                              className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-black tracking-wide transition-all ${activeCategory === 'all' ? 'bg-white/10 text-white' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
-                            >
-                               <span className={activeCategory === 'all' ? 'text-indigo-400' : 'text-slate-400'}><Layers size={16}/></span>
-                               ALL SUBJECTS
-                           </button>
-                            
-                            {courses.map((course, index) => {
-                              const iconColors = ['text-blue-400', 'text-emerald-400', 'text-orange-400', 'text-purple-400', 'text-pink-400'];
-                              const colorClass = iconColors[index % iconColors.length];
-                              return (
-                                <button 
-                                  key={course.class_id} 
-                                  onClick={() => { setActiveCategory(course.class_id); setIsMobileSubMenuOpen(false); }}
-                                  className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-black tracking-wide text-left transition-all ${activeCategory === course.class_id ? 'bg-white/10 text-white' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
-                                >
-                                   <span className={colorClass}><BookMarked size={16}/></span>
-                                   <span className="truncate">{course.title.toUpperCase()}</span>
-                                </button>
-                              )
-                            })}
-                         </div>
-                       )}
+          {/* OPTION SET B: Course List Categories */}
+          {isCoursesList && categoryFilters.map(cat => (
+            <button 
+              key={cat.id} 
+              onClick={() => { setActiveCategory(cat.id); setIsMobileSubMenuOpen(false); }}
+              className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${activeCategory === cat.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+            >
+              <span className={activeCategory === cat.id ? 'text-white' : 'text-indigo-400'}>{cat.icon}</span>
+              {cat.label.toUpperCase()}
+            </button>
+          ))}
 
-                       {/* Content C: Classroom Vertical List */}
-                       {isCourseDetail && (
-                         <div className="flex flex-col gap-1">
-                            {courseTabs.map(tab => (
-                              <button 
-                                key={tab.id} 
-                                onClick={() => { navigate(`${location.pathname}?tab=${tab.id}`); setIsMobileSubMenuOpen(false); }}
-                                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-black tracking-wide transition-all ${currentCourseTabId === tab.id ? 'bg-white/10 text-white' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
-                              >
-                                 <span className={currentCourseTabId === tab.id ? 'text-indigo-400' : 'text-slate-400'}>{tab.icon}</span>
-                                 {tab.label.toUpperCase()}
-                              </button>
-                            ))}
-                         </div>
-                       )}
-                    </div>
-                 </div>
-               </>
-             )}
-           </div>
+          {/* OPTION SET C: Classroom Tabs */}
+          {isCourseDetail && courseTabs.map(tab => (
+            <button 
+              key={tab.id} 
+              onClick={() => { navigate(`${location.pathname}?tab=${tab.id}`); setIsMobileSubMenuOpen(false); }}
+              className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${currentCourseTabId === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+            >
+              <span className={currentCourseTabId === tab.id ? 'text-white' : 'text-indigo-400'}>{tab.icon}</span>
+              {tab.label.toUpperCase()}
+            </button>
+          ))}
+
+          {/* OPTION SET D: Schedule Subjects Filter */}
+          {isSchedule && (
+            <>
+               <button 
+                  onClick={() => { setActiveCategory('all'); setIsMobileSubMenuOpen(false); }}
+                  className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${activeCategory === 'all' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+               >
+                  <span className={activeCategory === 'all' ? 'text-white' : 'text-indigo-400'}><Layers size={18}/></span>
+                  ALL SUBJECTS
+               </button>
+               {courses.map((course, index) => (
+                  <button 
+                    key={course.class_id} 
+                    onClick={() => { setActiveCategory(course.class_id); setIsMobileSubMenuOpen(false); }}
+                    className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${activeCategory === course.class_id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+                  >
+                    <span className="text-indigo-400"><BookMarked size={18}/></span>
+                    {course.title.toUpperCase()}
+                  </button>
+               ))}
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  )}
+</div>
 
            {/* =========================================
                [ UNIVERSAL: MAIN ICONS ]

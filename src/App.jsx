@@ -42,7 +42,8 @@ import LmsCourses from './pages/lms/LmsCourses';
 import LmsSingleSubject from './pages/lms/LmsSingleSubject';
 import LmsProfile from './pages/lms/LmsProfile';
 import LmsTakeExam from './pages/lms/LmsTakeExam';
-
+import ProfileOverview from './components/lms/ProfileOverview';
+import ProfileMessages from './components/lms/ProfileMessages';
 // ==========================================
 // CASHIER PAGES
 // ==========================================
@@ -217,9 +218,8 @@ function App() {
 
           {/* =======================================================
               8. DIGITAL CLASSROOM (LMS) ROUTES
-              ======================================================= */}
+          ======================================================= */}
           <Route path="/lms" element={
-            // ARCHITECT FIX: Ginawa ko itong lowercase 'student' para match sa ibang routes mo
             <ProtectedRoute allowedRoles={['student']}>
               <LmsLayout />
             </ProtectedRoute>
@@ -228,13 +228,22 @@ function App() {
             <Route path="calendar" element={<LmsSchedule />} />
             <Route path="courses" element={<LmsCourses />} />
             <Route path="course/:id" element={<LmsSingleSubject />} />
-            <Route path="profile" element={<LmsProfile />} />
+
+            {/* ARCHITECT FIX: Isang 'profile' route lang dapat na may children inside */}
+            <Route path="profile" element={<LmsProfile />}>
+              <Route index element={<ProfileOverview />} /> 
+              <Route path="overview" element={<ProfileOverview />} />
+              <Route path="messages" element={<ProfileMessages />} />
+              {/* Dito mo na rin pwedeng idagdag yung iba pang tabs sa susunod */}
+              <Route path="performance" element={<div className="p-10 font-black text-slate-300">Performance Coming Soon</div>} />
+              <Route path="settings" element={<div className="p-10 font-black text-slate-300">Settings Coming Soon</div>} />
+            </Route>
           </Route>
 
-          {/* 9. LMS Exam Route (Direct Access) */}
+          {/* 9. LMS Exam Route */}
           <Route path="/lms/exam/:activityId" element={
             <ProtectedRoute allowedRoles={['student']}>
-                <LmsTakeExam />
+              <LmsTakeExam />
             </ProtectedRoute>
           } />
 
