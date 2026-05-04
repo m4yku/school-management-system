@@ -287,46 +287,45 @@ const LmsLayout = () => {
            
 {/* =========================================
     [ MOBILE ONLY: CONTEXTUAL DRAWER ]
-    Architect Note: This block handles dynamic 
-    navigation for Profile, Courses, and Classroom.
+    Architect Note: Restored dynamic colors and centering.
 =========================================== */}
-<div className="md:hidden flex flex-col w-full">
+<div className="md:hidden flex flex-col w-full overflow-hidden">
   {(isCoursesList || isSchedule || isCourseDetail || isProfileArea) && (
     <>
-      {/* 1. THE TRIGGER BUTTON (Collapsed State) */}
+      {/* 1. THE TRIGGER BUTTON (Centered and Styled) */}
       {!isMobileSubMenuOpen && (
         <button 
           onClick={() => setIsMobileSubMenuOpen(true)}
-          className="w-full flex justify-between items-center py-4 px-6 bg-white/5 border-b border-white/5 group"
+          className="w-full flex justify-center items-center gap-2 py-3.5 px-6 bg-white/5 hover:bg-white/10 border-b border-white/5 transition-colors group"
         >
-          <div className="flex items-center gap-3">
-            <span className="text-indigo-400">
-              {isProfileArea && (profileRailItems.find(i => currentPath.includes(i.id))?.icon || <User size={18}/>)}
-              {isCoursesList && <Layers size={18}/>}
-              {isCourseDetail && activeCourseTab?.icon}
-              {isSchedule && <Calendar size={18}/>}
-            </span>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">
-              {isProfileArea ? (profileRailItems.find(i => currentPath.includes(i.id))?.label || "Profile Menu") : "Select View"}
-            </span>
-          </div>
-          <ChevronUp size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+          {/* ARCHITECT FIX: Centered text and restored icon color */}
+          <span className="text-indigo-400">
+             {isProfileArea && (profileRailItems.find(i => currentPath.includes(i.id))?.icon || <User size={16}/>)}
+             {isCoursesList && <Layers size={16}/>}
+             {isCourseDetail && activeCourseTab?.icon}
+             {isSchedule && <Calendar size={16}/>}
+          </span>
+          
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">
+             {isProfileArea ? (profileRailItems.find(i => currentPath.includes(i.id))?.label || "Profile Menu") : "Select View"}
+          </span>
+          <ChevronUp size={14} className="text-slate-400 group-hover:text-white transition-colors ml-1" />
         </button>
       )}
 
-      {/* 2. THE EXPANDED DRAWER (Context-Aware List) */}
+      {/* 2. THE EXPANDED DRAWER */}
       <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMobileSubMenuOpen ? 'max-h-[60vh] opacity-100' : 'max-h-0 opacity-0'}`}>
-        {/* Drawer Header (Yung may X button sa screenshot) */}
+        {/* Drawer Header */}
         <div className="flex justify-between items-center px-6 py-4 bg-slate-800/50 border-b border-white/5">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
              {isProfileArea ? 'Profile Navigation' : 'Select View'}
           </span>
-          <button onClick={() => setIsMobileSubMenuOpen(false)} className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white">
+          <button onClick={() => setIsMobileSubMenuOpen(false)} className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors">
             <X size={18}/>
           </button>
         </div>
 
-        {/* List of Options Container */}
+        {/* List of Options (Restored Colors) */}
         <div className="p-4 flex flex-col gap-1 overflow-y-auto max-h-[40vh] custom-scrollbar">
           
           {/* OPTION SET A: Profile Navigation */}
@@ -336,58 +335,65 @@ const LmsLayout = () => {
                <button 
                  key={item.id} 
                  onClick={() => { navigate(item.path); setIsMobileSubMenuOpen(false); }}
-                 className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+                 className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-xs font-black tracking-wide transition-all ${isActive ? 'bg-indigo-600 text-white shadow-lg' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
                >
+                 {/* ARCHITECT FIX: Ginamit ang indigo-400 for non-active icons */}
                  <span className={isActive ? 'text-white' : 'text-indigo-400'}>{item.icon}</span>
                  {item.label.toUpperCase()}
                </button>
              );
           })}
 
-          {/* OPTION SET B: Course List Categories */}
+          {/* OPTION SET B: Course List Categories (RESTORED DYNAMIC COLORS) */}
           {isCoursesList && categoryFilters.map(cat => (
             <button 
               key={cat.id} 
               onClick={() => { setActiveCategory(cat.id); setIsMobileSubMenuOpen(false); }}
-              className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${activeCategory === cat.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+              className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-xs font-black tracking-wide transition-all ${activeCategory === cat.id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
             >
-              <span className={activeCategory === cat.id ? 'text-white' : 'text-indigo-400'}>{cat.icon}</span>
+              {/* ARCHITECT FIX: Ibinalik ang color-coding mula sa config */}
+              <span className={activeCategory === cat.id ? 'text-white' : cat.color.replace('bg-', 'text-')}>{cat.icon}</span>
               {cat.label.toUpperCase()}
             </button>
           ))}
 
-          {/* OPTION SET C: Classroom Tabs */}
+          {/* OPTION SET C: Classroom Tabs (RESTORED INDIGO ICON) */}
           {isCourseDetail && courseTabs.map(tab => (
             <button 
               key={tab.id} 
               onClick={() => { navigate(`${location.pathname}?tab=${tab.id}`); setIsMobileSubMenuOpen(false); }}
-              className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${currentCourseTabId === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+              className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-xs font-black tracking-wide transition-all ${currentCourseTabId === tab.id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
             >
               <span className={currentCourseTabId === tab.id ? 'text-white' : 'text-indigo-400'}>{tab.icon}</span>
               {tab.label.toUpperCase()}
             </button>
           ))}
 
-          {/* OPTION SET D: Schedule Subjects Filter */}
+          {/* OPTION SET D: Schedule Subjects Filter (RESTORED COLOR-CODING) */}
           {isSchedule && (
             <>
                <button 
                   onClick={() => { setActiveCategory('all'); setIsMobileSubMenuOpen(false); }}
-                  className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${activeCategory === 'all' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-xs font-black tracking-wide transition-all ${activeCategory === 'all' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
                >
                   <span className={activeCategory === 'all' ? 'text-white' : 'text-indigo-400'}><Layers size={18}/></span>
                   ALL SUBJECTS
                </button>
-               {courses.map((course, index) => (
-                  <button 
-                    key={course.class_id} 
-                    onClick={() => { setActiveCategory(course.class_id); setIsMobileSubMenuOpen(false); }}
-                    className={`flex items-center gap-4 px-4 py-4 rounded-2xl text-xs font-black tracking-wide transition-all ${activeCategory === course.class_id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
-                  >
-                    <span className="text-indigo-400"><BookMarked size={18}/></span>
-                    {course.title.toUpperCase()}
-                  </button>
-               ))}
+               {courses.map((course, index) => {
+                  const iconColors = ['text-blue-400', 'text-emerald-400', 'text-orange-400', 'text-purple-400', 'text-pink-400'];
+                  const colorClass = iconColors[index % iconColors.length];
+                  return (
+                    <button 
+                        key={course.class_id} 
+                        onClick={() => { setActiveCategory(course.class_id); setIsMobileSubMenuOpen(false); }}
+                        className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-xs font-black tracking-wide transition-all ${activeCategory === course.class_id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-transparent text-slate-300 hover:bg-white/5'}`}
+                    >
+                        {/* ARCHITECT FIX: Ibinalik ang color loop para sa subjects */}
+                        <span className={activeCategory === course.class_id ? 'text-white' : colorClass}><BookMarked size={18}/></span>
+                        {course.title.toUpperCase()}
+                    </button>
+                  )
+               })}
             </>
           )}
         </div>
@@ -395,7 +401,6 @@ const LmsLayout = () => {
     </>
   )}
 </div>
-
            {/* =========================================
                [ UNIVERSAL: MAIN ICONS ]
                Ito lang ang matitira kapag naka-desktop view.
