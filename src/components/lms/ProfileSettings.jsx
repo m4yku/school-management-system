@@ -1,119 +1,177 @@
 // src/components/lms/ProfileSettings.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 const ProfileSettings = () => {
-  // State for toggles
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isKiddieMode, setIsKiddieMode] = useState(false);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [themeColor, setThemeColor] = useState('#4F46E5'); // Default Indigo
+  const { user, API_BASE_URL, logout } = useAuth();
   
-  // State for About Modal
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const userId = user?.id || user?.student_id || user?.username;
+  const userRole = user?.role || 'student';
 
-  const handleLogout = () => {
-    // Implement your logout logic here (clear tokens, redirect)
-    console.log("User logged out");
-    alert("Logging out...");
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState({
+    dark_mode: 0,
+    theme_color: '#2563eb',
+    kiddie_mode: 0, 
+    email_notif: 1  
+  });
+
+  const THEME_COLORS = [
+    { name: 'Indigo', hex: '#4f46e5' },
+    { name: 'Emerald', hex: '#10b981' },
+    { name: 'Amber', hex: '#f59e0b' },
+    { name: 'Red', hex: '#ef4444' },
+    { name: 'Purple', hex: '#8b5cf6' },
+  ];
+
+  // 1. FETCH SETTINGS ON LOAD (Updated Path)
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (!userId) return;
+      try {
+        const res = await axios.get(`${API_BASE_URL}/settings/get_settings.php?user_id=${userId}&user_role=${userRole}`);
+        if (res.data.status === 'success') {
+          const dbSettings = res.data.settings;
+          setSettings({
+            dark_mode: parseInt(dbSettings.dark_mode) || 0,
+            theme_color: dbSettings.theme_color || '#4f46e5',
+            kiddie_mode: dbSettings.dashboard_type === 'kiddie' ? 1 : 0,
+            email_notif: parseInt(dbSettings.email_notifications) || 0
+          });
+
+          if (parseInt(dbSettings.dark_mode) === 1) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load settings", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, [userId, userRole, API_BASE_URL]);
+
+  // 2. UPDATE SETTING FUNCTION (Updated Path)
+  const updateSetting = async (key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+
+    try {
+      await axios.post(`${API_BASE_URL}/settings/update_settings.php`, {
+        user_id: userId,
+        user_role: userRole,
+        setting_key: key,
+        setting_value: value
+      });
+    } catch (err) {
+      console.error(`Failed to save ${key}`, err);
+    }
   };
 
-  // Helper component for a modern Toggle Switch
-  const ToggleSwitch = ({ label, enabled, setEnabled }) => (
-    <div className="flex items-center justify-between py-3">
-      <span className="text-gray-700 font-medium">{label}</span>
-      <button 
-        onClick={() => setEnabled(!enabled)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
-      >
-        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-      </button>
-    </div>
-  );
+  const handleDarkModeToggle = () => {
+    const newValue = settings.dark_mode === 1 ? 0 : 1;
+    
+    if (newValue === 1) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
+    updateSetting('dark_mode', newValue);
+  };
+
+  if (loading) {
+    return <div className="h-[50vh] flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" size={32} /></div>;
+  }
 
   return (
-    <div className="animate-fade-in space-y-6">
-      <div className="border-b pb-4">
-        <h2 className="text-2xl font-bold text-gray-800">System Settings</h2>
-        <p className="text-sm text-gray-500">Customize your LMS experience and preferences.</p>
+    <div className="max-w-4xl animate-in fade-in duration-500 pb-10 dark:text-white">
+      
+      <div className="mb-8 border-b border-slate-200 dark:border-slate-700 pb-4">
+        <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">System Settings</h1>
+        <p className="text-sm font-bold text-slate-400 mt-1">Customize your LMS experience and preferences.</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">
-        
-        {/* UI Preferences */}
-        <div className="p-6 space-y-2">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Appearance & Interface</h3>
-          
-          <ToggleSwitch label="Dark Mode" enabled={isDarkMode} setEnabled={setIsDarkMode} />
-          <ToggleSwitch label="Kiddie Dashboard Mode" enabled={isKiddieMode} setEnabled={setIsKiddieMode} />
-          
-          <div className="flex items-center justify-between py-3">
-            <span className="text-gray-700 font-medium">Theme Color</span>
-            <div className="flex space-x-2">
-              {['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'].map(color => (
-                <button
-                  key={color}
-                  onClick={() => setThemeColor(color)}
-                  className={`w-6 h-6 rounded-full border-2 ${themeColor === color ? 'border-gray-800 scale-110' : 'border-transparent'}`}
-                  style={{ backgroundColor: color }}
-                  aria-label={`Select color ${color}`}
-                />
-              ))}
+      <div className="space-y-6">
+        {/* APPEARANCE & INTERFACE */}
+        <div className="bg-white dark:bg-slate-800 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="p-6">
+            <h2 className="text-sm font-black text-slate-800 dark:text-white mb-6">Appearance & Interface</h2>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Dark Mode</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={settings.dark_mode === 1}
+                    onChange={handleDarkModeToggle} 
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Kiddie Dashboard Mode</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" disabled />
+                  <div className="w-11 h-6 bg-slate-100 rounded-full peer dark:bg-slate-700 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between py-2 pt-4 border-t border-slate-50 dark:border-slate-700/50">
+                <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Theme Color</span>
+                <div className="flex items-center gap-3">
+                  {THEME_COLORS.map((color) => (
+                    <button
+                      key={color.hex}
+                      onClick={() => updateSetting('theme_color', color.hex)}
+                      className={`w-6 h-6 rounded-full transition-all flex items-center justify-center ${settings.theme_color === color.hex ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-offset-slate-800 scale-110' : 'hover:scale-110'}`}
+                      style={{ backgroundColor: color.hex }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Notifications */}
-        <div className="p-6 space-y-2">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Notifications</h3>
-          <ToggleSwitch label="Email notifications for new activities" enabled={emailNotifications} setEnabled={setEmailNotifications} />
+        {/* NOTIFICATIONS */}
+        <div className="bg-white dark:bg-slate-800 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden opacity-50 pointer-events-none">
+          <div className="p-6">
+            <h2 className="text-sm font-black text-slate-800 dark:text-white mb-6">Notifications</h2>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Email notifications for new activities</span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" checked readOnly />
+                <div className="w-11 h-6 bg-blue-600 rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all after:translate-x-full"></div>
+              </label>
+            </div>
+          </div>
         </div>
 
-        {/* System Actions */}
-        <div className="p-6 flex flex-col sm:flex-row gap-4">
-          <button 
-            onClick={() => setIsAboutOpen(true)}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-          >
-            About SMS System
-          </button>
-          
-          <button 
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-colors ml-auto"
-          >
-            Logout Account
-          </button>
-        </div>
-      </div>
-
-      {/* About Modal Pop Up */}
-      {isAboutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
-            <button 
-              onClick={() => setIsAboutOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-            >
-              ✕
+        {/* ACCOUNT ACTIONS */}
+        <div className="bg-white dark:bg-slate-800 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="p-6 flex items-center justify-between">
+            <button className="px-5 py-2.5 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">
+              About SMS System
             </button>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">School Management System (SMS)</h3>
-            <p className="text-sm text-gray-500 mb-4">Version 2.0.0</p>
-            <div className="space-y-2 text-sm text-gray-600">
-              <p>Developed to centralize academic, financial, and administrative operations.</p>
-              <p>Features integrated LMS, Registrar, and Cashiering modules.</p>
-            </div>
-            <div className="mt-6 text-center">
-              <button 
-                onClick={() => setIsAboutOpen(false)}
-                className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              >
-                Close
-              </button>
-            </div>
+            <button 
+              onClick={logout}
+              className="px-5 py-2.5 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm font-bold rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
+            >
+              Logout Account
+            </button>
           </div>
         </div>
-      )}
 
+      </div>
     </div>
   );
 };
