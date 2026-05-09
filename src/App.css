@@ -1,10 +1,5 @@
-/* 1. Import Tailwind Layers & Configure Dark Mode */
-@import "tailwindcss";
-@custom-variant dark (&:is(.dark *)); /* <-- IDAGDAG ITO: Eto yung pamalit sa tailwind.config.js para sa dark mode toggle */
-
-/* 2. Global Resets */
+/* 1. Global Resets */
 :root {
-  /* Heto ang default color kung sakaling hindi pa naka-load ang branding */
   --primary-color: #2563eb; 
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -16,62 +11,42 @@
 }
 
 body {
-  background-color: #f8fafc; /* slate-50 */
-  color: #1e293b; /* slate-800 */
+  background-color: #f8fafc; 
+  color: #1e293b; 
   min-height: 100vh;
   width: 100%;
 }
 
-/* GLOBAL DARK MODE (Para umitim agad ang buong background) */
-html.dark body {
-  background-color: #0f172a; /* Tailwind's slate-900 */
-  color: #f8fafc; /* Tailwind's slate-50 */
+/* GLOBAL DARK MODE */
+html.dark body,
+html.dark #root {
+  background-color: #0f172a !important; 
+  color: #f8fafc !important; 
 }
 
-/* 3. Custom Utility para sa Dynamic Branding */
-.bg-primary {
-  background-color: var(--primary-color) !important;
-}
+/* 2. Custom Utility para sa Dynamic Branding (Ito yung nagpapa-kulay sa Sidebar) */
+.bg-primary { background-color: var(--primary-color) !important; }
+.text-primary { color: var(--primary-color) !important; }
+.border-primary { border-color: var(--primary-color) !important; }
 
-.text-primary {
-  color: var(--primary-color) !important;
-}
-
-.border-primary {
-  border-color: var(--primary-color) !important;
-}
-
-/* 4. Smooth Transitions */
+/* 3. Smooth Transitions */
 .transition-all {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
 
-/* 5. Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
+/* 4. Scrollbar Styling (Para malinis tingnan ang gilid) */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 /* Dark Mode Scrollbar Adjustments */
-html.dark ::-webkit-scrollbar-track {
-  background: #1e293b;
-}
-html.dark ::-webkit-scrollbar-thumb {
-  background: #475569;
-}
+html.dark ::-webkit-scrollbar-track { background: #1e293b !important; }
+html.dark ::-webkit-scrollbar-thumb { background: #475569 !important; }
 
-/* Shine Animation */
+/* 5. Shine Animation */
 .shine-effect {
   position: relative;
   overflow: hidden;

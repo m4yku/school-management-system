@@ -26,7 +26,6 @@ const ProfileSettings = () => {
     { name: 'Purple', hex: '#8b5cf6' },
   ];
 
-  // 1. FETCH SETTINGS ON LOAD (Updated Path)
   useEffect(() => {
     const fetchSettings = async () => {
       if (!userId) return;
@@ -41,10 +40,18 @@ const ProfileSettings = () => {
             email_notif: parseInt(dbSettings.email_notifications) || 0
           });
 
+          // INITIAL LOAD THEME
+          const htmlElement = document.documentElement;
           if (parseInt(dbSettings.dark_mode) === 1) {
-            document.documentElement.classList.add('dark');
+            htmlElement.classList.add('dark');
+            htmlElement.style.colorScheme = 'dark'; // <--- Ito yung hindi lumalabas kanina!
           } else {
-            document.documentElement.classList.remove('dark');
+            htmlElement.classList.remove('dark');
+            htmlElement.style.colorScheme = 'light';
+          }
+
+          if (dbSettings.theme_color) {
+            htmlElement.style.setProperty('--primary-color', dbSettings.theme_color);
           }
         }
       } catch (err) {
@@ -56,9 +63,12 @@ const ProfileSettings = () => {
     fetchSettings();
   }, [userId, userRole, API_BASE_URL]);
 
-  // 2. UPDATE SETTING FUNCTION (Updated Path)
   const updateSetting = async (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+
+    if (key === 'theme_color') {
+      document.documentElement.style.setProperty('--primary-color', value);
+    }
 
     try {
       await axios.post(`${API_BASE_URL}/settings/update_settings.php`, {
@@ -72,32 +82,41 @@ const ProfileSettings = () => {
     }
   };
 
+  // SUPER FORCE TOGGLE
   const handleDarkModeToggle = () => {
-    const newValue = settings.dark_mode === 1 ? 0 : 1;
+    const isDark = settings.dark_mode == 1; 
+    const newValue = isDark ? 0 : 1;
     
+    // PILITIN ANG DOM AGAD-AGAD
+    const htmlElement = document.documentElement;
     if (newValue === 1) {
-      document.documentElement.classList.add('dark');
+      htmlElement.classList.add('dark');
+      htmlElement.style.colorScheme = 'dark';
     } else {
-      document.documentElement.classList.remove('dark');
+      htmlElement.classList.remove('dark');
+      htmlElement.style.colorScheme = 'light';
     }
 
-    updateSetting('dark_mode', newValue);
+    setSettings(prev => ({ ...prev, dark_mode: newValue }));
+
+    axios.post(`${API_BASE_URL}/settings/update_settings.php`, {
+      user_id: userId,
+      user_role: userRole,
+      setting_key: 'dark_mode',
+      setting_value: newValue
+    }).catch(err => console.error("Failed to save dark mode", err));
   };
 
-  if (loading) {
-    return <div className="h-[50vh] flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" size={32} /></div>;
-  }
+  if (loading) return <div className="h-[50vh] flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" size={32} /></div>;
 
   return (
     <div className="max-w-4xl animate-in fade-in duration-500 pb-10 dark:text-white">
-      
       <div className="mb-8 border-b border-slate-200 dark:border-slate-700 pb-4">
         <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">System Settings</h1>
         <p className="text-sm font-bold text-slate-400 mt-1">Customize your LMS experience and preferences.</p>
       </div>
 
       <div className="space-y-6">
-        {/* APPEARANCE & INTERFACE */}
         <div className="bg-white dark:bg-slate-800 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
           <div className="p-6">
             <h2 className="text-sm font-black text-slate-800 dark:text-white mb-6">Appearance & Interface</h2>
@@ -109,10 +128,10 @@ const ProfileSettings = () => {
                   <input 
                     type="checkbox" 
                     className="sr-only peer" 
-                    checked={settings.dark_mode === 1}
+                    checked={settings.dark_mode == 1}
                     onChange={handleDarkModeToggle} 
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:!bg-blue-600"></div>
                 </label>
               </div>
 
@@ -142,7 +161,6 @@ const ProfileSettings = () => {
           </div>
         </div>
 
-        {/* NOTIFICATIONS */}
         <div className="bg-white dark:bg-slate-800 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden opacity-50 pointer-events-none">
           <div className="p-6">
             <h2 className="text-sm font-black text-slate-800 dark:text-white mb-6">Notifications</h2>
@@ -156,7 +174,6 @@ const ProfileSettings = () => {
           </div>
         </div>
 
-        {/* ACCOUNT ACTIONS */}
         <div className="bg-white dark:bg-slate-800 rounded-[1.5rem] border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
           <div className="p-6 flex items-center justify-between">
             <button className="px-5 py-2.5 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">

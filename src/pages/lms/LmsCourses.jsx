@@ -67,34 +67,34 @@ const LmsCourses = () => {
   // [ SECTION 4: UI RENDER ]
   // ==========================================
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10 transition-colors">
       
       {/* HEADER SECTION */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Full Course Catalog</h1>
-          <p className="text-slate-400 font-bold text-sm mt-1 uppercase tracking-widest flex items-center gap-2">
+          <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight transition-colors">Full Course Catalog</h1>
+          <p className="text-slate-400 dark:text-slate-500 font-bold text-sm mt-1 uppercase tracking-widest flex items-center gap-2">
             Showing {filteredSubjects.length} {activeCategory === 'all' ? 'All' : activeCategory} Subjects
           </p>
         </div>
 
-        {/* VIEW MODE SWITCHER */}
-        <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 ring-1 ring-slate-200/50">
+        {/* VIEW MODE SWITCHER - DARK MODE ADAPTIVE */}
+        <div className="flex bg-white dark:bg-slate-800 p-1.5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 ring-1 ring-slate-200/50 dark:ring-slate-700/50 transition-colors">
           <button 
             onClick={() => setViewMode('card')} 
-            className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'card' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+            className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'card' ? 'bg-[var(--primary-color)] text-white shadow-lg shadow-[var(--primary-color)]/20' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-[var(--primary-color)]'}`}
           >
             <LayoutGrid size={18} />
           </button>
           <button 
             onClick={() => setViewMode('detailed')} 
-            className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'detailed' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+            className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'detailed' ? 'bg-[var(--primary-color)] text-white shadow-lg shadow-[var(--primary-color)]/20' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-[var(--primary-color)]'}`}
           >
             <StretchHorizontal size={18} />
           </button>
           <button 
             onClick={() => setViewMode('list')} 
-            className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+            className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'list' ? 'bg-[var(--primary-color)] text-white shadow-lg shadow-[var(--primary-color)]/20' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-[var(--primary-color)]'}`}
           >
             <ListIcon size={18} />
           </button>
@@ -125,7 +125,8 @@ const LmsCourses = () => {
               <div 
                 key={sub.class_id} 
                 onClick={() => handleEnterCourse(sub.class_id)}
-                className="bg-white rounded-[1.5rem] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:-translate-y-1 cursor-pointer group min-h-[160px]"
+                // DARK MODE FIX: Card Backgrounds and Borders
+                className="bg-white dark:bg-slate-800 rounded-[1.5rem] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-none border border-slate-100 dark:border-slate-700 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-[var(--primary-color)] dark:hover:border-slate-500 hover:-translate-y-1 cursor-pointer group min-h-[160px]"
               >
                 {/* Top Half: Icon & Titles */}
                 <div className="flex gap-4 items-start mb-4">
@@ -134,37 +135,39 @@ const LmsCourses = () => {
                   </div>
                   
                   <div className="flex-1 min-w-0 mt-1">
-                    <h3 className="font-black text-slate-800 text-[15px] leading-snug line-clamp-2">
+                    <h3 className="font-black text-slate-800 dark:text-white text-[15px] leading-snug line-clamp-2 transition-colors">
                       {sub.title}
                     </h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-1 flex items-center gap-1.5 truncate">
-                      <User size={12} className="text-slate-300" />
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1 flex items-center gap-1.5 truncate">
+                      <User size={12} className="text-slate-300 dark:text-slate-600" />
                       {sub.teacher || 'TBA'}
                     </p>
                   </div>
                 </div>
                 
-                {/* Compact Progress Line (Totoong data base sa database mo) */}
-                <div className="w-full h-1.5 bg-slate-50 rounded-full mb-4 overflow-hidden border border-slate-100">
+                {/* Compact Progress Line */}
+                <div className="w-full h-1.5 bg-slate-50 dark:bg-slate-900 rounded-full mb-4 overflow-hidden border border-slate-100 dark:border-slate-800 transition-colors">
                   <div 
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(79,70,229,0.4)]" 
+                    className="h-full bg-[var(--primary-color)] rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(var(--primary-color),0.4)]" 
                     style={{ width: `${((sub.completed_lessons || 0) / (sub.total_lessons || 1)) * 100}%` }}
                   ></div>
                 </div>
 
                 {/* Divider */}
-                <div className="w-full h-px bg-slate-100 my-2"></div>
+                <div className="w-full h-px bg-slate-100 dark:bg-slate-700/50 my-2 transition-colors"></div>
 
                 {/* Bottom Half: Stats & Action Button */}
                 <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-1.5 text-slate-400">
-                    <Users size={14} className="text-indigo-400" />
+                  <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
+                    {/* FIX: Adaptive Icon Color */}
+                    <Users size={14} className="text-[var(--primary-color)] opacity-70" />
                     <span className="text-[10px] font-black uppercase tracking-widest">
                       {sub.student_count || 0} Peers Enrolled
                     </span>
                   </div>
 
-                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-600 group-hover:text-indigo-800 transition-colors">
+                  {/* FIX: Primary Color on Hover */}
+                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--primary-color)] group-hover:brightness-75 dark:group-hover:brightness-125 transition-colors">
                     Classroom 
                     <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                   </span>
@@ -175,12 +178,12 @@ const LmsCourses = () => {
         </div>
       ) : (
         /* EMPTY STATE DISPLAY */
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[3rem] border border-dashed border-slate-200 animate-in zoom-in-95 duration-500 shadow-sm">
-          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
+        <div className="flex flex-col items-center justify-center py-24 bg-white dark:bg-slate-800/50 rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-500 shadow-sm transition-colors">
+          <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-600 mb-4 transition-colors">
              <LayoutGrid size={40} />
           </div>
-          <h3 className="font-black text-slate-800 uppercase tracking-widest text-sm">No Subjects Found</h3>
-          <p className="text-slate-400 font-bold text-xs mt-1">There are no courses enrolled under the "{activeCategory}" category.</p>
+          <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-widest text-sm transition-colors">No Subjects Found</h3>
+          <p className="text-slate-400 dark:text-slate-500 font-bold text-xs mt-1 transition-colors">There are no courses enrolled under the "{activeCategory}" category.</p>
         </div>
       )}
     </div>
