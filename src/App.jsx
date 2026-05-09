@@ -41,7 +41,11 @@ import LmsSchedule from './pages/lms/LmsSchedule';
 import LmsCourses from './pages/lms/LmsCourses';
 import LmsSingleSubject from './pages/lms/LmsSingleSubject';
 import LmsProfile from './pages/lms/LmsProfile';
-
+import LmsTakeExam from './pages/lms/LmsTakeExam';
+import ProfileOverview from './components/lms/ProfileOverview';
+import ProfileMessages from './components/lms/ProfileMessages';
+import ProfilePerformance from './components/lms/ProfilePerformance';
+import ProfileSettings from './components/lms/ProfileSettings';
 // ==========================================
 // CASHIER PAGES
 // ==========================================
@@ -216,9 +220,8 @@ function App() {
 
           {/* =======================================================
               8. DIGITAL CLASSROOM (LMS) ROUTES
-              ======================================================= */}
+          ======================================================= */}
           <Route path="/lms" element={
-            // ARCHITECT FIX: Ginawa ko itong lowercase 'student' para match sa ibang routes mo
             <ProtectedRoute allowedRoles={['student']}>
               <LmsLayout />
             </ProtectedRoute>
@@ -227,10 +230,26 @@ function App() {
             <Route path="calendar" element={<LmsSchedule />} />
             <Route path="courses" element={<LmsCourses />} />
             <Route path="course/:id" element={<LmsSingleSubject />} />
-            <Route path="profile" element={<LmsProfile />} />
+
+            {/* ARCHITECT FIX: Isang 'profile' route lang dapat na may children inside */}
+            <Route path="profile" element={<LmsProfile />}>
+              <Route index element={<ProfileOverview />} /> 
+              <Route path="overview" element={<ProfileOverview />} />
+              <Route path="messages" element={<ProfileMessages />} />
+              {/* Dito mo na rin pwedeng idagdag yung iba pang tabs sa susunod */}
+              <Route path="performance" element={<ProfilePerformance />} />
+              <Route path="settings" element={<ProfileSettings />} />
+            </Route>
           </Route>
 
-          {/* 9. FALLBACK */}
+          {/* 9. LMS Exam Route */}
+          <Route path="/lms/exam/:activityId" element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <LmsTakeExam />
+            </ProtectedRoute>
+          } />
+
+          {/* 10. FALLBACK */}
           <Route path="*" element={<Navigate to="/" replace />} />
           
         </Routes>

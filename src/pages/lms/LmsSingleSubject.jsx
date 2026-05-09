@@ -1,40 +1,67 @@
-import React, { useState } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams, useNavigate, useOutletContext } from 'react-router-dom';
+import axios from 'axios';
 import { 
   FileText, Video, CheckSquare, Award, Clock, MoreVertical, 
   MessageCircle, FileDown, PieChart as PieChartIcon, 
-  LayoutGrid, List as ListIcon, CheckCircle
+  LayoutGrid, List as ListIcon, CheckCircle, Loader2
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const LmsSingleSubject = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // Ito ang class_id
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const currentTab = searchParams.get('tab') || 'all';
+  const { user, API_BASE_URL } = useAuth();
 
-  // BAGONG STATE PARA SA GRADES VIEW TOGGLE
+// [ SECTION 1: INSTANT HEADER LOAD ]
+  const [courseInfo, setCourseInfo] = useState({ tag: 'SYNCING...', title: 'Loading Subject...', teacher: 'Fetching Teacher...' });
+
   const [gradesViewMode, setGradesViewMode] = useState('list'); // 'list' or 'card'
 
-  // MOCK DYNAMIC DATA
-  const subjectData = {
-    title: 'General Mathematics',
-    code: 'MATH-101',
-    teacher: 'Jackie Sun',
-    color: 'bg-blue-600',
-    gradePercent: 88, 
-    status: 'Passed',
-    feed: [
-      { id: 1, type: 'exam', title: 'Midterm Examination', date: 'April 20, 2026', time: '10:00 AM', desc: 'Covering Chapters 1 to 4. Good luck!', score: null, total: 100 },
-      { id: 2, type: 'video', title: 'Rational Functions Part 2', date: 'April 18, 2026', time: '08:00 AM', desc: 'Watch this video lecture before answering the activity.', duration: '15 mins' },
-      { id: 3, type: 'activity', title: 'Graphing Exercises', date: 'April 17, 2026', time: '11:59 PM', desc: 'Submit your graphing notebook pictures here.', score: 18, total: 20 },
-      { id: 4, type: 'lecture', title: 'Chapter 2: Asymptotes PDF', date: 'April 15, 2026', time: '09:00 AM', desc: 'Please read the handout.', size: '2.4 MB' },
-      // Added completed graded tasks for the grades view
-      { id: 5, type: 'activity', title: 'Pre-Calculus Review', date: 'April 10, 2026', time: '11:59 PM', desc: 'Review worksheet.', score: 45, total: 50 },
-      { id: 6, type: 'exam', title: 'Chapter 1 Long Test', date: 'April 05, 2026', time: '10:00 AM', desc: 'First long test.', score: 85, total: 100 },
-    ]
-  };
+  // ==========================================
+  // [ SECTION 2: DYNAMIC STATES ]
+  // Dito papasok ang totoong data galing sa database
+  // ==========================================
+  const [loading, setLoading] = useState(true);
+  const [courseFeed, setCourseFeed] = useState([]);
+  const [dueSoon, setDueSoon] = useState([]);
+  const [recentGrades, setRecentGrades] = useState([]);
+  const [quarterStanding, setQuarterStanding] = useState({ status: 'Evaluating', grade: 0 });
 
-  const filteredFeed = subjectData.feed.filter(item => {
+  // FETCH CLASSROOM DATA
+  useEffect(() => {
+    const fetchClassroomData = async () => {
+      setLoading(true);
+      try {
+        const studentIdentifier = user?.id || user?.username;
+        // Ito ang bagong endpoint na kailangan sa backend
+        const res = await axios.get(`${API_BASE_URL}/lms/get_classroom_feed.php?student_id=${studentIdentifier}&class_id=${id}`);
+        
+        if (res.data.status === 'success') {
+         if (res.data.course_info) {
+             setCourseInfo(res.data.course_info);
+          }
+          setCourseFeed(res.data.feed || []);
+          setDueSoon(res.data.due_soon || []);
+          setRecentGrades(res.data.recent_grades || []);
+          setQuarterStanding(res.data.standing || { status: 'Evaluating', grade: 0 });
+        }
+      } catch (err) {
+        console.error("Failed to fetch classroom data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id && user) fetchClassroomData();
+  }, [id, user, API_BASE_URL]);
+
+  // ==========================================
+  // [ SECTION 3: FILTERING LOGIC ]
+  // ==========================================
+  const filteredFeed = courseFeed.filter(item => {
     if (currentTab === 'all') return true;
     if (currentTab === 'lectures' && item.type === 'lecture') return true;
     if (currentTab === 'videos' && item.type === 'video') return true;
@@ -42,9 +69,6 @@ const LmsSingleSubject = () => {
     if (currentTab === 'exams' && item.type === 'exam') return true;
     return false;
   });
-
-  // Kukunin natin lahat ng may score para sa Grades View
-  const gradedItems = subjectData.feed.filter(item => item.score !== null && item.score !== undefined);
 
   const getPostStyle = (type) => {
     switch(type) {
@@ -55,30 +79,39 @@ const LmsSingleSubject = () => {
     }
   };
 
+  // ==========================================
+  // [ SECTION 4: UI RENDER ]
+  // ==========================================
   return (
-    <div className="animate-in fade-in zoom-in-95 duration-500">
+    <div className="animate-in fade-in zoom-in-95 duration-500 pb-20">
       
-      {/* 1. THE CLASSROOM BANNER */}
-      <div className={`${subjectData.color} rounded-[2.5rem] p-8 md:p-10 text-white shadow-xl mb-8 relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-8`}>
+      {/* 1. THE CLASSROOM BANNER (Dynamic using Context Data) */}
+      <div className="bg-blue-600 rounded-[2.5rem] p-8 md:p-10 text-white shadow-xl mb-8 relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
          <div className="absolute -right-10 -top-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl pointer-events-none"></div>
          <div className="absolute left-1/2 top-1/2 -translate-y-1/2 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none mix-blend-overlay"></div>
 
          <div className="relative z-10">
-            <span className="inline-block px-3 py-1 bg-black/20 backdrop-blur-md text-white rounded-lg text-[10px] font-black uppercase tracking-widest mb-4 border border-white/10">{subjectData.code}</span>
-            <h1 className="text-3xl md:text-5xl font-black mb-2 tracking-tight leading-tight max-w-2xl">{subjectData.title}</h1>
-            <p className="font-bold text-white/80 flex items-center gap-2">Teacher: {subjectData.teacher}</p>
+            <span className="inline-block px-3 py-1 bg-black/20 backdrop-blur-md text-white rounded-lg text-[10px] font-black uppercase tracking-widest mb-4 border border-white/10">
+              {courseInfo.tag || 'SUBJECT CODE'}
+            </span>
+            <h1 className="text-3xl md:text-5xl font-black mb-2 tracking-tight leading-tight max-w-2xl">
+              {courseInfo.title || 'Loading Subject...'}
+            </h1>
+            <p className="font-bold text-white/80 flex items-center gap-2">
+              Teacher: {courseInfo.teacher || 'TBA'}
+            </p>
          </div>
 
-         {/* PIE CHART */}
+         {/* PIE CHART (Dynamic Standing) */}
          <div className="relative z-10 bg-white/10 backdrop-blur-xl p-5 rounded-[2rem] border border-white/20 flex items-center gap-6 shadow-2xl">
             <div className="flex flex-col">
                <span className="text-[10px] font-black uppercase tracking-widest text-white/70 mb-1">Quarter Standing</span>
-               <span className="text-2xl font-black text-white">{subjectData.status}</span>
+               <span className="text-2xl font-black text-white">{quarterStanding.status}</span>
                <button onClick={() => navigate('?tab=grades')} className="text-[10px] font-bold text-white/80 underline mt-1 text-left hover:text-white">View full breakdown</button>
             </div>
-            <div className="w-20 h-20 rounded-full flex items-center justify-center relative shadow-inner" style={{ background: `conic-gradient(#4ade80 ${subjectData.gradePercent}%, rgba(255,255,255,0.2) 0)` }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center relative shadow-inner" style={{ background: `conic-gradient(#4ade80 ${quarterStanding.grade}%, rgba(255,255,255,0.2) 0)` }}>
                <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-black">{subjectData.gradePercent}%</span>
+                  <span className="text-sm font-black">{quarterStanding.grade}%</span>
                </div>
             </div>
          </div>
@@ -93,31 +126,49 @@ const LmsSingleSubject = () => {
             {/* Widget 1: Due Soon */}
             <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
                <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2"><Clock size={16} className="text-orange-500"/> Due Soon</h3>
-               <div className="space-y-4">
-                  <div className="group cursor-pointer">
-                     <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">Midterm Examination</p>
-                     <p className="text-[10px] font-bold text-slate-400">Due: Monday, 10:00 AM</p>
-                  </div>
-               </div>
+               
+               {loading ? (
+                 <div className="flex justify-center p-4"><Loader2 className="animate-spin text-slate-300" size={20} /></div>
+               ) : dueSoon.length > 0 ? (
+                 <div className="space-y-4">
+                    {dueSoon.map((task) => (
+                      <div key={task.id} className="group cursor-pointer">
+                         <p className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{task.title}</p>
+                         <p className="text-[10px] font-bold text-slate-400">Due: {task.date} • {task.time}</p>
+                      </div>
+                    ))}
+                 </div>
+               ) : (
+                 <p className="text-[10px] font-bold text-slate-400 text-center py-2">No upcoming deadlines.</p>
+               )}
+               
                <button className="w-full mt-6 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-colors">View All</button>
             </div>
 
-            {/* Widget 2: Recent Grades (YUNG DRAWING MO!) */}
+            {/* Widget 2: Recent Grades */}
             <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
                <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2"><PieChartIcon size={16} className="text-emerald-500"/> Recent Grades</h3>
-               <div className="space-y-4">
-                  {gradedItems.slice(0, 3).map((item, idx) => (
-                     <div key={idx} className="flex justify-between items-center group cursor-pointer" onClick={() => navigate('?tab=grades')}>
-                        <div>
-                           <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-600 transition-colors truncate max-w-[120px]">{item.title}</p>
-                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{item.type}</p>
-                        </div>
-                        <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
-                           {item.score}/{item.total}
-                        </span>
-                     </div>
-                  ))}
-               </div>
+               
+               {loading ? (
+                 <div className="flex justify-center p-4"><Loader2 className="animate-spin text-slate-300" size={20} /></div>
+               ) : recentGrades.length > 0 ? (
+                 <div className="space-y-4">
+                    {recentGrades.slice(0, 3).map((item, idx) => (
+                       <div key={idx} className="flex justify-between items-center group cursor-pointer" onClick={() => navigate('?tab=grades')}>
+                          <div>
+                             <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-600 transition-colors truncate max-w-[120px]">{item.title}</p>
+                             <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{item.type}</p>
+                          </div>
+                          <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+                             {item.score}/{item.total}
+                          </span>
+                       </div>
+                    ))}
+                 </div>
+               ) : (
+                 <p className="text-[10px] font-bold text-slate-400 text-center py-2">No recent grades.</p>
+               )}
+               
                <button onClick={() => navigate('?tab=grades')} className="w-full mt-6 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors">Open Grades Log</button>
             </div>
 
@@ -126,23 +177,28 @@ const LmsSingleSubject = () => {
          {/* RIGHT COLUMN: THE DYNAMIC FEED OR GRADES VIEW */}
          <div className="lg:col-span-3 space-y-6">
             
-            {/* KUNG NASA 'GRADES' TAB: Ipakita ang Dedicated Grades UI */}
-            {currentTab === 'grades' ? (
+            {loading ? (
+               <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                  <Loader2 className="animate-spin text-indigo-500 mb-4" size={40} />
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Syncing Classroom...</p>
+               </div>
+            ) : currentTab === 'grades' ? (
+               /* KUNG NASA 'GRADES' TAB: Ipakita ang Dedicated Grades UI */
                <div className="bg-white rounded-[2rem] p-6 md:p-8 border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-4">
                   <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                      <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><Award className="text-emerald-500" /> My Grades Log</h2>
                      
-                     {/* View Toggle for Grades */}
                      <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-200">
                         <button onClick={() => setGradesViewMode('card')} className={`p-2 rounded-lg transition-all ${gradesViewMode === 'card' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}><LayoutGrid size={16} /></button>
                         <button onClick={() => setGradesViewMode('list')} className={`p-2 rounded-lg transition-all ${gradesViewMode === 'list' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}><ListIcon size={16} /></button>
                      </div>
                   </div>
 
-                  {/* GRADES: CARD VIEW */}
-                  {gradesViewMode === 'card' && (
+                  {recentGrades.length === 0 ? (
+                    <p className="text-center text-slate-400 py-10 font-bold text-sm">No graded activities yet.</p>
+                  ) : gradesViewMode === 'card' ? (
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {gradedItems.map(item => (
+                        {recentGrades.map(item => (
                            <div key={item.id} className="p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow bg-slate-50 hover:bg-white group">
                               <div className="flex justify-between items-start mb-4">
                                  <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-100 px-2 py-1 rounded-md">{item.type}</span>
@@ -157,12 +213,9 @@ const LmsSingleSubject = () => {
                            </div>
                         ))}
                      </div>
-                  )}
-
-                  {/* GRADES: LIST VIEW */}
-                  {gradesViewMode === 'list' && (
+                  ) : (
                      <div className="space-y-3">
-                        {gradedItems.map(item => (
+                        {recentGrades.map(item => (
                            <div key={item.id} className="flex justify-between items-center p-4 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
                               <div className="flex items-center gap-4">
                                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><Award size={18} /></div>
@@ -216,8 +269,32 @@ const LmsSingleSubject = () => {
                                  <div className="flex flex-wrap items-center gap-3">
                                     {post.type === 'video' && <button className="px-5 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-rose-100 transition-colors"><Video size={16} /> Watch Video</button>}
                                     {post.type === 'lecture' && <button className="px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-blue-100 transition-colors"><FileDown size={16} /> Download PDF</button>}
-                                    {(post.type === 'activity' || post.type === 'exam') && !post.score && <button className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-md"><Award size={16} /> Turn In Work</button>}
-                                    {post.score && <div className="px-5 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black border border-emerald-100">Graded: {post.score}/{post.total}</div>}
+                                    {/* KUNG EXAM O ACTIVITY NA PWEDE PANG I-TAKE O RETAKE */}
+                                    {(post.type === 'activity' || post.type === 'exam') && (post.attempts < post.max_attempts || !post.status || post.status === 'Pending') && (
+                                    <button 
+                                       onClick={() => navigate(`/lms/exam/${post.id.replace('act_', '')}`)} 
+                                       className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-md transition-all group"
+                                    >
+                                       <Award size={16} className="group-hover:scale-110 transition-transform" /> 
+                                       {post.attempts > 0 ? `Retake Exam (${post.attempts}/${post.max_attempts} Tries)` : 'Take Exam / Activity'}
+                                    </button>
+                                    )}
+
+                                    {/* KUNG GRADED NA AT NA-EXHAUST NA LAHAT NG ATTEMPTS */}
+                                    {(post.type === 'activity' || post.type === 'exam') && post.status === 'Graded' && post.attempts >= post.max_attempts && (
+                                    <div className="px-5 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black border border-emerald-100 flex items-center gap-2">
+                                       <CheckCircle size={16} /> 
+                                       Graded: {post.score}/{post.total} (Used: {post.attempts}/{post.max_attempts} Tries)
+                                    </div>
+                                    )}
+
+                                    {/* KUNG NA-SUBMIT NA PERO HINDI PA NAMA-MARKAHAN NG TEACHER (Lalo na kung may Essay) */}
+                                    {(post.type === 'activity' || post.type === 'exam') && post.status === 'Submitted' && post.attempts >= post.max_attempts && (
+                                    <div className="px-5 py-2.5 bg-amber-50 text-amber-600 rounded-xl text-xs font-black border border-amber-100 flex items-center gap-2">
+                                       <Clock size={16} /> 
+                                       Waiting for Grade
+                                    </div>
+                                    )}
                                     <button className="px-4 py-2.5 text-slate-400 hover:text-slate-600 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"><MessageCircle size={16} /> Add class comment</button>
                                  </div>
                               </div>

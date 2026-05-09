@@ -1,31 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Download, Filter, Banknote, CreditCard, Wallet, ReceiptText, Search } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import {
+  Download,
+  Filter,
+  Banknote,
+  CreditCard,
+  Wallet,
+  ReceiptText,
+  Search,
+  Calendar,
+  ChevronRight,
+} from "lucide-react";
 import { jsPDF } from "jspdf";
-import autoTable from 'jspdf-autotable';
-import { useAuth } from '../../context/AuthContext';
+import autoTable from "jspdf-autotable";
+import { useAuth } from "../../context/AuthContext";
 
 const CollectionReports = () => {
   const [reports, setReports] = useState([]);
   const { branding, API_BASE_URL } = useAuth();
   const [stats, setStats] = useState({ total: 0, cash: 0, gcash: 0, card: 0 });
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const today = new Date().toISOString().split('T')[0];
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const today = new Date().toISOString().split("T")[0];
   const [filters, setFilters] = useState({ start: today, end: today });
   const [loading, setLoading] = useState(false);
 
-  // Function para kumuha ng data mula sa PHP API
+  // Theme Helpers mula sa Dashboard
+  const getLightVariant = (hexColor) =>
+    hexColor ? `${hexColor}1F` : "#f8fafc";
+  const getMediumVariant = (hexColor) =>
+    hexColor ? `${hexColor}33` : "#f1f5f9";
+
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/cashier/get_collection_reports.php?start=${filters.start}&end=${filters.end}`);
-      if (res.data.status === 'success') {
+      const res = await axios.get(
+        `${API_BASE_URL}/cashier/get_collection_reports.php?start=${filters.start}&end=${filters.end}`,
+      );
+      if (res.data.status === "success") {
         setReports(res.data.data);
         setStats(res.data.stats);
       }
-    } catch (err) { 
-      console.error("Fetch error:", err); 
+    } catch (err) {
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -35,142 +52,211 @@ const CollectionReports = () => {
     fetchReports();
   }, []);
 
-  // CLIENT-SIDE SEARCH LOGIC
-  // Sinasala nito ang reports base sa Name, ID, o Payment Method
-  const filteredReports = reports.filter(p => 
-    p.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.payment_method.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredReports = reports.filter(
+    (p) =>
+      `${p.first_name} ${p.last_name}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      p.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.payment_method.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  // PDF EXPORT LOGIC
   const exportToPDF = () => {
-    // Kung may search, yung filtered results lang ang i-export. Kung wala, lahat.
-    const dataToExport = filteredReports;
-
-    if (dataToExport.length === 0) return alert("Walang data na pwedeng i-export!");
-
+    if (filteredReports.length === 0)
+      return alert("Walang data na pwedeng i-export!");
     try {
       const doc = new jsPDF();
-      
-      // Header ng PDF
       doc.setFontSize(18);
       doc.text("COLLECTION REPORT", 14, 20);
-      
       doc.setFontSize(10);
       doc.text(`Period: ${filters.start} to ${filters.end}`, 14, 30);
-      if(searchTerm) doc.text(`Search Filter: "${searchTerm}"`, 14, 35);
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 40);
-
-      const tableData = dataToExport.map(p => [
-        new Date(p.transaction_date).toLocaleDateString(),
-        `${p.first_name} ${p.last_name}`,
-        p.payment_method,
-        p.fee_category,
-        `P${parseFloat(p.amount_paid).toLocaleString(undefined, {minimumFractionDigits: 2})}`
-      ]);
-
       autoTable(doc, {
         startY: 45,
-        head: [['Date', 'Student Name', 'Method', 'Category', 'Amount']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillGray: [40, 40, 40], textColor: 255 },
-        styles: { fontSize: 8 }
+        head: [["Date", "Student Name", "Method", "Category", "Amount"]],
+        body: filteredReports.map((p) => [
+          new Date(p.transaction_date).toLocaleDateString(),
+          `${p.first_name} ${p.last_name}`,
+          p.payment_method,
+          p.fee_category,
+          `P${parseFloat(p.amount_paid).toLocaleString()}`,
+        ]),
+        theme: "grid",
       });
-
       doc.save(`Collection_Report_${filters.start}.pdf`);
     } catch (err) {
-      console.error("PDF Error:", err);
       alert("Error generating PDF.");
     }
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 text-left animate-in fade-in duration-500">
-      
-      {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-100 pb-8 gap-6">
+    <div className="p-4 md:p-8 space-y-8 text-left max-w-[1600px] mx-auto animate-in fade-in duration-500">
+      {/* GLASS HEADER */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-white/60 backdrop-blur-md p-6 rounded-[2.5rem] border border-white shadow-sm">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter">Collection Reports</h1>
-          <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Financial Audit Trail</p>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 uppercase italic tracking-tighter flex items-center gap-3">
+            <div className="p-3 bg-slate-900 rounded-2xl text-white shadow-lg">
+              <ReceiptText size={28} />
+            </div>
+            Collection{" "}
+            <span style={{ color: branding?.theme_color }}>Reports</span>
+          </h1>
+          <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em] mt-2 ml-1">
+            Financial Audit & Analytics[cite: 5]
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-end gap-4 bg-slate-50 p-4 rounded-[2rem] border border-slate-100">
-          <div className="space-y-1">
-            <label className="text-[9px] font-black text-slate-400 uppercase ml-2">From</label>
-            <input type="date" className="block bg-white border-0 rounded-xl px-4 py-2 text-xs font-bold outline-none ring-1 ring-slate-200" value={filters.start} onChange={(e) => setFilters({...filters, start: e.target.value})} />
+        {/* DATE FILTERS */}
+        <div className="flex flex-wrap items-center gap-3 bg-slate-100/50 p-2 rounded-[2rem] border border-slate-200/50">
+          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-2xl shadow-sm border border-slate-100">
+            <Calendar size={14} className="text-slate-400" />
+            <input
+              type="date"
+              className="bg-transparent border-0 text-[11px] font-black uppercase outline-none"
+              value={filters.start}
+              onChange={(e) =>
+                setFilters({ ...filters, start: e.target.value })
+              }
+            />
           </div>
-          <div className="space-y-1">
-            <label className="text-[9px] font-black text-slate-400 uppercase ml-2">To</label>
-            <input type="date" className="block bg-white border-0 rounded-xl px-4 py-2 text-xs font-bold outline-none ring-1 ring-slate-200" value={filters.end} onChange={(e) => setFilters({...filters, end: e.target.value})} />
+          <ChevronRight size={14} className="text-slate-300 hidden md:block" />
+          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-2xl shadow-sm border border-slate-100">
+            <Calendar size={14} className="text-slate-400" />
+            <input
+              type="date"
+              className="bg-transparent border-0 text-[11px] font-black uppercase outline-none"
+              value={filters.end}
+              onChange={(e) => setFilters({ ...filters, end: e.target.value })}
+            />
           </div>
-          <button onClick={fetchReports} className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95">
+          <button
+            onClick={fetchReports}
+            style={{ backgroundColor: branding?.theme_color }}
+            className="p-3 text-white rounded-xl shadow-lg hover:brightness-110 transition-all active:scale-95"
+          >
             <Filter size={18} strokeWidth={3} />
           </button>
-          <button onClick={exportToPDF} disabled={filteredReports.length === 0} className="bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-black disabled:bg-slate-300 shadow-xl transition-all">
-            <Download size={16} /> Export PDF
+          <button
+            onClick={exportToPDF}
+            disabled={loading}
+            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-all shadow-lg active:scale-95"
+          >
+            <Download size={16} /> Export
           </button>
         </div>
       </div>
 
-      {/* STAT CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard title="Total Collection" value={stats.total} icon={<ReceiptText size={20}/>} color="bg-blue-600" />
-        <StatCard title="Cash" value={stats.cash} icon={<Banknote size={20}/>} color="bg-emerald-500" />
-        <StatCard title="GCash" value={stats.gcash} icon={<Wallet size={20}/>} color="bg-blue-500" />
-        <StatCard title="Card" value={stats.card} icon={<CreditCard size={20}/>} color="bg-orange-500" />
+      {/* STAT CARDS - GINAYA SA DASHBOARD */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Collection"
+          value={stats.total}
+          icon={<ReceiptText size={20} />}
+          colorClass="bg-slate-900"
+        />
+        <StatCard
+          title="Cash Revenue"
+          value={stats.cash}
+          icon={<Banknote size={20} />}
+          colorClass="bg-emerald-500"
+        />
+        <StatCard
+          title="Digital (GCash)"
+          value={stats.gcash}
+          icon={<Wallet size={20} />}
+          colorClass="bg-blue-500"
+        />
+        <StatCard
+          title="Card Payments"
+          value={stats.card}
+          icon={<CreditCard size={20} />}
+          colorClass="bg-indigo-600"
+        />
       </div>
 
-      {/* SEARCH AND TABLE */}
-      <div className="space-y-4">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input 
-            type="text" 
-            placeholder="Search student or method..." 
-            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-2xl font-bold text-xs shadow-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      {/* SEARCH AND TABLE AREA */}
+      <div className="bg-white p-2 rounded-[3rem] border-2 border-slate-100 shadow-sm">
+        <div className="p-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="relative w-full md:w-96 group">
+            <Search
+              className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Search student, ID, or method..."
+              className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-[1.5rem] font-bold text-xs outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-4">
+            Showing {filteredReports.length} records
+          </div>
         </div>
 
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-100 text-left">
-              <tr>
-                <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
-                <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Details</th>
-                <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Method</th>
-                <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amount Paid</th>
+        <div className="overflow-x-auto no-scrollbar pb-4 px-2">
+          <table className="w-full border-separate border-spacing-y-2">
+            <thead>
+              <tr className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                <th className="px-8 py-4 text-left">Date / ID</th>
+                <th className="px-8 py-4 text-left">Student Details</th>
+                <th className="px-8 py-4 text-center">Method</th>
+                <th className="px-8 py-4 text-right">Amount Paid</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filteredReports.length > 0 ? filteredReports.map((p) => (
-                <tr key={p.payment_id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-6 text-xs font-bold text-slate-500 italic">
-                    {new Date(p.transaction_date).toLocaleDateString()}
-                  </td>
-                  <td className="p-6">
-                    <div className="font-black text-slate-800 uppercase leading-none mb-1">{p.first_name} {p.last_name}</div>
-                    <div className="text-[10px] text-slate-400 font-bold">{p.student_id}</div>
-                  </td>
-                  <td className="p-6">
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
-                      p.payment_method === 'Cash' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                    }`}>
-                      {p.payment_method}
-                    </span>
-                  </td>
-                  <td className="p-6 text-right font-black text-slate-900">
-                    ₱{parseFloat(p.amount_paid).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                  </td>
-                </tr>
-              )) : (
+            <tbody>
+              {filteredReports.length > 0 ? (
+                filteredReports.map((p) => (
+                  <tr
+                    key={p.payment_id}
+                    className="group transition-all hover:translate-x-1"
+                  >
+                    <td className="px-8 py-5 bg-slate-50 group-hover:bg-slate-100 rounded-l-[1.5rem] border-y border-l border-slate-100">
+                      <p className="text-[11px] font-black text-slate-800 uppercase italic">
+                        {new Date(p.transaction_date).toLocaleDateString()}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">
+                        Ref: #{p.payment_id}
+                      </p>
+                    </td>
+                    <td className="px-8 py-5 bg-slate-50 group-hover:bg-slate-100 border-y border-slate-100">
+                      <div className="font-black text-slate-900 uppercase italic leading-none mb-1">
+                        {p.first_name} {p.last_name}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        {p.student_id}
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 bg-slate-50 group-hover:bg-slate-100 border-y border-slate-100 text-center">
+                      <span
+                        className="px-4 py-1.5 bg-white border rounded-xl text-[9px] font-black uppercase shadow-sm inline-block"
+                        style={{
+                          color: branding?.theme_color,
+                          borderColor: getMediumVariant(branding?.theme_color),
+                        }}
+                      >
+                        {p.payment_method}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5 bg-slate-50 group-hover:bg-slate-100 rounded-r-[1.5rem] border-y border-r border-slate-100 text-right">
+                      <p className="text-lg font-black text-slate-900 italic">
+                        ₱
+                        {parseFloat(p.amount_paid).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                        })}
+                      </p>
+                      <p className="text-[9px] font-bold text-emerald-500 uppercase">
+                        Confirmed
+                      </p>
+                    </td>
+                  </tr>
+                ))
+              ) : (
                 <tr>
-                  <td colSpan="4" className="p-20 text-center text-slate-300 font-black uppercase tracking-widest italic">
-                    {searchTerm ? `No results found for "${searchTerm}"` : "No records found"}
+                  <td colSpan="4" className="p-24 text-center">
+                    <div className="text-slate-200 font-black uppercase tracking-[0.5em] italic text-xl">
+                      No Collections Found
+                    </div>
                   </td>
                 </tr>
               )}
@@ -182,13 +268,25 @@ const CollectionReports = () => {
   );
 };
 
-// Sub-component para sa Summary Cards
-const StatCard = ({ title, value, icon, color }) => (
-  <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5">
-    <div className={`${color} text-white p-4 rounded-2xl shadow-lg`}>{icon}</div>
-    <div className="text-left">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{title}</p>
-      <p className="text-xl font-black text-slate-900 tracking-tighter">₱{value.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+const StatCard = ({ title, value, icon, colorClass }) => (
+  <div className="bg-white/60 backdrop-blur-md px-4 py-3 rounded-[1.5rem] border border-white shadow-sm flex items-center gap-3 h-[85px] group transition-all duration-300 hover:bg-white/80 overflow-hidden cursor-default">
+    {/* ICON: Ito yung nawawala at lumiliit (scale-0) kapag naka-hover */}
+    <div
+      className={`p-2.5 rounded-xl text-white shrink-0 shadow-md transition-all duration-500 ease-in-out ${colorClass} 
+      group-hover:scale-0 group-hover:w-0 group-hover:opacity-0 group-hover:p-0 group-hover:mr-[-12px]`}
+    >
+      {icon}
+    </div>
+
+    {/* TEXT CONTENT: Ito yung lumalaki (scale-110) at nagmo-move pakanan */}
+    <div className="min-w-0 flex flex-col justify-center transition-all duration-500 ease-in-out group-hover:pl-2">
+      <p className="text-[9px] font-black text-slate-400 uppercase leading-none mb-1.5 transition-all duration-300 group-hover:text-slate-600 tracking-widest">
+        {title}
+      </p>
+
+      <h3 className="text-lg md:text-xl font-black text-slate-800 italic leading-none whitespace-nowrap transition-all duration-500 ease-in-out group-hover:scale-110 origin-left">
+        ₱{Number(value).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+      </h3>
     </div>
   </div>
 );

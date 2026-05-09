@@ -20,13 +20,26 @@ const StudentLms = () => {
   const [pendingTasks, setPendingTasks] = useState([]);
   const [recentGrades, setRecentGrades] = useState([]);
   
-  // Mixed State (GWA is real, Hours/Sessions are mock for now until we have tracking tables)
+  // Updated State: Gamit na natin ang totalMinutes imbes na totalHours
   const [lmsAnalytics, setLmsAnalytics] = useState({
-    totalHours: 28.5,
-    sessions: 42,
-    completionRate: 85,
+    totalMinutes: 0,
+    sessions: 0,
+    completionRate: 0,
     currentGwa: "0.00"
   });
+
+  // HELPER: Convert total minutes into an aesthetic format (e.g. 1h 30m)
+  const formatStudyTime = (totalMins) => {
+    if (!totalMins || totalMins === 0) return { value: '0', unit: 'mins' };
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    
+    if (h > 0 && m > 0) return { value: `${h}h ${m}m`, unit: '' };
+    if (h > 0) return { value: `${h}`, unit: h === 1 ? 'hr' : 'hrs' };
+    return { value: `${m}`, unit: 'mins' };
+  };
+
+  const timeDisplay = formatStudyTime(lmsAnalytics.totalMinutes);
 
   const fetchData = async () => {
     try {
@@ -71,20 +84,19 @@ const StudentLms = () => {
         myData.actualTuitionPaid = actualTuitionPaid;
         setStudentData(myData);
 
-// 2. FETCH REAL SCHEDULE & TASKS
+        // 2. FETCH REAL SCHEDULE & TASKS (May Cache Buster na param para laging fresh data!)
         try {
-          const acadRes = await axios.get(`${API_BASE_URL}/student/get_student_dashboard_data.php?student_id=${myData.student_id}`);
+          const acadRes = await axios.get(`${API_BASE_URL}/student/get_student_dashboard_data.php?student_id=${myData.student_id}&_t=${Date.now()}`);
           if (acadRes.data.success) {
             setScheduleToday(acadRes.data.scheduleToday || []);
             setPendingTasks(acadRes.data.pendingTasks || []);
             
-            // 📌 IDAGDAG ITO PARA MASALO ANG BAGONG STATS MULA SA PHP
             if (acadRes.data.analytics) {
               setLmsAnalytics(prev => ({
                  ...prev,
-                 totalHours: acadRes.data.analytics.totalHours,
-                 sessions: acadRes.data.analytics.sessions,
-                 completionRate: acadRes.data.analytics.completionRate
+                 totalMinutes: acadRes.data.analytics.totalMinutes || 0,
+                 sessions: acadRes.data.analytics.sessions || 0,
+                 completionRate: acadRes.data.analytics.completionRate || 0
               }));
             }
           }
@@ -97,14 +109,12 @@ const StudentLms = () => {
           if (gradeRes.data.status === 'success') {
              const gradesData = gradeRes.data.data || [];
              
-             // Get top 3 subjects
              setRecentGrades(gradesData.slice(0, 3).map(g => ({
                 subject: g.code,
                 grade: g.final || 'Pending',
                 status: g.remarks || 'Ongoing'
              })));
 
-             // Compute Real GWA
              if (gradesData.length > 0) {
                  const total = gradesData.reduce((acc, curr) => acc + parseFloat(curr.final || 0), 0);
                  const gwa = (total / gradesData.length).toFixed(2);
@@ -155,23 +165,30 @@ const StudentLms = () => {
 
       {/* KPI ROW (LMS Analytics & Balance) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+         
+         {/* Total Study Time Card */}
          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
             <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-[1.2rem] flex items-center justify-center shrink-0">
                <Timer size={24}/>
             </div>
             <div>
                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Study Time</p>
-               <h3 className="text-2xl font-black text-slate-800 leading-none mt-1">{lmsAnalytics.totalHours} <span className="text-sm text-slate-400">hrs</span></h3>
+               <h3 className="text-2xl font-black text-slate-800 leading-none mt-1">
+                  {timeDisplay.value} <span className="text-sm text-slate-400">{timeDisplay.unit}</span>
+               </h3>
             </div>
          </div>
 
+         {/* Active Study Days Card (Updated Label) */}
          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-5">
             <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-[1.2rem] flex items-center justify-center shrink-0">
                <Activity size={24}/>
             </div>
             <div>
-               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">LMS Logins</p>
-               <h3 className="text-2xl font-black text-slate-800 leading-none mt-1">{lmsAnalytics.sessions} <span className="text-sm text-slate-400">sessions</span></h3>
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Study Days</p>
+               <h3 className="text-2xl font-black text-slate-800 leading-none mt-1">
+                  {lmsAnalytics.sessions} <span className="text-sm text-slate-400">{lmsAnalytics.sessions === 1 ? 'day' : 'days'}</span>
+               </h3>
             </div>
          </div>
 
@@ -202,7 +219,7 @@ const StudentLms = () => {
         {/* LEFT COLUMN: The Gatekeeper & Academic Summary */}
         <div className="xl:col-span-8 space-y-6">
           
-          {/* THE LMS GATEWAY CARD (Dynamically Locked/Unlocked) */}
+          {/* THE LMS GATEWAY CARD */}
           {studentData?.isLmsLocked ? (
              <div className="bg-white border-2 border-red-100 p-8 md:p-12 rounded-[2.5rem] shadow-sm relative overflow-hidden flex flex-col md:flex-row items-center md:items-start gap-8">
                <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none -mt-10 -mr-10">

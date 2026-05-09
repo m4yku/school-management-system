@@ -1,150 +1,188 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, List as ListIcon, StretchHorizontal, PlayCircle, BookOpen, Clock, AlertCircle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { useOutletContext, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { 
+  LayoutGrid, 
+  StretchHorizontal, 
+  List as ListIcon, 
+  ArrowRight,
+  User,
+  Users
+} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const LmsCourses = () => {
+  const { user, API_BASE_URL } = useAuth();
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState('detailed'); // 'card', 'detailed', 'list'
-
-  // MOCK DATA
-  const overallProgress = 68;
-  const pendingTasks = 4;
   
-  const subjects = [
-    { id: 1, code: 'MATH', title: 'General Mathematics', teacher: 'Jackie Sun', progress: 75, color: 'bg-blue-500', nextTask: 'Chapter 1 Quiz' },
-    { id: 2, code: 'SCI', title: 'Earth Science', teacher: 'Nymia Dela Cruz', progress: 40, color: 'bg-emerald-500', nextTask: 'Lab Report' },
-    { id: 3, code: 'ECON', title: 'Applied Economics', teacher: 'G. Anderson', progress: 90, color: 'bg-orange-500', nextTask: 'None' },
-  ];
+  // ==========================================
+  // [ SECTION 1: CONTEXT FROM LAYOUT ]
+  // Kinuha natin pareho ang activeCategory AT ang courses data na na-fetch na sa Layout!
+  // ==========================================
+  const { activeCategory, courses } = useOutletContext(); 
 
+  const [viewMode, setViewMode] = useState('detailed');
+
+  // ==========================================
+  // [ SECTION 2: DYNAMIC FILTERING LOGIC ]
+  // Ginamit ang useMemo para hindi bumagal ang app tuwing nagta-type o nagpapalit ng category
+  // ==========================================
+  const filteredSubjects = useMemo(() => {
+    // Kung wala pang data o undefined, ibalik ang empty array
+    if (!courses || courses.length === 0) return [];
+
+    if (activeCategory === 'all') {
+      return courses;
+    }
+
+    return courses.filter(sub => {
+      // Architect's safe comparison: Tinatanggal ang spaces at ginagawang lowercase
+      const subCat = String(sub.category).trim().toLowerCase();
+      const targetCat = String(activeCategory).trim().toLowerCase();
+      
+      return subCat === targetCat;
+    });
+  }, [activeCategory, courses]);
+
+  // ==========================================
+  // [ SECTION 3: NAVIGATION & RECENCY TRACKING ]
+  // ==========================================
+  const handleEnterCourse = async (courseId) => {
+    try {
+      // I-update muna ang recency sa DB para sa Dashboard history
+      await axios.post(`${API_BASE_URL}/lms/update_last_accessed.php`, {
+        student_id: user?.id || user?.username,
+        class_id: courseId
+      });
+      // Siguraduhing naka-default sa 'all' tabs kapag pumasok sa classroom
+      navigate(`/lms/course/${courseId}?tab=all`);
+    } catch (err) {
+      console.error("Tracking Update Error:", err);
+      // Kahit mag-fail ang tracker, ituloy pa rin ang pasok sa klase para hindi ma-block ang user
+      navigate(`/lms/course/${courseId}?tab=all`);
+    }
+  };
+
+  // ==========================================
+  // [ SECTION 4: UI RENDER ]
+  // ==========================================
   return (
-    <div className="animate-in fade-in duration-500">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
       
-      {/* 1. OVERALL STATS HEADER */}
-      <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
-         <div>
-            <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">My Learning Hub</h1>
-            <p className="text-slate-500 font-bold text-sm mt-1">Keep up the great work!</p>
-         </div>
-         
-         <div className="flex gap-6 w-full md:w-auto">
-            {/* Progress Circular/Bar */}
-            <div className="flex-1 md:w-48 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-               <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Overall Progress</span>
-                  <span className="text-sm font-black text-indigo-600">{overallProgress}%</span>
-               </div>
-               <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${overallProgress}%` }}></div>
-               </div>
-            </div>
+      {/* HEADER SECTION */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Full Course Catalog</h1>
+          <p className="text-slate-400 font-bold text-sm mt-1 uppercase tracking-widest flex items-center gap-2">
+            Showing {filteredSubjects.length} {activeCategory === 'all' ? 'All' : activeCategory} Subjects
+          </p>
+        </div>
+
+        {/* VIEW MODE SWITCHER */}
+        <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 ring-1 ring-slate-200/50">
+          <button 
+            onClick={() => setViewMode('card')} 
+            className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'card' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            <LayoutGrid size={18} />
+          </button>
+          <button 
+            onClick={() => setViewMode('detailed')} 
+            className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'detailed' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            <StretchHorizontal size={18} />
+          </button>
+          <button 
+            onClick={() => setViewMode('list')} 
+            className={`p-2.5 rounded-xl transition-all duration-300 ${viewMode === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            <ListIcon size={18} />
+          </button>
+        </div>
+      </header>
+
+      {/* SUBJECTS GRID DISPLAY */}
+      {filteredSubjects.length > 0 ? (
+        <div className={`grid gap-6 ${
+          viewMode === 'card' ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5' : 
+          viewMode === 'detailed' ? 'grid-cols-1 md:grid-cols-2' : 
+          'grid-cols-1'
+        }`}>
+          {filteredSubjects.map((sub, index) => {
             
-            {/* Pending Activities */}
-            <div className="flex-1 md:w-32 bg-red-50 p-4 rounded-2xl border border-red-100 flex flex-col justify-center items-center">
-               <span className="text-3xl font-black text-red-500 leading-none">{pendingTasks}</span>
-               <span className="text-[10px] font-black uppercase tracking-widest text-red-400 mt-1">Pending</span>
-            </div>
-         </div>
-      </div>
+            // ARCHITECT UI: Dynamic Colors para hindi boring ang mga subjects
+            const bgGradients = [
+              'from-blue-500 to-blue-600', 
+              'from-emerald-500 to-emerald-600', 
+              'from-orange-500 to-orange-600', 
+              'from-purple-500 to-purple-600', 
+              'from-pink-500 to-pink-600'
+            ];
+            const themeGradient = bgGradients[index % bgGradients.length];
+            const shortTag = sub.tag.split('-').pop().substring(0, 5); // Kunin ang acronym (e.g. PURPC)
 
-      {/* 2. VIEW SELECTOR TOOLBAR */}
-      <div className="flex justify-between items-center mb-6">
-         <h2 className="text-xl font-black text-slate-800">Enrolled Subjects</h2>
-         <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-100">
-            <button onClick={() => setViewMode('card')} className={`p-2 rounded-lg transition-all ${viewMode === 'card' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`} title="Card View (Kids)">
-               <LayoutGrid size={18} />
-            </button>
-            <button onClick={() => setViewMode('detailed')} className={`p-2 rounded-lg transition-all ${viewMode === 'detailed' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`} title="Detailed View">
-               <StretchHorizontal size={18} />
-            </button>
-            <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`} title="List View">
-               <ListIcon size={18} />
-            </button>
-         </div>
-      </div>
-
-      {/* 3. DYNAMIC VIEWS */}
-      
-      {/* A. CARD VIEW (Pambata / Visual) */}
-      {viewMode === 'card' && (
-         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {subjects.map(sub => (
-               <div key={sub.id} onClick={() => navigate(`/lms/course/${sub.id}`)} className="bg-white p-2 rounded-[2rem] shadow-sm hover:shadow-xl border border-slate-100 hover:border-indigo-300 transition-all cursor-pointer group">
-                  <div className={`h-32 md:h-40 rounded-[1.5rem] ${sub.color} flex items-center justify-center mb-3 relative overflow-hidden`}>
-                     <span className="text-4xl font-black text-white/30">{sub.code}</span>
-                     <PlayCircle className="absolute text-white opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all drop-shadow-lg" size={48} />
-                  </div>
-                  <div className="p-2 text-center">
-                     <h3 className="font-black text-slate-800 text-sm truncate">{sub.title}</h3>
-                     <p className="text-[10px] font-bold text-slate-400 mt-1">{sub.progress}% Done</p>
-                  </div>
-               </div>
-            ))}
-         </div>
-      )}
-
-      {/* B. DETAILED VIEW (Standard Modern) */}
-      {viewMode === 'detailed' && (
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {subjects.map(sub => (
-               <div key={sub.id} onClick={() => navigate(`/lms/course/${sub.id}`)} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all cursor-pointer group flex flex-col">
-                  <div className="flex items-center gap-4 mb-6">
-                     <div className={`w-14 h-14 rounded-2xl ${sub.color} flex items-center justify-center text-white font-black shadow-md`}>{sub.code}</div>
-                     <div>
-                        <h3 className="font-black text-slate-800 leading-tight">{sub.title}</h3>
-                        <p className="text-xs font-bold text-slate-500">{sub.teacher}</p>
-                     </div>
+            return (
+              <div 
+                key={sub.class_id} 
+                onClick={() => handleEnterCourse(sub.class_id)}
+                className="bg-white rounded-[1.5rem] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:-translate-y-1 cursor-pointer group min-h-[160px]"
+              >
+                {/* Top Half: Icon & Titles */}
+                <div className="flex gap-4 items-start mb-4">
+                  <div className={`w-[3.5rem] h-[3.5rem] shrink-0 rounded-2xl bg-gradient-to-br ${themeGradient} text-white flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300`}>
+                    <span className="font-black text-[11px] tracking-widest uppercase">{shortTag}</span>
                   </div>
                   
-                  <div className="mt-auto">
-                     <div className="flex justify-between items-center mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Completion</span>
-                        <span className="text-xs font-black text-slate-700">{sub.progress}%</span>
-                     </div>
-                     <div className="w-full h-1.5 bg-slate-100 rounded-full mb-4 overflow-hidden">
-                        <div className={`h-full ${sub.color} rounded-full`} style={{ width: `${sub.progress}%` }}></div>
-                     </div>
-                     
-                     <div className="flex justify-between items-center border-t border-slate-50 pt-4">
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded-md">
-                           <AlertCircle size={12} /> {sub.nextTask}
-                        </div>
-                        <span className="text-[10px] font-black uppercase text-indigo-500 group-hover:pr-2 transition-all">Enter Class &rarr;</span>
-                     </div>
+                  <div className="flex-1 min-w-0 mt-1">
+                    <h3 className="font-black text-slate-800 text-[15px] leading-snug line-clamp-2">
+                      {sub.title}
+                    </h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-1 flex items-center gap-1.5 truncate">
+                      <User size={12} className="text-slate-300" />
+                      {sub.teacher || 'TBA'}
+                    </p>
                   </div>
-               </div>
-            ))}
-         </div>
-      )}
+                </div>
+                
+                {/* Compact Progress Line (Totoong data base sa database mo) */}
+                <div className="w-full h-1.5 bg-slate-50 rounded-full mb-4 overflow-hidden border border-slate-100">
+                  <div 
+                    className="h-full bg-indigo-500 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(79,70,229,0.4)]" 
+                    style={{ width: `${((sub.completed_lessons || 0) / (sub.total_lessons || 1)) * 100}%` }}
+                  ></div>
+                </div>
 
-      {/* C. LIST VIEW (Compact / Pang-matanda) */}
-      {viewMode === 'list' && (
-         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-            {subjects.map((sub, idx) => (
-               <div key={sub.id} onClick={() => navigate(`/lms/course/${sub.id}`)} className={`flex items-center justify-between p-4 md:p-6 hover:bg-slate-50 cursor-pointer transition-colors ${idx !== subjects.length - 1 ? 'border-b border-slate-100' : ''}`}>
-                  <div className="flex items-center gap-4 w-1/3">
-                     <div className={`w-10 h-10 rounded-xl ${sub.color} flex items-center justify-center text-white font-black text-[10px] hidden sm:flex`}>{sub.code}</div>
-                     <div>
-                        <h3 className="font-black text-slate-800 text-sm md:text-base">{sub.title}</h3>
-                        <p className="text-[10px] md:text-xs font-bold text-slate-500">{sub.teacher}</p>
-                     </div>
-                  </div>
-                  <div className="hidden md:flex flex-col items-start w-1/4">
-                     <span className="text-[10px] font-black uppercase text-slate-400 mb-1">Next Task</span>
-                     <span className="text-xs font-bold text-slate-700 flex items-center gap-1"><BookOpen size={12} className="text-orange-400"/> {sub.nextTask}</span>
-                  </div>
-                  <div className="flex items-center gap-4 w-1/3 md:w-1/4 justify-end">
-                     <div className="w-24 hidden sm:block">
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                           <div className={`h-full ${sub.color} rounded-full`} style={{ width: `${sub.progress}%` }}></div>
-                        </div>
-                     </div>
-                     <span className="text-sm font-black text-slate-700">{sub.progress}%</span>
-                  </div>
-               </div>
-            ))}
-         </div>
-      )}
+                {/* Divider */}
+                <div className="w-full h-px bg-slate-100 my-2"></div>
 
+                {/* Bottom Half: Stats & Action Button */}
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <Users size={14} className="text-indigo-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {sub.student_count || 0} Peers Enrolled
+                    </span>
+                  </div>
+
+                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-600 group-hover:text-indigo-800 transition-colors">
+                    Classroom 
+                    <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        /* EMPTY STATE DISPLAY */
+        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[3rem] border border-dashed border-slate-200 animate-in zoom-in-95 duration-500 shadow-sm">
+          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
+             <LayoutGrid size={40} />
+          </div>
+          <h3 className="font-black text-slate-800 uppercase tracking-widest text-sm">No Subjects Found</h3>
+          <p className="text-slate-400 font-bold text-xs mt-1">There are no courses enrolled under the "{activeCategory}" category.</p>
+        </div>
+      )}
     </div>
   );
 };

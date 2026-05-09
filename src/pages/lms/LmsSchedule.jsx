@@ -1,30 +1,59 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-// Import the components we just created
+// Import existing visual layout components
 import KidsSchedule from '../../components/lms/KidsSchedule';
 import StandardSchedule from '../../components/lms/StandardSchedule';
 
 const LmsSchedule = () => {
-  const { user } = useAuth();
+  const { user, API_BASE_URL } = useAuth();
   
-  // MOCK DATA: Isang source of truth lang para sa data
-  const scheduleToday = [
-    { code: 'MATH', subject: 'General Mathematics', startTime: '08:00 AM', endTime: '09:30 AM', teacher: 'Jackie Sun', room: 'Room 101', color: 'bg-blue-500' },
-    { code: 'SCI', subject: 'Earth Science', startTime: '10:00 AM', endTime: '11:30 AM', teacher: 'Nymia Dela Cruz', room: 'Lab 2', color: 'bg-emerald-500' },
-    { code: 'ECON', subject: 'Applied Economics', startTime: '01:00 PM', endTime: '02:30 PM', teacher: 'Gerald Anderson', room: 'Online Zoom', color: 'bg-orange-500' },
-  ];
+  const [schedule, setSchedule] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // THEME SELECTOR LOGIC
+  // 1. FETCH REAL DB DATA ON COMPONENT LOAD
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      setLoading(true);
+      try {
+        const studentId = user?.id || user?.username;
+        if (!studentId) return;
+
+        const res = await axios.get(`${API_BASE_URL}/lms/get_student_schedule.php?student_id=${studentId}`);
+        if (res.data.status === 'success') {
+          setSchedule(res.data.schedule || []);
+        }
+      } catch (err) {
+        console.error("Schedule Fetch Error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) fetchSchedule();
+  }, [user, API_BASE_URL]);
+
+  // 2. THEME SELECTOR LOGIC
   const gradeLevelStr = user?.grade_level || 'Grade 10'; 
   const gradeLevelNum = parseInt(gradeLevelStr.replace(/\D/g, '')) || 10;
   
   const isKidsView = gradeLevelNum <= 6;
 
+  if (loading) {
+    return (
+      <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-indigo-600" size={40} />
+        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Loading Schedule...</p>
+      </div>
+    );
+  }
+
   return isKidsView ? (
-    <KidsSchedule scheduleData={scheduleToday} />
+    <KidsSchedule scheduleData={schedule} />
   ) : (
-    <StandardSchedule scheduleData={scheduleToday} />
+    <StandardSchedule scheduleData={schedule} />
   );
 };
 
