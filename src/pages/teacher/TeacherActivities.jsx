@@ -36,7 +36,17 @@ const TeacherActivities = () => {
 
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ class_id: '', title: '', description: '', category: '', quarter: '', max_score: 100, due_date: '' });
+  const [formData, setFormData] = useState({
+    class_id: '',
+    title: '',
+    description: '',
+    category: '',
+    quarter: '',
+    max_score: 100,
+    due_date: '',
+    allow_late: false,
+    notify_email: true
+  });
 
   // 🟢 EFFECT PARA SALUHIN YUNG CLICK GALING SIDEBAR AT ILIPAT ANG TAB
   useEffect(() => {
@@ -112,7 +122,7 @@ const TeacherActivities = () => {
 
       if (res.data.status === 'success') {
         setIsModalOpen(false);
-        setFormData({ class_id: '', title: '', description: '', category: '', quarter: '', max_score: 100, due_date: '' });
+        setFormData({ class_id: '', title: '', description: '', category: '', quarter: '', max_score: 100, due_date: '', allow_late: false, notify_email: true });
         alert('Activity created successfully!');
         fetchActivities();
       }
@@ -247,13 +257,13 @@ const TeacherActivities = () => {
               </button>
             </div>
 
-           <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-300/50 pb-4">
+            <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-300/50 pb-4">
               <div className="flex items-center gap-4">
 
                 {/* 1. TOPIC FILTER (LAGING NANDITO) */}
                 <div className="relative mt-2">
                   <label className="absolute -top-2 left-3 bg-slate-50/80 backdrop-blur-md px-1.5 text-[11px] font-bold text-slate-500 z-10 rounded">Topic filter</label>
-                  <select 
+                  <select
                     className="appearance-none bg-white/50 backdrop-blur-md border-2 border-slate-200/80 rounded-xl pl-4 pr-10 py-2 shadow-sm text-sm font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-400 focus:bg-white/80 transition-all relative z-0 w-48"
                     value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}
                   >
@@ -270,12 +280,12 @@ const TeacherActivities = () => {
                   <label className="absolute -top-2 left-3 bg-slate-50/80 backdrop-blur-md px-1.5 text-[11px] font-bold text-slate-500 z-10 rounded">
                     {isModalKto12 ? 'Quarter' : 'Term'}
                   </label>
-                  <select 
+                  <select
                     className="appearance-none bg-white/50 backdrop-blur-md border-2 border-slate-200/80 rounded-xl pl-4 pr-10 py-2 shadow-sm text-sm font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-400 focus:bg-white/80 transition-all relative z-0 w-40"
                     value={filterQuarter} onChange={(e) => setFilterQuarter(e.target.value)}
                   >
                     <option value="">{isModalKto12 ? 'All quarters' : 'All terms'}</option>
-                    
+
                     {/* Kung K-12, numbers 1-4 ang lalabas. Kung College, Prelim, Midterm, Finals */}
                     {isModalKto12 ? (
                       [1, 2, 3, 4].map(q => <option key={q} value={q}>Quarter {q}</option>)
@@ -290,7 +300,7 @@ const TeacherActivities = () => {
               </div>
 
               {/* EXPAND / COLLAPSE BUTTON */}
-              <button 
+              <button
                 className="flex items-center gap-1.5 font-bold text-sm hover:bg-white/50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-slate-200"
                 style={{ color: themeColor }} onClick={handleToggleAll}
               >
@@ -330,13 +340,13 @@ const TeacherActivities = () => {
                           <div
                             key={act.id}
                             className="flex items-center gap-4 p-4 border-b border-slate-300/50 bg-white/30 hover:bg-white/70 backdrop-blur-md cursor-pointer transition-all group/item"
-                            onClick={() => navigate(`/teacher/activities/${act.id}/grading`, { 
-  state: { 
-    subject: selectedClassForView?.subject_description, 
-    section: selectedClassForView?.section_name || selectedClassForView?.section,
-    quarter: act.quarter
-  } 
-})}>
+                            onClick={() => navigate(`/teacher/activities/${act.id}/grading`, {
+                              state: {
+                                subject: selectedClassForView?.subject_description,
+                                section: selectedClassForView?.section_name || selectedClassForView?.section,
+                                quarter: act.quarter
+                              }
+                            })}>
                             <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm shrink-0" style={{ backgroundColor: themeColor }}><FileText size={20} /></div>
                             <div className="flex-1">
                               <h3 className="font-semibold text-slate-800 text-[15px]">{act.title}</h3>

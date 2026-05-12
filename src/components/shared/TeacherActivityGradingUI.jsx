@@ -16,12 +16,12 @@ export const GradingSkeleton = ({ themeColor }) => (
       } 
       .grd-sk { animation: gradSkPulse 1.5s ease-in-out infinite; border-radius: 6px; }
     `}</style>
-    
-    <div style={{ 
+
+    <div style={{
       display: 'flex', gap: '1rem', alignItems: 'flex-start', marginBottom: '2rem',
-      padding: '1.5rem', borderRadius: '1.25rem', background: 'rgba(255,255,255,0.75)', 
-      backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.6)', 
-      boxShadow: '0 4px 20px rgba(0,0,0,0.05)' 
+      padding: '1.5rem', borderRadius: '1.25rem', background: 'rgba(255,255,255,0.75)',
+      backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.6)',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.05)'
     }}>
       <div className="grd-sk" style={{ width: '38px', height: '38px', borderRadius: '50%', flexShrink: 0 }} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -36,10 +36,10 @@ export const GradingSkeleton = ({ themeColor }) => (
       </div>
     </div>
 
-    <div className="tag-container" style={{ 
-      background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(16px)', 
-      borderRadius: '1.25rem', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', 
-      border: '1px solid rgba(255,255,255,0.6)' 
+    <div className="tag-container" style={{
+      background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(16px)',
+      borderRadius: '1.25rem', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+      border: '1px solid rgba(255,255,255,0.6)'
     }}>
       <table className="tag-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
@@ -89,7 +89,7 @@ export const GradeExamSubmissionModal = ({ studentId, activityId, classId, quart
           params: { activity_id: activityId, student_id: studentId },
           headers: { Authorization: `Bearer ${token}` }
         });
-        
+
         if (res.data.status === 'success') {
           const questions = res.data.questions || [];
           setExamData(questions);
@@ -115,7 +115,7 @@ export const GradeExamSubmissionModal = ({ studentId, activityId, classId, quart
   const maxMcScore = mcQuestions.reduce((sum, q) => sum + (parseFloat(q.max_points) || 0), 0);
   const currentEssayTotal = essayScores.reduce((sum, item) => sum + (parseFloat(item.score) || 0), 0);
   const maxEssayScore = essayQuestions.reduce((sum, q) => sum + (parseFloat(q.max_points) || 0), 0);
-  
+
   const overallTotal = totalMcScore + currentEssayTotal;
   const overallMax = maxMcScore + maxEssayScore;
 
@@ -137,23 +137,23 @@ export const GradeExamSubmissionModal = ({ studentId, activityId, classId, quart
       const token = localStorage.getItem('sms_token');
       const headers = { Authorization: `Bearer ${token}` };
 
-      const payload = { 
-        student_id: studentId, 
-        activity_id: activityId, 
-        score: overallTotal, 
+      const payload = {
+        student_id: studentId,
+        activity_id: activityId,
+        score: overallTotal,
         essay_scores: essayScores.map(s => ({
           question_id: s.question_id,
           score: s.score === '' ? 0 : parseFloat(s.score)
         }))
       };
-      
+
       const res = await axios.post(`${API_BASE_URL}/teacher/save_activity_scores.php`, payload, { headers });
 
       if (res.data.status === 'success') {
         await axios.post(`${API_BASE_URL}/teacher/sync_grades.php`, { class_id: parseInt(classId), quarter: quarter }, { headers });
         alert("Exam graded and Class Gradebook updated!");
-        if (onRefresh) onRefresh(); 
-        onClose();     
+        if (onRefresh) onRefresh();
+        onClose();
       }
     } catch (error) {
       alert("Error grading exam.");
@@ -301,7 +301,7 @@ export const ViewSubmissionModal = ({ studentId, activityId, classId, quarter, s
         activity_id: activityId, student_id: studentId,
         score: scoreInput === '' ? 0 : parseFloat(scoreInput)
       };
-      
+
       const res = await axios.post(`${API_BASE_URL}/teacher/save_activity_scores.php`, payload, { headers });
 
       if (res.data.status === 'success') {
@@ -374,7 +374,7 @@ export const GradingOfflineBanner = ({ isServerOffline, isRetrying, onRetry }) =
 };
 
 // ─── 4. GRADING HEADER ───────────────────────────────────────────────────────
-export const GradingHeader = ({ navigate, themeColor, subject, section, activity, qNum, qColors }) => (
+export const GradingHeader = ({ navigate, themeColor, subject, section, activity, qNum, qColors, onToggleAllowLate }) => (
   <div className="tag-header" style={{ alignItems: 'flex-start' }}>
     <div className="tag-header-info" style={{ alignItems: 'flex-start' }}>
       <button className="tag-back-btn" onClick={() => navigate(-1)} style={{ marginTop: '0.25rem' }}><ArrowLeft size={18} color="#64748b" /></button>
@@ -401,6 +401,25 @@ export const GradingHeader = ({ navigate, themeColor, subject, section, activity
             <p style={{ margin: 0, fontSize: '0.8rem', lineHeight: '1.5' }}>{activity.description}</p>
           </div>
         )}
+
+        {/* 🔴 ALLOW LATE SUBMISSIONS TOGGLE */}
+        <div style={{ marginTop: '0.75rem' }}>
+          <button
+            onClick={onToggleAllowLate}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.55rem 1.1rem', borderRadius: '0.5rem',
+              background: activity?.allow_late ? '#d1fae5' : '#fee2e2',
+              border: activity?.allow_late ? '1px solid #6ee7b7' : '1px solid #fecaca',
+              cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem',
+              color: activity?.allow_late ? '#065f46' : '#991b1b',
+              transition: 'all 0.2s'
+            }}
+          >
+            {activity?.allow_late ? '✅' : '⛔'}
+            {activity?.allow_late ? 'Late Submissions: ON' : 'Late Submissions: OFF'}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -451,7 +470,7 @@ export const GradingTable = ({ scores, themeColor, activity, isActivityAnExam, s
               </td>
               <td className="tag-td" style={{ textAlign: 'center' }}>
                 {status !== 'Pending' ? (
-                  <button 
+                  <button
                     onClick={() => isActivityAnExam ? setGradingExamStudent(s) : setViewingWrittenWork(s)}
                     style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '0.45rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.75rem', fontWeight: 700, color: themeColor, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', transition: 'all 0.2s' }}
                     onMouseOver={e => e.currentTarget.style.background = '#e2e8f0'}

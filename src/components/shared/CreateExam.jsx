@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, ArrowLeft, Save, CheckCircle2, Circle, School, AlignLeft } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, CheckCircle2, Circle, School, AlignLeft, Clock, Calendar } from 'lucide-react';
 import axios from 'axios';
 import { getTeacherLevel } from '../../utils/gradingUtils';
 
@@ -22,14 +22,18 @@ const CreateExam = () => {
 
   // 1. Fetch Assigned Classes State
   const [assignedClasses, setAssignedClasses] = useState([]);
-  
+
   // 2. Exam Details State
   const [examDetails, setExamDetails] = useState({
-    class_id: location.state?.classId || '', 
+    class_id: location.state?.classId || '',
     title: '',
     category: 'exam',
     quarter: '',
     description: '',
+    time_limit_minutes: '',
+    due_date: '',
+    allow_late: false,
+    notify_email: true
   });
 
   // 3. Questions State
@@ -66,7 +70,7 @@ const CreateExam = () => {
         if (res.data.status === 'success') {
           const classes = res.data.data;
           setAssignedClasses(classes);
-          
+
           if (!examDetails.class_id && classes.length > 0) {
             setExamDetails(prev => ({ ...prev, class_id: classes[0].id }));
           }
@@ -102,12 +106,12 @@ const CreateExam = () => {
   const removeQuestion = (idToRemove, e) => {
     e.preventDefault();
     e.stopPropagation(); // Pinipigilan nitong ma-trigger ang pagiging 'active' ng card kapag dinelete
-    
+
     if (questions.length === 1) return alert("You must have at least one question.");
-    
+
     const newQuestions = questions.filter(q => q.id !== idToRemove);
     setQuestions(newQuestions);
-    
+
     // Kung ang dinelete ay ang active, ilipat ang active status sa unang question
     if (activeQuestionId === idToRemove) {
       setActiveQuestionId(newQuestions[0].id);
@@ -134,7 +138,7 @@ const CreateExam = () => {
     if (!examDetails.class_id) return alert("Class ID is missing.");
     if (isKto12 && !examDetails.quarter) return alert("Please select a Quarter.");
     if (!examDetails.title.trim()) return alert("Please provide an exam title.");
-    
+
     const hasEmptyQuestions = questions.some(q => !q.text.trim());
     if (hasEmptyQuestions) return alert("Please fill in all question fields before saving.");
 
@@ -142,12 +146,18 @@ const CreateExam = () => {
     try {
       const token = localStorage.getItem('sms_token');
       // Ipasa ang total computed points bilang max_score sa backend payload
-      const payload = { 
-        teacher_id: user.id, 
-        exam_details: { ...examDetails, max_score: totalPoints }, 
-        questions: questions 
+      const payload = {
+        teacher_id: user.id,
+        exam_details: {
+          ...examDetails,
+          max_score: totalPoints,
+          time_limit_minutes: examDetails.time_limit_minutes || null,
+          allow_late: examDetails.allow_late ? 1 : 0,
+          notify_email: examDetails.notify_email ? 1 : 0
+        },
+        questions: questions
       };
-      
+
       const res = await axios.post(`${API_BASE_URL}/teacher/create_exam.php`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -168,7 +178,7 @@ const CreateExam = () => {
 
   return (
     <div className="exam-builder-root" style={{ '--theme-color': themeColor, padding: '1rem 1rem 4rem 1rem', maxWidth: '850px', margin: '0 auto' }}>
-      
+
       {/* ─── STYLES (Glassmorphism & Google Forms UX) ─── */}
       <style>{`
         .glass-panel {
@@ -270,25 +280,25 @@ const CreateExam = () => {
 
       {/* ─── HEADER ACTIONS ─── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%', padding: '0.5rem', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#f8fafc'} onMouseOut={e => e.currentTarget.style.background='white'}>
+        <button onClick={() => navigate(-1)} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%', padding: '0.5rem', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = 'white'}>
           <ArrowLeft size={20} color="#64748b" />
         </button>
         <h1 className="header-jakarta" style={{ margin: 0, color: '#1e293b', fontSize: '1.5rem', fontWeight: 800 }}>Create Examination</h1>
       </div>
 
       {/* ─── EXAM DETAILS (HEADER CARD) ─── */}
-      <div 
-        className={`glass-panel gf-card gf-header-card ${activeQuestionId === 'header' ? 'active' : 'inactive'}`} 
+      <div
+        className={`glass-panel gf-card gf-header-card ${activeQuestionId === 'header' ? 'active' : 'inactive'}`}
         onClick={() => setActiveQuestionId('header')}
         style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
       >
-        
+
         {/* Read-Only Class Display & Quarter Selection */}
         <div style={{ display: 'grid', gridTemplateColumns: isKto12 ? '1fr 1fr' : '1fr', gap: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
-          
+
           <div>
-            <label className="glass-label"><School size={12} style={{ display: 'inline', marginRight: '4px', marginBottom: '2px' }}/> Assigned Class</label>
-            <div style={{ 
+            <label className="glass-label"><School size={12} style={{ display: 'inline', marginRight: '4px', marginBottom: '2px' }} /> Assigned Class</label>
+            <div style={{
               padding: '0.85rem 1rem', background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(0,0,0,0.08)',
               borderRadius: '0.5rem', color: '#1e293b', fontWeight: 700, fontSize: '0.95rem'
             }}>
@@ -327,9 +337,9 @@ const CreateExam = () => {
         {/* Title, Description & Total Points display */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '1rem' }}>
-            <input 
+            <input
               type="text" placeholder="Exam Title (e.g. 1st Quarter Examination in Math)"
-              value={examDetails.title} onChange={(e) => setExamDetails({...examDetails, title: e.target.value})}
+              value={examDetails.title} onChange={(e) => setExamDetails({ ...examDetails, title: e.target.value })}
               className="gf-title-input header-jakarta"
             />
             {/* TOTAL POINTS BADGE */}
@@ -337,13 +347,76 @@ const CreateExam = () => {
               Total Points: {totalPoints}
             </div>
           </div>
-          <textarea 
+          <textarea
             placeholder="Form description or instructions (Optional)"
-            value={examDetails.description} onChange={(e) => setExamDetails({...examDetails, description: e.target.value})}
+            value={examDetails.description} onChange={(e) => setExamDetails({ ...examDetails, description: e.target.value })}
             className="gf-desc-input"
             style={{ minHeight: '80px' }}
           />
         </div>
+
+        {/* 🔴 TIMER, DUE DATE & TOGGLES PANEL */}
+        <div style={{
+          paddingTop: '0.5rem', borderTop: '1px solid rgba(0,0,0,0.08)',
+          display: 'flex', flexDirection: 'column', gap: '1.25rem'
+        }}>
+
+          {/* Timer & Due Date Row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+
+            {/* Timer (Exams only) */}
+            <div>
+              <label className="glass-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Clock size={14} /> Timer (Minutes)
+              </label>
+              <input
+                type="number" min="1" placeholder="No time limit"
+                value={examDetails.time_limit_minutes}
+                onChange={(e) => setExamDetails({ ...examDetails, time_limit_minutes: e.target.value })}
+                className="gf-desc-input"
+                style={{ padding: '0.75rem 1rem' }}
+              />
+            </div>
+
+            {/* Due Date */}
+            <div>
+              <label className="glass-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Calendar size={14} /> Due Date & Time <span style={{ fontWeight: 400, textTransform: 'none', color: '#94a3b8' }}>(Optional)</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={examDetails.due_date}
+                onChange={(e) => setExamDetails({ ...examDetails, due_date: e.target.value })}
+                className="gf-desc-input"
+                style={{ padding: '0.75rem 1rem' }}
+              />
+            </div>
+          </div>
+
+          {/* Toggles Row */}
+          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+              <input
+                type="checkbox"
+                checked={examDetails.allow_late}
+                onChange={(e) => setExamDetails({ ...examDetails, allow_late: e.target.checked })}
+                style={{ width: '18px', height: '18px', accentColor: themeColor }}
+              />
+              Allow Late Submissions
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>
+              <input
+                type="checkbox"
+                checked={examDetails.notify_email}
+                onChange={(e) => setExamDetails({ ...examDetails, notify_email: e.target.checked })}
+                style={{ width: '18px', height: '18px', accentColor: themeColor }}
+              />
+              Send Email Notification
+            </label>
+          </div>
+        </div>
+
       </div>
 
       {/* ─── QUESTIONS BUILDER ─── */}
@@ -352,12 +425,12 @@ const CreateExam = () => {
           const isActive = activeQuestionId === q.id;
 
           return (
-            <div 
-              key={q.id} 
+            <div
+              key={q.id}
               onClick={() => setActiveQuestionId(q.id)}
               className={`glass-panel gf-card gf-question-card ${isActive ? 'active' : 'inactive'}`}
             >
-              
+
               {/* Question Type Selector */}
               {isActive && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
@@ -407,35 +480,35 @@ const CreateExam = () => {
                 </div>
               ) : (
                 <div style={{ paddingLeft: '2.2rem', opacity: 0.7 }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#94a3b8' }}>
-                     <AlignLeft size={18} />
-                     <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Long answer text</span>
-                   </div>
-                   <textarea
-                     disabled
-                     placeholder="Students will type their answer here..."
-                     className="gf-choice-input"
-                     style={{ width: '100%', minHeight: '80px', borderBottom: '1px dotted rgba(0,0,0,0.3)', cursor: 'not-allowed', resize: 'none' }}
-                   />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#94a3b8' }}>
+                    <AlignLeft size={18} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Long answer text</span>
+                  </div>
+                  <textarea
+                    disabled
+                    placeholder="Students will type their answer here..."
+                    className="gf-choice-input"
+                    style={{ width: '100%', minHeight: '80px', borderBottom: '1px dotted rgba(0,0,0,0.3)', cursor: 'not-allowed', resize: 'none' }}
+                  />
                 </div>
               )}
 
               {/* Bottom Actions of Card (Points & Trash) - Lalabas lang nang buo kung ACTIVE ang card */}
-              <div style={{ 
-                display: 'flex', justifyContent: 'flex-end', alignItems: 'center', 
+              <div style={{
+                display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
                 marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(0,0,0,0.05)', gap: '1.5rem',
-                opacity: isActive ? 1 : 0.4, transition: 'opacity 0.3s' 
+                opacity: isActive ? 1 : 0.4, transition: 'opacity 0.3s'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Points:</label>
-                  <input 
+                  <input
                     type="number" min="1" value={q.points} onChange={(e) => updateQuestion(q.id, 'points', e.target.value)}
                     className="gf-desc-input" style={{ width: '80px', padding: '0.5rem', textAlign: 'center' }}
                   />
                 </div>
 
-                <button 
-                  onClick={(e) => removeQuestion(q.id, e)} 
+                <button
+                  onClick={(e) => removeQuestion(q.id, e)}
                   style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.5rem', transition: 'background 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   title="Delete Question" onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'} onMouseOut={(e) => e.currentTarget.style.background = 'none'}
                 >
@@ -451,21 +524,21 @@ const CreateExam = () => {
       <div ref={bottomRef} style={{ height: '20px' }}></div>
 
       {/* ─── FLOATING FOOTER ACTIONS ─── */}
-      <div style={{ 
+      <div style={{
         position: 'sticky', bottom: '20px', zIndex: 10,
-        display: 'flex', justifyContent: 'center', gap: '1rem', 
+        display: 'flex', justifyContent: 'center', gap: '1rem',
         marginTop: '2rem', padding: '1rem',
         background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)',
         borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.9)',
         boxShadow: '0 15px 40px rgba(0,0,0,0.12)'
       }}>
         <button className="btn-glass btn-add" onClick={addQuestion}>
-          <Plus size={20} strokeWidth={2.5} /> 
+          <Plus size={20} strokeWidth={2.5} />
           <span>Add Question</span>
         </button>
 
         <button className="btn-glass btn-save" onClick={handleSaveExam} disabled={isSubmitting}>
-          <Save size={20} /> 
+          <Save size={20} />
           <span>{isSubmitting ? 'Saving...' : 'Save & Publish Exam'}</span>
         </button>
       </div>

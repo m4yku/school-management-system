@@ -54,7 +54,7 @@ export const ActivitySkeletonList = ({ themeColor }) => (
         border-radius: 8px;
       }
     `}</style>
-    
+
     {[1, 2].map(group => (
       <div key={group} className="mb-2">
         <div className="flex justify-between items-center border-b pb-3 mb-4" style={{ borderColor: `${themeColor}30` }}>
@@ -90,7 +90,7 @@ export const TypeSelectorModal = ({ isOpen, onClose, onSelectBasic, onSelectExam
           </div>
           <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#1e293b', tracking: 'tight' }}>What to create?</h2>
           <p style={{ color: '#64748b', fontSize: '0.95rem', marginTop: '0.5rem', marginBottom: '2rem' }}>Select the type of activity you want to assign.</p>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <button className="type-card" onClick={onSelectBasic}>
               <div className="type-icon-wrapper" style={{ background: 'rgba(255,255,255,0.9)', color: '#475569', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}><Edit3 size={22} /></div>
@@ -111,8 +111,6 @@ export const TypeSelectorModal = ({ isOpen, onClose, onSelectBasic, onSelectExam
     </div>
   );
 };
-
-// ─── 4. CREATE ACTIVITY MODAL ────────────────────────────────────────────────
 export const CreateActivityModal = ({ isOpen, onClose, formData, setFormData, onSubmit, isSubmitting, selectedClass, modalCategories, isModalKto12, themeColor }) => {
   if (!isOpen) return null;
   const quarterColors = { 1: '#1e40af', 2: '#065f46', 3: '#92400e', 4: '#5b21b6' };
@@ -120,8 +118,8 @@ export const CreateActivityModal = ({ isOpen, onClose, formData, setFormData, on
 
   return (
     <div className="glass-overlay" onClick={onClose}>
-      <div className="glass-modal" style={{ maxWidth: '600px', padding: 0 }} onClick={e => e.stopPropagation()}>
-        
+      <div className="glass-modal" style={{ maxWidth: '650px', padding: 0 }} onClick={e => e.stopPropagation()}>
+
         {/* HEADER */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem 2rem', background: `linear-gradient(to right, rgba(255,255,255,0.7), ${themeColor}15)`, borderBottom: '1px solid rgba(255,255,255,0.6)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -133,11 +131,11 @@ export const CreateActivityModal = ({ isOpen, onClose, formData, setFormData, on
 
         {/* FORM BODY */}
         <form onSubmit={onSubmit} style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'rgba(248,250,252,0.4)' }}>
-          
+
           {/* Class & Quarter Info */}
           <div style={{ display: 'grid', gridTemplateColumns: isModalKto12 ? '1fr 1fr' : '1fr', gap: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
             <div>
-              <label className="glass-label"><School size={12} style={{ display: 'inline', marginRight: '4px' }}/> Assigned Class</label>
+              <label className="glass-label"><School size={12} style={{ display: 'inline', marginRight: '4px' }} /> Assigned Class</label>
               <div style={{ padding: '0.85rem 1rem', background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: '0.75rem', fontFamily: 'inherit', fontSize: '0.95rem', color: '#1e293b', fontWeight: 700, boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.01)' }}>
                 {selectedClass ? `${selectedClass.subject_description} - ${selectedClass.section_name || selectedClass.section}` : 'Loading details...'}
               </div>
@@ -168,16 +166,18 @@ export const CreateActivityModal = ({ isOpen, onClose, formData, setFormData, on
                 <input required type="text" className="glass-input-modern" placeholder="e.g. Chapter 1 Essay" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
               </div>
             </div>
+
             <div className="glass-input-group">
-              <label className="glass-label">Grading Category</label>
+              <label className="glass-label">Type / Category</label>
               <select required className="glass-input-modern" style={{ paddingLeft: '1rem' }} value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
                 <option value="" disabled>Select...</option>
-                {modalCategories.filter(cat => cat.key !== 'performance').map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
+                {modalCategories.filter(cat => cat.key !== 'performance' && cat.key !== 'exam').map(cat => <option key={cat.key} value={cat.key}>{cat.label}</option>)}
+                <option value="submission">Submission Only</option>
               </select>
             </div>
           </div>
 
-          {/* Points & Date */}
+          {/* 🔴 SETTINGS PANEL: Max Score & Due Date (2 columns, NO Timer for basic activities) */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
             <div className="glass-input-group">
               <label className="glass-label">Max Score</label>
@@ -185,17 +185,30 @@ export const CreateActivityModal = ({ isOpen, onClose, formData, setFormData, on
                 <input required type="number" min="1" className="glass-input-modern" placeholder="100" value={formData.max_score} onChange={e => setFormData({ ...formData, max_score: e.target.value })} />
               </div>
             </div>
+
             <div className="glass-input-group">
-              <label className="glass-label">Due Date <span style={{fontWeight: 400, textTransform: 'none', color: '#94a3b8'}}>(Optional)</span></label>
+              <label className="glass-label">Due Date & Time <span style={{ fontWeight: 400, textTransform: 'none', color: '#94a3b8' }}>(Optional)</span></label>
               <div className="input-with-icon"><Calendar size={18} className="input-icon" />
-                <input type="date" className="glass-input-modern" value={formData.due_date} onChange={e => setFormData({ ...formData, due_date: e.target.value })} />
+                <input type="datetime-local" className="glass-input-modern" value={formData.due_date || ''} onChange={e => setFormData({ ...formData, due_date: e.target.value })} />
               </div>
             </div>
           </div>
 
+          {/* 🔴 Toggles for Late Submissions & Email */}
+          <div style={{ display: 'flex', gap: '2rem', padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.6)', borderRadius: '0.75rem', border: '1px solid rgba(0,0,0,0.05)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+              <input type="checkbox" checked={formData.allow_late || false} onChange={e => setFormData({ ...formData, allow_late: e.target.checked })} style={{ width: '16px', height: '16px', accentColor: themeColor }} />
+              Allow Late Submissions
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+              <input type="checkbox" checked={formData.notify_email ?? true} onChange={e => setFormData({ ...formData, notify_email: e.target.checked })} style={{ width: '16px', height: '16px', accentColor: themeColor }} />
+              Send Email Notification
+            </label>
+          </div>
+
           {/* Instructions */}
           <div className="glass-input-group">
-            <label className="glass-label">Instructions <span style={{fontWeight: 400, textTransform: 'none', color: '#94a3b8'}}>(Optional)</span></label>
+            <label className="glass-label">Instructions <span style={{ fontWeight: 400, textTransform: 'none', color: '#94a3b8' }}>(Optional)</span></label>
             <div className="input-with-icon align-top">
               <AlignLeft size={18} className="input-icon" style={{ top: '1rem' }} />
               <textarea className="glass-input-modern" placeholder="Enter specific instructions for the students..." value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ minHeight: '90px', resize: 'vertical' }} />
@@ -206,7 +219,7 @@ export const CreateActivityModal = ({ isOpen, onClose, formData, setFormData, on
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
             <button type="button" onClick={onClose} style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.9)', color: '#64748b', fontWeight: 700, padding: '0.75rem 1.5rem', borderRadius: '0.75rem', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0,0,0,0.02)', transition: 'all 0.2s' }}>Cancel</button>
             <button type="submit" disabled={isSubmitting} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: themeColor, color: 'white', border: 'none', fontWeight: 700, padding: '0.75rem 2rem', borderRadius: '0.75rem', cursor: isSubmitting ? 'not-allowed' : 'pointer', boxShadow: `0 4px 15px ${themeColor}40`, transition: 'all 0.2s' }}>
-              {isSubmitting ? 'Saving...' : <><CheckCircle size={18}/> Save Activity</>}
+              {isSubmitting ? 'Saving...' : <><CheckCircle size={18} /> Save Activity</>}
             </button>
           </div>
 
